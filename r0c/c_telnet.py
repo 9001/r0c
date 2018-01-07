@@ -11,8 +11,7 @@ import struct
 import time
 import sys
 
-from .chat import *
-from .util import *
+from .util   import *
 from .c_vt100 import *
 
 PY2 = (sys.version_info[0] == 2)
@@ -131,6 +130,7 @@ class TelnetHost(asyncore.dispatcher):
 		self.con(' ++', addr, len(self.clients) + 1)
 		user = User(self.world, addr)
 		remote = TelnetClient(self, socket, addr, self.world, user)
+		user.post_init()
 		self.world.add_user(user)
 		self.clients.append(remote)
 	
@@ -154,18 +154,6 @@ class TelnetClient(Client):
 		config += b'\xff\xfb\x01'  # will echo
 		config += b'\xff\xfd\x1f'  # do naws
 		self.replies.put(config)
-
-		#cfg_thr = threading.Thread(target=self.do_config)
-		#cfg_thr.daemon = True
-		#cfg_thr.start()
-
-	def do_config(self):
-		time.sleep(1)
-		config =  b'\xff\xfe\x22'  # don't linemode
-		try:
-			self.replies.put(config)
-		except:
-			pass
 
 	def handle_read(self):
 		with self.mutex:

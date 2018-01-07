@@ -32,13 +32,17 @@ class UChannel(object):
 		self.last_draw = None   # last time this channel was sent
 		self.hilights = False
 		self.activity = False
-		self.scroll_pos = None  # locked to bottom, otherwise ts of top msg
-		self.car_im = None      # first visible message, int
-		self.car_ts = None      # first visible message, timestamp
-		self.car_lv = None      # first visible message, num lines
-		self.cdr_im = None      # last visible message, int
-		self.cdr_ts = None      # last visible message, timestamp
-		self.cdr_lv = None      # last visible message, num lines
+		self.lock_to_bottom = True
+		self.vis = []           # visible messages
+
+
+
+class VisMessage(object):
+	def __init__(self, msg, txt, im, nv):
+		self.msg = msg          # the message object
+		self.txt = txt          # the formatted text
+		self.im = im            # offset into the channel's message list
+		self.nv = nv            # number of visible lines
 
 
 
@@ -96,9 +100,9 @@ class User(object):
 		if not self.nick:
 			raise RuntimeError("out of legit nicknames")
 
+	def post_init(self):
 		# create status channel
 		# 
-		nchan = NChannel('r0c-status', 'r0c readme (and status info)')
 		text = u"""
 	\033[1;31m╔═══════════════════╗    \033[0m
 \033[1;33m(o─═╣\033[22m r e t r \033[1m0\033[22m c h a t \033[1m╠═─o)\033[0m
@@ -140,11 +144,19 @@ Keybinds:
 #Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 #Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum.
 
+		nchan = NChannel('r0c-status', 'r0c readme (and status info)')
+
 		for line in text.splitlines():
 			msg = Message('-info-', nchan, time.time(), line)
 			nchan.msgs.append(msg)
 
-		self.world.join_chan(self, nchan)
+		self.world.join_chan_obj(self, nchan)
+		
+		nchan = self.world.join_chan(self, 'general').nchan
+		for n in range(1,200):
+			txt = u'{0}: {1} EOL'.format(
+				n, u', {0}_'.format(n).join(str(v) for v in range(1, min(8, n))))
+			self.world.send_chan_msg(self.nick, nchan, txt)
 
 
 
@@ -158,18 +170,10 @@ class World(object):
 		with self.mutex:
 			self.users.append(user)
 
-	def add_chan(self, nchan, user):
-		with self.mutex:
-			for ch in self.nchans:
-				if ch.name == nchan.name:
-					raise RuntimeError('add_chan already exists')
-			self.nchans.append(nchan)
-			join_chan(user, nchan)
-
 	def refresh_chan(self, nchan):
 		for uchan in nchan.uchans:
 			if uchan.user.active_chan == uchan:
-				with uchan.user.mutex:
+				with uchan.user.client.mutex:
 					uchan.user.refresh()
 
 	def send_chan_msg(self, from_nick, nchan, text):
@@ -179,7 +183,7 @@ class World(object):
 			nchan.latest = msg.ts
 			self.refresh_chan(nchan)
 
-	def join_chan(self, user, nchan):
+	def join_chan_obj(self, user, nchan):
 		with self.mutex:
 			uchan = UChannel(user, nchan)
 			user.chans.append(uchan)
@@ -187,12 +191,28 @@ class World(object):
 			user.new_active_chan = uchan
 			self.send_chan_msg('--', nchan,
 				'\033[32m{0} has joined\033[0m'.format(user.nick))
+			return uchan
+
+	def get_nchan(self, name):
+		for ch in self.nchans:
+			if ch.name == name:
+				return ch
+		return None
+
+	def join_chan(self, user, name):
+		with self.mutex:
+			nchan = self.get_nchan(name)
+			if nchan is None:
+				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
+				self.nchans.append(nchan)
+			
+			return self.join_chan_obj(user, nchan)
 
 	def part_chan(self, uchan):
 		with self.mutex:
 			user = uchan.user
 			nchan = uchan.nchan
-			with user.mutex:
+			with user.client.mutex:
 				i = None
 				if user.active_chan == uchan:
 					i = user.chans.index(uchan)

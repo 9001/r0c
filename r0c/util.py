@@ -60,12 +60,14 @@ def hexdump(pk, prefix=''):
 
 
 
+azAZ = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
 def trunc(txt, maxlen):
 	clen = 0
 	ret = u''
 	pend = None
 	counting = True
-	az = 'abcdefghijklmnopqrstuvwxyz'
+	eoc = azAZ
 	for ch in txt:
 		
 		# escape sequences can never contain ESC;
@@ -78,7 +80,7 @@ def trunc(txt, maxlen):
 		
 		if not counting:
 			ret += ch
-			if ch in az:
+			if ch in eoc:
 				counting = True
 		else:
 			if pend:
@@ -107,7 +109,7 @@ def visual_length(txt):
 	clen = 0
 	pend = None
 	counting = True
-	az = 'abcdefghijklmnopqrstuvwxyz'
+	eoc = azAZ
 	for ch in txt:
 		
 		# escape sequences can never contain ESC;
@@ -118,7 +120,7 @@ def visual_length(txt):
 			pend = None
 		
 		if not counting:
-			if ch in az:
+			if ch in eoc:
 				counting = True
 		else:
 			if pend:
