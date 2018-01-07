@@ -1,0 +1,24 @@
+{
+	"build_systems":
+	[
+		{
+			"file_regex": "^[ ]*File \"(...*?)\", line ([0-9]*)",
+			"name": "Anaconda Python Builder",
+			"selector": "source.python",
+			"shell_cmd": "\"C:/Users/ed/AppData/Local/Programs/Python/Python36/python.exe\" -u \"$file\""
+		}
+	],
+	"folders":
+	[
+		{
+			"path": "."
+		}
+	],
+	"settings":
+	{
+		"anaconda_linting": false,
+		"anaconda_linting_behaviour": "always",
+		"python_interpreter": "C:/Users/ed/AppData/Local/Programs/Python/Python36/python.exe",
+		"validate_imports": true
+	}
+}
