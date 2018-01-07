@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',

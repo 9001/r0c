@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -57,6 +58,8 @@ def hexdump(pk, prefix=''):
 			hexlen = 0
 			ascstr = ''
 
+
+
 def trunc(txt, maxlen):
 	clen = 0
 	ret = u''
@@ -64,6 +67,15 @@ def trunc(txt, maxlen):
 	counting = True
 	az = 'abcdefghijklmnopqrstuvwxyz'
 	for ch in txt:
+		
+		# escape sequences can never contain ESC;
+		# treat pend as regular text if so
+		if ch == u'\033' and pend:
+			clen += len(pend)
+			ret += pend
+			counting = True
+			pend = None
+		
 		if not counting:
 			ret += ch
 			if ch in az:
@@ -87,6 +99,42 @@ def trunc(txt, maxlen):
 		if clen >= maxlen:
 			return ret
 	return ret
+
+
+
+# adapted from trunc
+def visual_length(txt):
+	clen = 0
+	pend = None
+	counting = True
+	az = 'abcdefghijklmnopqrstuvwxyz'
+	for ch in txt:
+		
+		# escape sequences can never contain ESC;
+		# treat pend as regular text if so
+		if ch == u'\033' and pend:
+			clen += len(pend)
+			counting = True
+			pend = None
+		
+		if not counting:
+			if ch in az:
+				counting = True
+		else:
+			if pend:
+				pend += ch
+				if pend.startswith(u'\033['):
+					counting = False
+				else:
+					clen += len(pend)
+					counting = True
+				pend = None
+			else:
+				if ch == u'\033':
+					pend = u'{0}'.format(ch)
+				else:
+					clen += 1
+	return clen
 
 
 

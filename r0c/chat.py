@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -14,11 +15,11 @@ PY2 = (sys.version_info[0] == 2)
 
 
 class NChannel(object):
-	def __init__(self, name):
+	def __init__(self, name, topic):
 		self.uchans = []       # UChannel instances
 		self.msgs = []         # messages
-		self.topic = u''
-		self.name = u''
+		self.name = name
+		self.topic = topic
 
 
 
@@ -97,45 +98,50 @@ class User(object):
 
 		# create status channel
 		# 
-		nchan = NChannel('r0c-status')
-		nchan.topic = 'r0c readme (and status info)'
-		text = """
-Welcome to retr0chat
+		nchan = NChannel('r0c-status', 'r0c readme (and status info)')
+		text = u"""
+	\033[1;31m╔═══════════════════╗    \033[0m
+\033[1;33m(o─═╣\033[22m r e t r \033[1m0\033[22m c h a t \033[1m╠═─o)\033[0m
+	\033[1;32m╚═══════════════════╝    \033[0m
 
 Text formatting:
-  CTRL-O  reset text formatting
-  CTRL-B  bold/bright text on/off
-  CTRL-C  followed by a color code:
-	   1  \033[31mred\033[0m
-	   2  \033[32mgreen\033[0m
-	   3  \033[33myellow\033[0m
-	   4  \033[34mblue\033[0m
-	   5  \033[35mpurple\033[0m
-	   6  \033[36mcyan\033[0m
-	   7  \033[37mwhite\033[0m
-	 3,4  \033[1;33;44myellow on blue\033[0m
+  \033[36mCTRL-O\033[0m  reset text formatting
+  \033[36mCTRL-B\033[0m  bold/bright text on/off
+  \033[36mCTRL-C\033[0m  followed by a colour code:
+	   \033[36m2\033[0m  \033[32mgreen\033[0m,
+	 \033[36m3,1\033[0m  \033[33;41myellow on red\033[0m --
+		  say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
-  CTRL-Z  jump to previous channel
-  CTRL-X  jump to next channel
-  /3      go to channel 3
-  /0      go to this channel
+  \033[36mCTRL-Z\033[0m  jump to previous channel
+  \033[36mCTRL-X\033[0m  jump to next channel
+  \033[36m/3\033[0m      go to channel 3
+  \033[36m/0\033[0m      go to this channel
 
 Creating or joining the "general" chatroom:
-  /join #general
+  \033[36m/join #general\033[0m
 
 Leaving a chatroom:
-  /part #some_room
+  \033[36m/part #some_room\033[0m
 
 Changing your nickname:
-  /nick new_name
+  \033[36m/nick new_name\033[0m
 
-if your terminal is blocking the CTRL key,
-press ESC followed by the 2nd key instead
+Keybinds:
+  \033[36mUp\033[0m / \033[36mDown\033[0m       sent message history
+  \033[36mLeft\033[0m / \033[36mRight\033[0m    input field traversing
+  \033[36mHome\033[0m / \033[36mEnd\033[0m      input field jump
+  \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
 """
+
+#  >> if your terminal is blocking the CTRL key,
+#  >> press ESC followed by the 2nd key instead
+#Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+#Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum.
+
 		for line in text.splitlines():
-			msg = Message('sys', nchan, time.time(), line)
+			msg = Message('-info-', nchan, time.time(), line)
 			nchan.msgs.append(msg)
 
 		self.world.join_chan(self, nchan)
@@ -179,7 +185,7 @@ class World(object):
 			user.chans.append(uchan)
 			nchan.uchans.append(uchan)
 			user.new_active_chan = uchan
-			self.send_chan_msg(user.nick, nchan,
+			self.send_chan_msg('--', nchan,
 				'\033[32m{0} has joined\033[0m'.format(user.nick))
 
 	def part_chan(self, uchan):

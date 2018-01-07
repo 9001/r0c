@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -10,6 +11,7 @@ import sys
 
 from .config import *
 from .util import *
+from .unrag import *
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -163,7 +165,7 @@ class Client(asyncore.dispatcher):
 
 	def update_status_bar(self, full_redraw):
 		preface = u'\033[{0}H\033[0;37;44;48;5;235m'.format(self.h-1)
-		hhmmss = datetime.datetime.utcnow().strftime('%H:%M:%S')
+		hhmmss = datetime.datetime.utcnow().strftime('%H%M%S')
 		nChan = self.user.chans.index(self.user.active_chan)
 		nChans = len(self.user.chans)
 		nUsers = len(self.user.active_chan.nchan.uchans)
@@ -182,8 +184,8 @@ class Client(asyncore.dispatcher):
 		if activity:
 			activity = u'\033[1;32ma {0}\033[22;39m'.format(','.join(activity))
 		
-		line = trunc(u'{0}{1}   {2} #{3}   {4}   {5}\033[K'.format(
-			preface, hhmmss, nChan, chan_name, hilights, activity, nUsers), self.w)
+		line = trunc(u'{0}{1}   {2}: #{3}   {4}   {5}\033[K'.format(
+			preface, hhmmss, nChan, chan_name, hilights or '', activity or '', nUsers), self.w)
 		
 		if full_redraw:
 			if self.screen[self.h-2] != line:
@@ -228,31 +230,82 @@ class Client(asyncore.dispatcher):
 			self.screen[self.h-1] = line
 			return u'\033[{0}H{1}\033[K'.format(self.h, line)
 		return u''
-
+	
+	def msg2ansi(self, msg, ts, msg_fmt, msg_nl, msg_w, nick_w):
+		if msg.text.startswith(u' '):
+			txt = msg.text.splitlines()
+			for n in range(len(txt)):
+				txt[n] = trunc(txt[n], msg_w)
+		else:
+			txt = unrag(msg.text, msg_w) or [' ']
+		
+		for n in range(len(txt)):
+			if n == 0:
+				txt[n] = msg_fmt.format(ts, msg.user[:nick_w], txt[n])
+			else:
+				txt[n] = msg_nl + txt[n]
+		
+		return txt
+	
 	def update_chat_view(self, full_redraw):
 		ret = u''
 		ch = self.user.active_chan
 		nch = ch.nchan
-		msg_fmt = '{0} {1:12} {2}'
-		msg_nl = '\n' + ' ' * 20
+		
+		if self.w >= 140:
+			nick_w = 18
+			msg_w = self.w - 28
+			msg_nl = u' ' * 28
+			msg_fmt = u'{0}  {1:18} {2}'
+			ts_fmt = '%H:%M:%S'
+		elif self.w >= 100:
+			nick_w = 14
+			msg_w = self.w - 24
+			msg_nl = u' ' * 24
+			msg_fmt = u'{0}  {1:14} {2}'
+			ts_fmt = '%H:%M:%S'
+		elif self.w >= 80:
+			nick_w = 12
+			msg_w = self.w - 20
+			msg_nl = u' ' * 20
+			msg_fmt = u'{0} {1:12} {2}'
+			ts_fmt = '%H%M%S'
+		elif self.w >= 60:
+			nick_w = 8
+			msg_w = self.w - 15
+			msg_nl = u' ' * 15
+			msg_fmt = u'{0} {1:8} {2}'
+			ts_fmt = '%H:%M'
+		else:
+			nick_w = 8
+			msg_w = self.w - 9
+			msg_nl = u' ' * 9
+			msg_fmt = u'{1:8} {2}'
+			ts_fmt = '%H%M'
+		
 		if full_redraw:
 			lines = []
 			if ch.scroll_pos is None:
 				# lock to bottom: last message will be added first
 				# and will always be partially visible
 				imsg = len(nch.msgs) - 1
-				print('printing from msg {0}'.format(imsg))
 				lines_left = self.h - 3
 				ch.cdr_im = imsg
 				ch.cdr_ts = nch.msgs[imsg].ts
 				ch.cdr_lv = None  # set in loop below
 				while imsg >= 0:
 					msg = nch.msgs[imsg]
-					ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime('%H%M%S')
-					# unrag here
-					txt = msg.text.replace('\n', msg_nl).splitlines() or [' ']
-					txt[0] = msg_fmt.format(
-						ts, msg.user[:12], txt[0])
+					reset_color = u'\033' in msg.text
+					ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
+					
+					txt = self.msg2ansi(msg, ts, msg_fmt, msg_nl, msg_w, nick_w)
+					
+					# this is dumb
+					txt.reverse()
+						
+					if reset_color:
+						txt[0] += u'\033[0m'
+					
 					n_vis = len(txt)
 					if n_vis >= lines_left:
 						n_vis = lines_left
