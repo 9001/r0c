@@ -22,6 +22,7 @@ if PY2:
 else:
 	from queue import Queue
 
+
 class VT100_Client(asyncore.dispatcher):
 	
 	def __init__(self, host, socket, address, world, user):
@@ -39,7 +40,6 @@ class VT100_Client(asyncore.dispatcher):
 		self.no_vt100 = False  # set true by buffy clients
 		self.echo_on = False   # set true by butty clients
 		self.slowmo_tx = SLOW_MOTION_TX
-		self.codec = 'cp437'
 		self.codec = 'utf-8'
 
 		# outgoing data
@@ -238,7 +238,7 @@ class VT100_Client(asyncore.dispatcher):
 			if to_send or cursor_moved:
 				to_send += u'\033[{0};{1}H'.format(self.h - self.y_input,
 					len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
-				self.say(to_send.encode(CODEC))
+				self.say(to_send.encode(self.codec, 'backslashreplace'))
 
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
@@ -892,7 +892,7 @@ to accept and continue, press A&lm
 
 
 		if self.wizard_stage == 'linemode_warn':
-			if u'a' in self.in_text or u'A' in self.in_text:
+			if u'a' in self.in_text.lower():
 				self.wizard_stage = 'color'
 
 
@@ -911,7 +911,7 @@ press Y or N&lm
 		if self.wizard_stage == 'color_answer':
 			
 			if u'y' in self.in_text.lower():
-				self.wizard_stage = 'end'
+				self.wizard_stage = 'codec'
 				self.in_text = u''
 			
 			elif u'n' in self.in_text.lower():
@@ -935,7 +935,7 @@ press A or B&lm
 		if self.wizard_stage == 'vt100':
 			if u'a' in self.in_text.lower():
 				# vt100 itself is probably fine, don't care
-				self.wizard_stage = 'end'
+				self.wizard_stage = 'codec'
 				self.in_text = u''
 
 			elif u'b' in self.in_text.lower():
@@ -955,27 +955,69 @@ to accept and continue, press A&lm
 
 		if self.wizard_stage == 'vt100_warn':
 			if u'a' in self.in_text.lower():
-				self.wizard_stage = 'end'
+				self.wizard_stage = 'codec'
 				self.in_text = u''
 
 
 		if self.wizard_stage == 'codec':
 			self.wizard_stage = 'codec_answer'
 			self.in_text = u''
-			hmr = u"├┐ ┌┬┐ ┌ "
+			hmr = u"├┐ ┌┬┐ ┌  æ ø å"
+			part1 = u"""
+which line below reads "hmr"?
+
+  A:   """
+			part2 = u"""
+
+  B:   """
+			part3 = u"""
+
+  C:   """
+			part4 = u"""
+
+  D:   none of the above
+
+press A/B/C/D&lm
+"""
+
+			
+			
+			enc_err = '<codec not available>'.encode('utf-8')
+
+			try:    enca = hmr.encode('utf-8', 'backslashreplace')
+			except: enca = enc_err
+
+			try:    encb = hmr.encode('cp437', 'backslashreplace')
+			except: encb = enc_err
+
+			try:    encc = hmr.encode('shift_jis', 'backslashreplace')
+			except: encc = enc_err
 
 			self.say(
 				(sep + part1).replace(u'\n', u'\r\n').encode('utf-8') +
-				hmr.encode('utf-8') +
+				enca +
 				part2.replace(u'\n', u'\r\n').encode('utf-8') +
-				hmr.encode('cp437') +
-				part3.replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+				encb +
+				part3.replace(u'\n', u'\r\n').encode('utf-8') +
+				encc +
+				part4.replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 
 			return
 
 
 		if self.wizard_stage == 'codec_answer':
 			self.wizard_stage = 'end'
+			if u'a' in self.in_text.lower():
+				self.codec = 'utf-8'
+			elif u'b' in self.in_text.lower():
+				self.codec = 'cp437'
+			elif u'c' in self.in_text.lower():
+				self.codec = 'shift_jis'
+			elif u'd' in self.in_text.lower():
+				self.codec = 'ascii'
+			else:
+				self.wizard_stage = 'codec_answer'
+
 
 		if self.wizard_stage == 'end':
 			self.wizard_stage = None
@@ -1039,7 +1081,7 @@ to accept and continue, press A&lm
 				plain = u''
 				for pch in aside:
 					nch = ord(pch)
-					if nch < 0x20 or (nch >= 0x80 and nch < 0x100):
+					if nch < 0x20 or (self.codec == 'utf-8' and nch >= 0x80 and nch < 0x100):
 						print('substituting non-printable \\x{0:02x}'.format(nch))
 						plain += '?'
 					else:
@@ -1170,7 +1212,7 @@ to accept and continue, press A&lm
 			y += 1
 			print('2smol @ {0} {1}'.format(x, y))
 			msg = u'\033[H\033[1;37;41m\033[J\033[{0};{1}H{2}\033[0m'.format(y,x,msg)
-			self.say(msg.encode(CODEC))
+			self.say(msg.encode(self.codec, 'backslashreplace'))
 			return
 
 		with self.mutex:

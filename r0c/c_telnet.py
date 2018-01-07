@@ -198,6 +198,7 @@ class TelnetClient(VT100_Client):
 		self.replies.put(initial_neg)
 
 	def handle_read(self):
+		print('using codec {0}'.format(self.codec))
 		with self.mutex:
 			data = self.recv(MSG_LEN)
 			if not data:
@@ -215,7 +216,10 @@ class TelnetClient(VT100_Client):
 				len_at_start = len(self.in_bytes)
 				
 				try:
-					src = u'{0}'.format(self.in_bytes.decode('utf-8'))
+					src = u'{0}'.format(self.in_bytes.decode(self.codec))
+					#print('got {0} no prob'.format(src))
+					#print('got {0} runes: {1}'.format(len(src),
+					#	b2hex(src.encode('utf-8'))))
 					self.in_bytes = self.in_bytes[0:0]
 				
 				except UnicodeDecodeError as uee:
@@ -224,7 +228,7 @@ class TelnetClient(VT100_Client):
 					if len(self.in_bytes) > uee.start and self.in_bytes[uee.start] == xff:
 						
 						# it is, keep the text before it
-						src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8'))
+						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec))
 						self.in_bytes = self.in_bytes[uee.start:]
 
 					elif len(self.in_bytes) < uee.start + 6:
@@ -239,7 +243,7 @@ class TelnetClient(VT100_Client):
 						# it can't be helped
 						print('warning: unparseable data:')
 						hexdump(self.in_bytes, 'XXX ')
-						src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8', 'backslashreplace'))
+						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec, 'backslashreplace'))
 						self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
 				
 				#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]
