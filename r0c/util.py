@@ -7,7 +7,7 @@ import threading
 import time
 import sys
 
-from config import *
+from .config import *
 
 PY2 = (sys.version_info[0] == 2)
 

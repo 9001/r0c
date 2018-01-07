@@ -8,8 +8,8 @@ import asyncore
 import datetime
 import sys
 
-from config import *
-from util import *
+from .config import *
+from .util import *
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -132,10 +132,21 @@ class Client(asyncore.dispatcher):
 				full_redraw = True
 			
 			to_send = u''
-			to_send += self.update_top_bar(full_redraw)
+			fix_color = False
+
 			to_send += self.update_chat_view(full_redraw)
+			if to_send:
+				full_redraw = True
+
+			to_send += self.update_top_bar(full_redraw)
 			to_send += self.update_status_bar(full_redraw)
+			if to_send:
+				fix_color = True
+
 			to_send += self.update_text_input(full_redraw)
+			if '\033[' in self.linebuf or fix_color:
+				to_send += '\033[0m'
+			
 			if to_send or cursor_moved:
 				to_send += u'\033[{0};{1}H'.format(self.h, len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
 				self.say(to_send.encode('utf-8'))
@@ -222,20 +233,26 @@ class Client(asyncore.dispatcher):
 		ret = u''
 		ch = self.user.active_chan
 		nch = ch.nchan
+		msg_fmt = '{0} {1:12} {2}'
+		msg_nl = '\n' + ' ' * 20
 		if full_redraw:
 			lines = []
 			if ch.scroll_pos is None:
 				# lock to bottom: last message will be added first
 				# and will always be partially visible
 				imsg = len(nch.msgs) - 1
+				print('printing from msg {0}'.format(imsg))
 				lines_left = self.h - 3
 				ch.cdr_im = imsg
 				ch.cdr_ts = nch.msgs[imsg].ts
 				ch.cdr_lv = None  # set in loop below
 				while imsg >= 0:
-					txt = nch.msgs[imsg]
+					msg = nch.msgs[imsg]
+					ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime('%H%M%S')
 					# unrag here
-					txt = ['{0} {1} {2}'.format(txt)]
+					txt = msg.text.replace('\n', msg_nl).splitlines() or [' ']
+					txt[0] = msg_fmt.format(
+						ts, msg.user[:12], txt[0])
 					n_vis = len(txt)
 					if n_vis >= lines_left:
 						n_vis = lines_left
@@ -243,26 +260,27 @@ class Client(asyncore.dispatcher):
 						ch.car_ts = nch.msgs[imsg]
 						ch.car_lv = n_vis
 					
-					if ch.cdr.lv is None:
-						ch.cdr.lv = n_vis
+					for ln in txt[-n_vis:]:
+						lines.append(ln)
+					
+					if ch.cdr_lv is None:
+						ch.cdr_lv = n_vis
 					
 					imsg -= 1
 					lines_left -= n_vis
 					if lines_left <= 0:
 						break
+
+					#print('+= {0}'.format(txt))
 				
+			lines.reverse()
 			while len(lines) < self.h - 3:
 				lines.append('--')
 			
-			self.screen = self.screen[:1] + lines + self.screen[-2:]
-		for n in range(self.h - 3):
-			line = u'{0}<{1:-4d}>{2}<>'.format(
-				u'\033[0m' if n==0 else '',
-				n + 1, '*' * (self.w - 8))
-			
-			if self.screen[n+1] != line:
-				self.screen[n+1] = line
-				ret += u'\033[{0}H{1}'.format(n+2, self.screen[n+1])
+			for n in range(self.h - 3):
+				if self.screen[n+1] != lines[n]:
+					self.screen[n+1] = lines[n]
+					ret += u'\033[{0}H{1}\033[K'.format(n+2, self.screen[n+1])
 		return ret
 
 	def dummy_update_chat_view(self, full_redraw):

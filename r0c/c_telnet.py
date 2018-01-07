@@ -10,9 +10,9 @@ import struct
 import time
 import sys
 
-from chat import *
-from util import *
-from c_vt100 import *
+from .chat import *
+from .util import *
+from .c_vt100 import *
 
 PY2 = (sys.version_info[0] == 2)
 

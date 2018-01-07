@@ -7,7 +7,7 @@ import hashlib
 import base64
 import threading
 
-from util import *
+from .util import *
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -113,7 +113,7 @@ Text formatting:
 	   5  \033[35mpurple\033[0m
 	   6  \033[36mcyan\033[0m
 	   7  \033[37mwhite\033[0m
-	 3,4  \033[33;43myellow on blue\033[0m
+	 3,4  \033[1;33;44myellow on blue\033[0m
 
 Switching channels:
   CTRL-Z  jump to previous channel
@@ -132,9 +132,10 @@ Changing your nickname:
 
 if your terminal is blocking the CTRL key,
 press ESC followed by the 2nd key instead
+
 """
 		for line in text.splitlines():
-			msg = Message('sys', nchan, None, line)
+			msg = Message('sys', nchan, time.time(), line)
 			nchan.msgs.append(msg)
 
 		self.world.join_chan(self, nchan)
@@ -179,7 +180,7 @@ class World(object):
 			nchan.uchans.append(uchan)
 			user.new_active_chan = uchan
 			self.send_chan_msg(user.nick, nchan,
-				'{0} has joined'.format(user.nick))
+				'\033[32m{0} has joined\033[0m'.format(user.nick))
 
 	def part_chan(self, uchan):
 		with self.mutex:
