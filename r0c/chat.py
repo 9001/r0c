@@ -24,9 +24,10 @@ class NChannel(object):
 
 
 class UChannel(object):
-	def __init__(self, user, nchan):
+	def __init__(self, user, nchan, alias=None):
 		self.user = user        # the user which this object belongs to
 		self.nchan = nchan      # the NChannel object
+		self.alias = alias      # local channel name (private)
 		self.last_ts = None     # last time the user viewed this channel
 		self.last_hl = None     # last hilight
 		self.last_draw = None   # last time this channel was sent
@@ -135,27 +136,38 @@ Changing your nickname:
   \033[36m/nick new_name\033[0m
 
 Keybinds:
-  \033[36mUp\033[0m / \033[36mDown\033[0m       sent message history
+  \033[36mUp\033[0m / \033[36mDown\033[0m       input history
   \033[36mLeft\033[0m / \033[36mRight\033[0m    input field traversing
   \033[36mHome\033[0m / \033[36mEnd\033[0m      input field jump
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
 """
 
+# cp437 box æøå
+#\xc9\xcd\xcd\xcd\xcd\xcd\xbb
+#\xba \x91\x94\x86 \xba
+#\xc8\xcd\xcd\xcd\xcd\xcd\xbc
+
 #  >> if your terminal is blocking the CTRL key,
 #  >> press ESC followed by the 2nd key instead
 #Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
 #Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum.
 
-		nchan = NChannel('r0c-status', 'r0c readme (and status info)')
+
+		uchan = self.world.join_priv_chan(self, 'r0c-status')
+		nchan = uchan.nchan
+		nchan.topic = 'r0c readme (and status info)'
 
 		for line in text.splitlines():
 			msg = Message('-info-', nchan, time.time(), line)
 			nchan.msgs.append(msg)
 
-		self.world.join_chan_obj(self, nchan)
+		self.new_active_chan = uchan
 		
-		nchan = self.world.join_chan(self, 'general').nchan
+
+
+		uchan = self.world.join_pub_chan(self, 'general')
+		nchan = uchan.nchan
 		for n in range(1,200):
 			#txt = u'{0:03}_{1} EOL'.format(
 			#	n, u'_dsfarg, {0:03}_'.format(n).join(
@@ -167,10 +179,100 @@ Keybinds:
 
 
 
+		uchan = self.world.join_pub_chan(self, 'smalltalk')
+		nchan = uchan.nchan
+		for n in range(1,3):
+			txt = u'  message {0}\n      mes {0}'.format(n)
+			self.world.send_chan_msg(self.nick, nchan, txt)
+
+
+
+	def exec_cmd(self, cmd_str):
+		inf = self.world.get_priv_chan(self, 'r0c-status').nchan
+		
+		if cmd_str.startswith('me '):
+
+			self.world.send_chan_msg('*', self.active_chan.nchan, '{0} {1}'.format(self.nick, cmd_str[3:]))
+
+
+
+		elif cmd_str.startswith('join '):
+
+			chan_name = cmd_str.split(' ')
+			if len(chan_name) != 2:
+				self.world.send_chan_msg('-err-', inf, """  
+[invalid arguments]
+  usage:     /join  #channel_name
+  example:   /join  #general""")
+				return
+			
+			chan_name = chan_name[1]
+			if not chan_name.startswith('#'):
+				self.world.send_chan_msg('-err-', inf, """  
+[error]
+  illegal channel name:  {0}
+  channel names must start with #""".format(chan_name))
+				return
+
+			nchan = self.world.join_pub_chan(self, chan_name[1:]).nchan
+
+
+
+		elif cmd_str.startswith('msg '):
+
+			cmd_str = cmd_str[4:]
+			args = cmd_str.split(' ')
+
+			target = None
+			if len(args >= 2):
+				target = args[0]
+				cmd_str = cmd_str[len(target)+1:]
+
+			if not target or not cmd_str:
+				self.world.send_chan_msg('-err-', inf, """  
+[invalid arguments]
+  usage:     /msg   nickname   your message text
+  example:   /msg   ed   hello world""")
+				return
+
+			found = None
+			for usr in self.world.users:
+				if usr.nick == target:
+					found = usr
+					break
+
+			if not found:
+				self.world.send_chan_msg('-err-', inf, """  
+[user not found]
+  "{0}" is not online""".format(target))
+				return
+
+			self.world.join_priv_chan(self, target)
+
+
+
+		else:
+
+			self.world.send_chan_msg('-err-', inf, """  
+invalid command:  /{0}
+  if you meant to send that as a message,
+  escape the leading "/" by adding another "/" """.format(cmd_str))
+
+
+
+
+
+
+
+
+
+
+
 class World(object):
 	def __init__(self):
 		self.users = []      # User instances
-		self.nchans = []     # NChannel instances
+		self.pubchans = []   # NChannel instances (public)
+		self.privchans = []  # NChannel instances (private)
 		self.mutex = threading.RLock()
 
 	def add_user(self, user):
@@ -186,35 +288,71 @@ class World(object):
 
 	def send_chan_msg(self, from_nick, nchan, text):
 		with self.mutex:
+			if nchan.name is None and not from_nick.startswith('-'):
+				# private chan, check if we have anyone to send to
+				if len(nchan.uchans) == 1:
+					if nchan.uchans[0].alias == 'r0c-status':
+						if nchan.uchans[0].user.nick == from_nick:
+							self.send_chan_msg('-err-', nchan, '  \nthis buffer does not accept messages, only commands')
+							return
+					
+					else:
+						print('[', nchan.uchans[0].alias, ']')
+						# private chat without the other user added yet;
+						# pull in the other user
+						self.send_chan_msg('-info-', nchan,
+							'searching for user "{0}"'.format(nchan.uchans[0].alias))
+						
+						# TODO
+						return
+
 			msg = Message(from_nick, nchan, time.time(), text)
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
 			self.refresh_chan(nchan)
 
-	def join_chan_obj(self, user, nchan):
+	def join_chan_obj(self, user, nchan, alias=None):
 		with self.mutex:
 			uchan = UChannel(user, nchan)
 			user.chans.append(uchan)
 			nchan.uchans.append(uchan)
-			user.new_active_chan = uchan
 			self.send_chan_msg('--', nchan,
 				'\033[32m{0} has joined\033[0m'.format(user.nick))
 			return uchan
 
-	def get_nchan(self, name):
-		for ch in self.nchans:
+	def get_pub_chan(self, name):
+		for ch in self.pubchans:
 			if ch.name == name:
 				return ch
 		return None
 
-	def join_chan(self, user, name):
+	def get_priv_chan(self, user, alias):
+		for ch in user.chans:
+			if ch.alias == alias:
+				return ch
+		return None
+
+	def join_pub_chan(self, user, name):
 		with self.mutex:
-			nchan = self.get_nchan(name)
-			if nchan is None:
+			chan = self.get_pub_chan(name)
+			if chan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
-				self.nchans.append(nchan)
+				self.pubchans.append(nchan)
 			
-			return self.join_chan_obj(user, nchan)
+			ret = self.join_chan_obj(user, nchan)
+			user.new_active_chan = ret
+			return ret
+
+	def join_priv_chan(self, user, alias):
+		with self.mutex:
+			chan = self.get_priv_chan(user, alias)
+			if chan is None:
+				nchan = NChannel(None, 'DM with [[uch_a]]')
+				self.privchans.append(nchan)
+			
+			ret = self.join_chan_obj(user, nchan)
+			ret.alias = alias
+			return ret
 
 	def part_chan(self, uchan):
 		with self.mutex:
@@ -232,5 +370,5 @@ class World(object):
 					user.new_active_chan = user.chans[i]
 				del uchan
 
-			send_chan_msg(user.nick, nchan,
+			self.send_chan_msg(user.nick, nchan,
 				'{0} has left'.format(user.nick))

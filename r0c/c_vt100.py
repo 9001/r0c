@@ -211,12 +211,18 @@ class VT100_Client(asyncore.dispatcher):
 			
 			if to_send or cursor_moved:
 				to_send += u'\033[{0};{1}H'.format(self.h, len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
-				self.say(to_send.encode('utf-8'))
+				#self.say(to_send.encode('utf-8'))
+				self.say(to_send.encode('cp437'))
 
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
-		top_bar = u'\033[1H\033[44;48;5;235;38;5;220m{0}\033[K'.format(
-			self.user.active_chan.nchan.topic)
+		uchan = self.user.active_chan
+		nchan = uchan.nchan
+		topic = nchan.topic
+		if nchan.name is None:
+			topic = topic.replace('[[uch_a]]', uchan.alias)
+
+		top_bar = u'\033[1H\033[44;48;5;235;38;5;220m{0}\033[K'.format(topic)
 		
 		if self.screen[0] != top_bar:
 			self.screen[0] = top_bar
@@ -226,10 +232,13 @@ class VT100_Client(asyncore.dispatcher):
 	def update_status_bar(self, full_redraw):
 		preface = u'\033[{0}H\033[0;37;44;48;5;235m'.format(self.h-1)
 		hhmmss = datetime.datetime.utcnow().strftime('%H%M%S')
-		nChan = self.user.chans.index(self.user.active_chan)
-		nChans = len(self.user.chans)
-		nUsers = len(self.user.active_chan.nchan.uchans)
+		uchan = self.user.active_chan
+		nbuf  = self.user.chans.index(uchan)
+		nchan = uchan.nchan
 		chan_name = self.user.active_chan.nchan.name
+		if chan_name is None:
+			# private chat
+			chan_name = self.user.active_chan.alias
 		
 		hilights = []
 		activity = []
@@ -240,12 +249,18 @@ class VT100_Client(asyncore.dispatcher):
 				activity.append(i)
 		
 		if hilights:
-			hilights = u'\033[1;33mh {0}\033[22;39m'.format(','.join(hilights))
-		if activity:
-			activity = u'\033[1;32ma {0}\033[22;39m'.format(','.join(activity))
+			hilights = u'   \033[1;33mh {0}\033[22;39m'.format(','.join(hilights))
 		
-		line = trunc(u'{0}{1}   {2}: #{3}   {4}   {5}\033[K'.format(
-			preface, hhmmss, nChan, chan_name, hilights or '', activity or '', nUsers), self.w)
+		if activity:
+			activity = u'   \033[1;32ma {0}\033[22;39m'.format(','.join(activity))
+		
+		offscreen = None
+		if not uchan.lock_to_bottom and uchan.vis[-1].im < len(nchan.msgs):
+			offscreen = u'  \033[1;36m+{0}\033[22;39m'.format(
+				len(nchan.msgs) - uchan.vis[-1].im)
+
+		line = trunc(u'{0}{1}   {2}: #{3}{4}{5}{6}\033[K'.format(
+			preface, hhmmss, nbuf, chan_name, offscreen or '', hilights or '', activity or '', len(nchan.uchans)), self.w)
 		
 		if full_redraw:
 			if self.screen[self.h-2] != line:
@@ -293,7 +308,7 @@ class VT100_Client(asyncore.dispatcher):
 	
 	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
-		if msg.txt.startswith(u' '):
+		if msg.txt.startswith(u'  '):
 			txt = msg.txt.splitlines()
 			for n in range(len(txt)):
 				txt[n] = trunc(txt[n], msg_w)
@@ -399,22 +414,52 @@ class VT100_Client(asyncore.dispatcher):
 			else:
 				# fixed scroll position:
 				# oldest/top message will be added first
-				imsg = ch.vis[0].im
+				top_msg = ch.vis[0]
+				imsg = top_msg.im
 				ch.vis = []
 				for n, msg in enumerate(nch.msgs[ imsg : imsg + self.h-3 ]):
 					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
-					n_vis = len(txt)
-					car = 0
-					cdr = n_vis
-					if n_vis >= lines_left:
-						n_vis = lines_left
+					#if top_msg is not None:
+						# we can keep the exact scroll position
+						# as long as the top message has the exact
+						# same layout as when it was last displayed
+						
+						#if len(top_msg.txt) == len(txt):
+						#	for n, ln in enumerate(txt):
+						#		if top_msg.txt[n] != ln:
+						#			top_msg = None
+						#			break
+
+					# actually this test is probably accurate enough
+					# and still passes chrome changes (padding etc)
+					if (top_msg is not None and
+						len(top_msg.txt) == len(txt)):
+
+						car = top_msg.car
+						cdr = top_msg.cdr
+						n_vis = cdr - car
+						top_msg = None
+						if n_vis > lines_left:
+							delta = lines_left - n_vis
+							n_vis -= delta
+							cdr -= delta
+
+					else:
+						# not top message,
+						# or no previous top message to compare,
+						# or layout changed
+						n_vis = len(txt)
+						car = 0
 						cdr = n_vis
+						if n_vis > lines_left:
+							n_vis = lines_left
+							cdr = n_vis
 					
 					ch.vis.append(
 						VisMessage(msg, txt, imsg, car, cdr))
 					
-					for ln in txt[:cdr]:
+					for ln in txt[car:cdr]:
 						lines.append(ln)
 					
 					imsg += 1
@@ -423,7 +468,7 @@ class VT100_Client(asyncore.dispatcher):
 						break
 			
 			while len(lines) < self.h - 3:
-				lines.append('--')
+				lines.append('</>')
 			
 			for n in range(self.h - 3):
 				if self.screen[n+1] != lines[n]:
@@ -437,6 +482,10 @@ class VT100_Client(asyncore.dispatcher):
 			t_steps = self.scroll_cmd   # total number of scroll steps
 			n_steps = 0                 # number of scroll steps performed
 			self.scroll_cmd = None
+
+			lines_in_use = 0
+			for msg in ch.vis:
+				lines_in_use += msg.cdr - msg.car
 			
 			if t_steps:
 				#print('@@@ have scroll steps')
@@ -493,7 +542,7 @@ class VT100_Client(asyncore.dispatcher):
 						ref.im, 0, ref.cdr-ref.car)
 					ch.vis[0] = partial_old
 
-					if True:
+					if False:
 						print('@@@ slicing len({0}) car,cdr({1},{2}) into nlen({3})+olen({4}), ncar,ncdr({5},{6})? ocar,ocdr({7},{8})'.format(
 							len(partial_org.txt), partial_org.car, partial_org.cdr,
 							len(partial), len(partial_old.txt),
@@ -512,7 +561,7 @@ class VT100_Client(asyncore.dispatcher):
 						ref.im, 0, ref.cdr-ref.car)
 					ch.vis[-1] = partial_old
 
-					if True:
+					if False:
 						print('@@@ slicing len({0}) car,cdr({1},{2}) into olen({3})+nlen({4}), ocar,ocdr({5},{6}) ncar,ncdr({7},{8})?'.format(
 							len(partial_org.txt), partial_org.car, partial_org.cdr,
 							len(partial_old.txt), len(partial),
@@ -562,9 +611,13 @@ class VT100_Client(asyncore.dispatcher):
 				# write lines to send buffer
 				n_vis = 0
 				for ln in txt_order:
-					print(u'@@@ vis{0:2} stp{1:2} += {2}'.format(n_vis, n_steps, ln))
+					#print(u'@@@ vis{0:2} stp{1:2} += {2}'.format(n_vis, n_steps, ln))
 
-					if t_steps > 0:
+					if lines_in_use < self.h - 3:
+						ret += u'\033[{0}H{1}\033[K'.format(lines_in_use + 2, ln)
+						lines_in_use += 1
+
+					elif t_steps > 0:
 						# official way according to docs,
 						# doesn't work on windows
 						#ret += u'\033[{0}H\033[S{1}\033[K'.format(self.h - 2, ln)
@@ -593,7 +646,7 @@ class VT100_Client(asyncore.dispatcher):
 					new_cdr = n_vis
 
 				vmsg = VisMessage(msg, txt, imsg, new_car, new_cdr)
-				print('@@@ vismsg len({0}) car,cdr({1},{2}) -- {3}'.format(len(txt), new_car, new_cdr, txt[0][-30:]))
+				#print('@@@ vismsg len({0}) car,cdr({1},{2}) -- {3}'.format(len(txt), new_car, new_cdr, txt[0][-30:]))
 
 				if t_steps < 0:
 					ch.vis.insert(0, vmsg)
@@ -651,7 +704,7 @@ class VT100_Client(asyncore.dispatcher):
 					if t_steps < 0:
 						partial_new.cdr += partial_old.cdr
 					else:
-						if True:
+						if False:
 							print('@@@ merging old({0},{1}) new({2},{3}) olen({4}) org({5},{6})'.format(
 								partial_old.car, partial_old.cdr,
 								partial_new.car, partial_new.cdr,
@@ -675,6 +728,9 @@ class VT100_Client(asyncore.dispatcher):
 
 					#print('@@@ 2 {0}'.format(ln))
 			
+			while len(new_screen) < self.h - 2:
+				new_screen.append('</>')
+
 			new_screen.append(self.screen[-2])
 			new_screen.append(self.screen[-1])
 			old_screen = self.screen
@@ -694,15 +750,7 @@ class VT100_Client(asyncore.dispatcher):
 		
 		return ret
 
-	def exec_cmd(self, cmd_str):
-		if cmd_str.startswith('join'):
-			chan_name = cmd_str.split(' ')
-			if len(chan_name) != 2:
-				# TODO: send to r0c-status
-				# make function to get that chan?
-				print('bad chan name')
-			chan_name = chan_name[1]
-			nchan = self.world.join_chan(self.user, chan_name).nchan
+
 
 	def read_cb(self, full_redraw):
 		# only called by (telnet|netcat).py:handle_read,
@@ -787,14 +835,25 @@ class VT100_Client(asyncore.dispatcher):
 					if self.linepos > 0:
 						self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
 						self.linepos -= 1
-				elif act == 'ret':
+				elif act == 'ret' and self.linebuf:
+					
+					# add this to the message/command ("input") history
 					if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
 						self.msg_hist.append(self.linebuf)
-					if len(self.linebuf) > 2 and self.linebuf[0:1] == u'/' and self.linebuf[:2] != u'//':
-						self.exec_cmd(self.linebuf[1:])
+					
+					single = self.linebuf.startswith('/')
+					double = self.linebuf.startswith('//')
+					if single and not double:
+						# this is a command
+						self.user.exec_cmd(self.linebuf[1:])
 					else:
+						if double:
+							# remove escape character
+							self.linebuf = self.linebuf[1:]
+						
 						self.world.send_chan_msg(
 							self.user.nick, self.user.active_chan.nchan, self.linebuf)
+
 					self.msg_hist_n = None
 					self.linebuf = u''
 					self.linepos = 0
