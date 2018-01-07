@@ -157,9 +157,12 @@ Keybinds:
 		
 		nchan = self.world.join_chan(self, 'general').nchan
 		for n in range(1,200):
-			txt = u'{0:03}_{1} EOL'.format(
-				n, u'_dsfarg, {0:03}_'.format(n).join(
-					str(v).rjust(3, '0') for v in range(1, min(48, n))))
+			#txt = u'{0:03}_{1} EOL'.format(
+			#	n, u'_dsfarg, {0:03}_'.format(n).join(
+			#		str(v).rjust(3, '0') for v in range(1, min(48, n))))
+			txt = u'{1}_{0:03}'.format(n,
+				u'_{0:03}     \\\\\\\\\n'.format(n).join(
+					str(v).rjust(v+4, ' ') for v in range(1, 12)))
 			self.world.send_chan_msg(self.nick, nchan, txt)
 
 
