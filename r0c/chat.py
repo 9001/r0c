@@ -196,9 +196,9 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 					#txt = u'{0:03}_{1} EOL'.format(
 					#	n, u'_dsfarg, {0:03}_'.format(n).join(
 					#		str(v).rjust(3, '0') for v in range(1, min(48, n))))
-					txt = u'{1}_{0:03}'.format(n,
+					txt = u'{1}_{0:03}     \\\\\\\\'.format(n,
 						u'_{0:03}     \\\\\\\\\n'.format(n).join(
-							str(v).rjust(v+4, ' ') for v in range(1, 12)))
+							str(v).rjust(v+4, ' ') for v in range(0, 12)))
 					self.world.send_chan_msg(self.nick, nchan, txt)
 
 		if False:
@@ -212,63 +212,77 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 	def exec_cmd(self, cmd_str):
 		inf = self.world.get_priv_chan(self, 'r0c-status').nchan
+		cmd = cmd_str # the command keyword
+		arg = None    # single argument with spaces
+		arg1 = None   # 1st of 2 arguments
+		arg2 = None   # 2nd of 2 arguments
 		
-		if cmd_str.startswith('me '):
+		ofs = cmd.find(' ')
+		if ofs > 0:
+			cmd = cmd_str[:ofs]
+			arg = cmd_str[ofs+1:]
+		cmd = cmd.lower()
 
-			self.world.send_chan_msg('***', self.active_chan.nchan, '\033[1m{0}\033[22m {1}'.format(self.nick, cmd_str[3:]))
+		if arg:
+			ofs = arg.find(' ')
+			if ofs > 0:
+				arg1 = arg[:ofs].lower()
+				arg2 = arg[ofs+1:]
 
+		if cmd == 'me':
+			self.world.send_chan_msg('***', self.active_chan.nchan,
+				'\033[1m{0}\033[22m {1}'.format(self.nick, arg))
 
-
-		elif cmd_str.startswith('nick'):
-
-			nick = cmd_str[5:].strip()
-			if not nick:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+		elif cmd == 'nick' or cmd == 'n':
+			if not arg:
+				self.world.send_chan_msg('-err-', inf, """[invalid argument]
   usage:     /nick  new_nickname
   example:   /nick  spartacus
 """)
 				return
 
-			if nick.startswith('-'):
-				self.world.send_chan_msg('-err-', inf, """nicks cannot start with "-" (dash)
+			if arg.startswith('-'):
+				self.world.send_chan_msg('-err-', inf, """[invalid argument]
+  nicks cannot start with "-" (dash)
 """)
 				return
 
-			if u' ' in nick or u'\t' in nick:
-				self.world.send_chan_msg('-err-', inf, """nicks cannot contain whitespace
+			if u' ' in arg or u'\t' in arg:
+				self.world.send_chan_msg('-err-', inf, """[invalid argument]
+  nicks cannot contain whitespace
 """)
 				return
 
 			other_user = None
 			with self.world.mutex:
 				for usr in self.world.users:
-					if usr.nick == nick:
+					if usr.nick == arg:
 						other_user = usr
 						break
 				
 				if other_user is not None:
-					self.world.send_chan_msg('-err-', inf, """that nick is taken
+					self.world.send_chan_msg('-err-', inf, """[invalid argument]
+  that nick is taken
 """)
 					return
 
 				for uchan in self.chans:
 					self.world.send_chan_msg('--', uchan.nchan,
-						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, nick))
+						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, arg))
 				
 				# update title in DM windows
 				for nchan in self.world.privchans:
 					for usr in nchan.uchans:
 						if usr.alias == self.nick:
-							usr.alias = nick
+							usr.alias = arg
 
-				self.nick = nick
+				self.nick = arg
 
 
 
-		elif cmd_str.startswith('topic'):
-			topic = cmd_str[6:].strip()
-			if not topic:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+		elif cmd == 'topic' or cmd == 't':
+			if not arg:
+				self.world.send_chan_msg('-err-', inf, """[invalid argument]
   usage:     /topic  the_new_topic
   example:   /topic  cooking recipes
 """)
@@ -277,51 +291,51 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			uchan = self.active_chan
 			nchan = uchan.nchan
 			if nchan in self.world.privchans:
-				self.world.send_chan_msg('-err-', inf, """cannot change the topic of private channels""")
+				self.world.send_chan_msg('-err-', inf, """[error]
+  cannot change the topic of private channels
+""")
 				return
 
 			old_topic = nchan.topic
-			nchan.topic = topic
+			nchan.topic = arg
 			self.world.send_chan_msg('--', nchan,
 				'\033[36m{0} has changed the topic from [\033[0m{1}\033[36m] -to-> [\033[0m{2}\033[36m]\033[0m'.format(
-				self.nick, old_topic, topic))
+				self.nick, old_topic, arg))
 
 
 
-		elif cmd_str.startswith('join'):
-
-			chan_name = cmd_str.split(' ')
-			if len(chan_name) != 2:
+		elif cmd == 'join' or cmd == 'j':
+			if not arg or len(arg) < 2:
 				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
   usage:     /join  #channel_name
   example:   /join  #general
 """)
 				return
 			
-			chan_name = chan_name[1]
-			if not chan_name.startswith('#'):
+			if not arg.startswith('#'):
 				self.world.send_chan_msg('-err-', inf, """[error]
   illegal channel name:  {0}
   channel names must start with #
-""".format(chan_name))
+""".format(arg))
 				return
 
-			nchan = self.world.join_pub_chan(self, chan_name[1:]).nchan
+			nchan = self.world.join_pub_chan(self, arg[1:]).nchan
 
 
 
-		elif cmd_str.startswith('msg'):
+		elif cmd == 'part' or cmd == 'p':
+			if self.active_chan.alias == 'r0c-status':
+				self.world.send_chan_msg('-err-', inf, """[error]
+  cannot part the status channel
+""".format(arg))
+				return
 
-			cmd_str = cmd_str[4:]
-			args = cmd_str.split(' ')
+			self.world.part_chan(self.active_chan)
 
-			target = None
-			msg = None
-			if len(args) >= 2:
-				target = args[0]
-				msg = cmd_str[len(target)+1:]
 
-			if not target or not msg:
+
+		elif cmd == 'msg' or cmd == 'm':
+			if not arg1 or not arg2:
 				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
   usage:     /msg   nickname   your message text
   example:   /msg   ed   hello world
@@ -330,35 +344,87 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 			found = None
 			for usr in self.world.users:
-				if usr.nick == target:
+				if usr.nick == arg1:
 					found = usr
 					break
 
 			if not found:
 				self.world.send_chan_msg('-err-', inf, """[user not found]
   "{0}" is not online
-""".format(target))
+""".format(arg1))
 				return
 
-			uchan = self.world.join_priv_chan(self, target)
+			uchan = self.world.join_priv_chan(self, arg1)
 			self.new_active_chan = uchan
-			self.world.send_chan_msg(self.nick, uchan.nchan, msg)
+			self.world.send_chan_msg(self.nick, uchan.nchan, arg2)
 
 
 
-		elif cmd_str == 'u':
+		elif cmd == 'up' or cmd == 'u':
 			self.client.scroll_cmd = -(self.client.h - 4)
-		elif cmd_str == 'd':
+		
+		elif cmd == 'down' or cmd == 'd':
 			self.client.scroll_cmd = +(self.client.h - 4)
-		elif cmd_str == 'n':
+		
+		elif cmd == 'latest' or cmd == 'l':
 			self.active_chan.lock_to_bottom = True
 			self.client.need_full_redraw = True
 			self.client.refresh(False)
 
 
 
-		else:
+		elif cmd == 'sw':
+			try: arg = int(arg)
+			except: pass
+			
+			if not arg:
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+  usage:     /sw  your_screen_width
+  example:   /sw  80
+""")
+				return
 
+			self.client.w = arg
+
+
+
+		elif cmd == 'sh':
+			try: arg = int(arg)
+			except: pass
+			
+			if not arg:
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+  usage:     /sh  your_screen_height
+  example:   /sh  24
+""")
+				return
+
+			self.client.h = arg
+
+
+
+		elif cmd == 'sd':
+			msg = "\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
+			visited = {}
+			for user in self.world.users:
+				for uchan in user.chans:
+					chan = uchan.nchan
+					if chan in visited:
+						continue
+					visited[chan] = 1
+					self.world.send_chan_msg('-err-', chan, msg)
+			
+			def killer():
+				time.sleep(0.5)
+				self.world.core.shutdown()
+			
+			thr = threading.Thread(target=killer)
+			thr.daemon = True
+			thr.start()
+
+
+
+		else:
 			self.world.send_chan_msg('-err-', inf, """invalid command:  /{0}
   if you meant to send that as a message,
   escape the leading "/" by adding another "/"
@@ -375,7 +441,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 class World(object):
-	def __init__(self):
+	def __init__(self, core):
+		self.core = core
 		self.users = []      # User instances
 		self.pubchans = []   # NChannel instances (public)
 		self.privchans = []  # NChannel instances (private)

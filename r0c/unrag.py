@@ -8,11 +8,12 @@ from .util import *
 
 
 
-# unrag() copied from  http://xxyxyz.org/line-breaking/
+# copied from  http://xxyxyz.org/line-breaking/
 #
-# license clarification pending
+# license clarified per email:
+#   BSD or MIT since the EU doesn't recognize Public Domain
 #
-# only change is replacing len() with visual_length()
+# only change so far is replacing len() with visual_length()
 
 def unrag(text, width):
 	words = text.split()

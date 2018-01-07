@@ -1,8 +1,5 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from __future__ import with_statement
-from __future__ import absolute_import
 
 
 
@@ -34,43 +31,117 @@ if __name__ != '__main__':
 	print('this is not a library')
 	sys.exit(1)
 
-if len(sys.argv) != 3:
-	print()
-	print('  need argument 1:  Telnet port  (or 0 to disable)')
-	print('  need argument 2:  NetCat port  (or 0 to disable)')
-	print()
-	print('  example:')
-	print('    {0} 23 531'.format(sys.argv[0]))
-	print()
-	sys.exit(1)
 
-telnet_port = int(sys.argv[1])
-netcat_port = int(sys.argv[2])
 
-print('  *  Telnet server on port', telnet_port)
-print('  *  NetCat server on port', netcat_port)
+class Core(object):
+	def __init__(self):
+		if len(sys.argv) != 3:
+			print()
+			print('  need argument 1:  Telnet port  (or 0 to disable)')
+			print('  need argument 2:  NetCat port  (or 0 to disable)')
+			print()
+			print('  example:')
+			print('    {0} 23 531'.format(sys.argv[0]))
+			print()
+			sys.exit(1)
 
-p = Printer()
+		self.telnet_port = int(sys.argv[1])
+		self.netcat_port = int(sys.argv[2])
 
-p.p('  *  Capturing ^C')
-signal.signal(signal.SIGINT, signal_handler)
+		print('  *  Telnet server on port ' + str(self.telnet_port))
+		print('  *  NetCat server on port ' + str(self.netcat_port))
 
-p.p('  *  Creating world')
-world = World()
+		self.stopped = False
+		self.stopping = False
+		self.pushthr_alive = False
+		self.asyncore_alive = False
 
-p.p('  *  Starting Telnet server')
-telnet_server = TelnetServer(p, '0.0.0.0', telnet_port, world)
+		self.p = Printer()
 
-p.p('  *  Starting NetCat server')
-netcat_server = NetcatServer(p, '0.0.0.0', netcat_port, world)
+		self.p.p('  *  Capturing ^C')
+		signal.signal(signal.SIGINT, self.signal_handler)
 
-p.p('  *  Starting push driver')
-push_thr = threading.Thread(target=push_worker, args=([telnet_server, netcat_server],))
-push_thr.daemon = True
-push_thr.start()
+		self.p.p('  *  Creating world')
+		self.world = World(self)
 
-p.p('  *  Running')
-asyncore.loop(0.05)
+		self.p.p('  *  Starting Telnet server')
+		self.telnet_server = TelnetServer(self.p, '0.0.0.0', self.telnet_port, self.world)
 
-print(" !!! whoops that's a crash")
-sys.exit(1)
+		self.p.p('  *  Starting NetCat server')
+		self.netcat_server = NetcatServer(self.p, '0.0.0.0', self.netcat_port, self.world)
+
+		self.p.p('  *  Starting push driver')
+		self.push_thr = threading.Thread(target=self.push_worker, args=([self.telnet_server, self.netcat_server],))
+		#self.push_thr.daemon = True
+		self.push_thr.start()
+
+		self.p.p('  *  Handover to asyncore')
+		self.asyncore_thr = threading.Thread(target=self.asyncore_worker)
+		self.asyncore_thr.start()
+
+
+	def run(self):
+		core.p.p('  *  r0c is up')
+		while not self.stopped:
+			time.sleep(0.1)
+		core.p.p('  *  bye')
+
+
+	def asyncore_worker(self):
+		self.asyncore_alive = True
+
+		timeout = 0.05
+		while not self.stopping:
+			asyncore.loop(timeout, count=0.5/timeout)
+
+		self.asyncore_alive = False
+
+
+	def push_worker(self, ifaces):
+		self.pushthr_alive = True
+
+		last_ts = None
+		while not self.stopping:
+			while True:
+				ts = time.time()
+				its = int(ts)
+				if its != last_ts:
+					last_ts = its
+					#print('=== {0}'.format(its))
+					break
+				if ts - its < 0.98:
+					#print(ts-its)
+					time.sleep((1-(ts-its))*0.9)
+				else:
+					time.sleep(0.01)
+
+			for iface in ifaces:
+				for client in iface.clients:
+					if not client.handshake_sz:
+						print('!!! push_worker without handshake_sz')
+					client.refresh(False)
+		
+		self.pushthr_alive = False
+
+
+	def shutdown(self):
+		self.stopping = True
+
+		self.p.p('  *  Stopping asyncore')
+		while self.asyncore_alive:
+			time.sleep(0.05)
+		
+		self.p.p('  *  Terminating asyncore')
+		self.netcat_server.close()
+		self.telnet_server.close()
+		
+		self.p.p('  *  r0c is down')
+		self.stopped = True
+
+
+	def signal_handler(self, signal, frame):
+		self.shutdown()
+
+
+core = Core()
+core.run()

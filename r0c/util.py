@@ -264,9 +264,3 @@ class Printer(object):
 			#	data += ' ' * 13
 			sys.stdout.write('{0}\n'.format(data))
 			#sys.stdout.flush()
-
-
-
-def signal_handler(signal, frame):
-	print('\n-(!) SHUTDOWN-')
-	sys.exit(0)

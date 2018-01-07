@@ -376,6 +376,11 @@ class VT100_Client(asyncore.dispatcher):
 			now = int(time.time())
 			if full_redraw or (now % 5 == 1) or ((hilights or activity) and now % 2 == 1):
 				return '\r{0}   {1}> '.format(strip_ansi(line), self.user.nick)
+				#pad_sz = len(self.user.nick) + 3
+				#return '\r{0}{1}\r{2}> '.format(
+				#	' '*pad_sz,
+				#	strip_ansi(line)[:self.w-pad_sz],
+				#	self.user.nick)
 			return u''
 
 		elif full_redraw:
@@ -462,6 +467,9 @@ class VT100_Client(asyncore.dispatcher):
 					elif msg.user == '-err-':
 						c1 = '\033[1;33m'
 						c2 = '\033[0m'
+					elif msg.user == '***':
+						c1 = '\033[36m'
+						c2 = '\033[0m'
 
 				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
 			else:
@@ -475,6 +483,8 @@ class VT100_Client(asyncore.dispatcher):
 		ret = u''
 		ch = self.user.active_chan
 		nch = ch.nchan
+
+		debug_scrolling = True
 
 		#if not self.vt100:
 		#	if self.scroll_cmd is not None:
@@ -665,11 +675,6 @@ class VT100_Client(asyncore.dispatcher):
 					#print('@@@ no new messages: {0}'.format(ch.vis[-1].txt[0][:40]))
 					return ret
 				
-				#print('@@@ len(nch) {0}, len(ch.vis) {1}, -1={2}, 0={3}'.format(
-				#	len(nch.msgs), len(ch.vis),
-				#	nch.msgs[-1] == ch.vis[-1].msg,
-				#	nch.msgs[-1] == ch.vis[0].msg))
-				
 				# push all new messages
 				t_steps = 99999999999
 			
@@ -698,6 +703,7 @@ class VT100_Client(asyncore.dispatcher):
 			if t_steps < 0:
 				ref = ch.vis[0]
 				if ref.car != 0:
+
 					partial = ref.txt[:ref.car]
 					partial_org = ref
 					partial_old = VisMessage(
@@ -705,7 +711,7 @@ class VT100_Client(asyncore.dispatcher):
 						ref.im, 0, ref.cdr-ref.car)
 					ch.vis[0] = partial_old
 
-					if False:
+					if debug_scrolling:
 						print('@@@ slicing len({0}) car,cdr({1},{2}) into nlen({3})+olen({4}), ncar,ncdr({5},{6})? ocar,ocdr({7},{8})'.format(
 							len(partial_org.txt), partial_org.car, partial_org.cdr,
 							len(partial), len(partial_old.txt),
@@ -717,6 +723,11 @@ class VT100_Client(asyncore.dispatcher):
 			else:
 				ref = ch.vis[-1]
 				if ref.cdr != len(ref.txt):
+					for n, ln in enumerate(ref.txt):
+						print('{0:2} {1} {2}'.format(n, ln,
+							'== car' if n == ref.car else \
+							'== cdr' if n == ref.cdr - 1 else ''))
+
 					partial = ref.txt[ref.cdr:]
 					partial_org = ref
 					partial_old = VisMessage(
@@ -724,7 +735,7 @@ class VT100_Client(asyncore.dispatcher):
 						ref.im, 0, ref.cdr-ref.car)
 					ch.vis[-1] = partial_old
 
-					if False:
+					if debug_scrolling:
 						print('@@@ slicing len({0}) car,cdr({1},{2}) into olen({3})+nlen({4}), ocar,ocdr({5},{6}) ncar,ncdr({7},{8})?'.format(
 							len(partial_org.txt), partial_org.car, partial_org.cdr,
 							len(partial_old.txt), len(partial),
@@ -740,7 +751,7 @@ class VT100_Client(asyncore.dispatcher):
 			else:
 				imsg = ch.vis[-1].im
 			
-			if False:
+			if debug_scrolling:
 				print('@@@ num chan messages {0}, num vis messages {1}, retained {2} = {3}'.format(
 					len(nch.msgs), len(ch.vis), imsg, nch.msgs[imsg].txt[:6]))
 				dbg = ''
@@ -873,7 +884,7 @@ class VT100_Client(asyncore.dispatcher):
 					if t_steps < 0:
 						partial_new.cdr += partial_old.cdr
 					else:
-						if False:
+						if debug_scrolling:
 							print('@@@ merging old({0},{1}) new({2},{3}) olen({4}) org({5},{6})'.format(
 								partial_old.car, partial_old.cdr,
 								partial_new.car, partial_new.cdr,
@@ -886,8 +897,14 @@ class VT100_Client(asyncore.dispatcher):
 						partial_new.car += partial_old.car
 						partial_new.cdr += partial_old.cdr
 
+						partial_new.car += partial_org.car
+						partial_new.cdr += partial_org.car
+
 				partial_new.txt = partial_org.txt
 				partial_new.msg = partial_org.msg
+
+				if debug_scrolling:
+					print('@@@ car,cdr ({0},{1})'.format(partial_new.car, partial_new.cdr))
 
 			# update the server-side screen buffer
 			new_screen = [self.screen[0]]
@@ -1153,7 +1170,7 @@ class VT100_Client(asyncore.dispatcher):
 			def u8(tx):
 				return tx.encode('utf-8', 'backslashreplace')
 
-			to_send = u8((ftop + u'\n which line looks like "hmr" or "dna"?\n').replace(u'\n', u'\r\n'))
+			to_send = u8((ftop + u'\n which line looks like  "hmr"  or  "dna" ?\n').replace(u'\n', u'\r\n'))
 
 			if not self.vt100:
 				for nth, (enc, uni) in enumerate(zip(encs[::2], encs[1::2])):
@@ -1399,25 +1416,3 @@ class VT100_Client(asyncore.dispatcher):
 				self.refresh(old_cursor != self.linepos)
 
 
-
-def push_worker(ifaces):
-	last_ts = None
-	while True:
-		while True:
-			ts = time.time()
-			its = int(ts)
-			if its != last_ts:
-				last_ts = its
-				#print('=== {0}'.format(its))
-				break
-			if ts - its < 0.98:
-				#print(ts-its)
-				time.sleep((1-(ts-its))*0.9)
-			else:
-				time.sleep(0.01)
-
-		for iface in ifaces:
-			for client in iface.clients:
-				if not client.handshake_sz:
-					print('!!! push_worker without handshake_sz')
-				client.refresh(False)
