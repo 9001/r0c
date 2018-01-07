@@ -7,6 +7,7 @@ if __name__ == '__main__':
 import traceback
 import threading
 import asyncore
+import socket
 import datetime
 import sys
 
@@ -23,6 +24,59 @@ else:
 	from queue import Queue
 
 
+class VT100_Server(asyncore.dispatcher):
+
+	def __init__(self, p, host, port, world):
+		asyncore.dispatcher.__init__(self)
+		self.p = p
+		self.world = world
+		self.clients = []
+		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+		if PY2:
+			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		else:
+			self.set_reuse_addr()
+		
+		self.bind((host, port))
+		self.listen(1)
+
+	def con(self, msg, adr, add=0):
+		self.p.p(' {0} {1}  {2}  {3} :{4}'.format(
+			msg, fmt(), len(self.clients)+add, adr[0], adr[1]))
+	
+	def gen_remote(self, socket, addr, user):
+		raise RuntimeError('inherit me')
+
+	def handle_accept(self):
+		socket, addr = self.accept()
+		self.con(' ++', addr, 1)
+		user = User(self.world, addr)
+		remote = self.gen_remote(socket, addr, user)
+		user.post_init(remote)
+		self.world.add_user(user)
+		self.clients.append(remote)
+		remote.handshake_world = True
+		remote.conf_wizard()
+	
+	def broadcast(self, message):
+		for client in self.clients:
+			client.say(message)
+	
+	def part(self, remote):
+		remote.dead = True
+		with self.world.mutex:
+			print('='*72)
+			traceback.print_stack()
+			print('='*72)
+			
+			remote.close()
+			self.con('  -', remote.addr, -1)
+			self.clients.remove(remote)
+			for uchan in list(remote.user.chans):
+				self.world.part_chan(uchan)
+
+
+
 class VT100_Client(asyncore.dispatcher):
 	
 	def __init__(self, host, socket, address, world, user):
@@ -32,13 +86,14 @@ class VT100_Client(asyncore.dispatcher):
 		self.socket = socket
 		self.world = world
 		self.user = user
+		self.dead = False      # set true at disconnect (how does asyncore work)
 
 		# config
 		self.y_input = 0       # offset from bottom of screen
 		self.y_status = 1      # offset from bottom of screen
 		self.linemode = False  # set true by buggy clients
-		self.vt100 = True      # set nope by buffy clients
-		self.echo_on = False   # set true by butty clients
+		self.echo_on = False   # set true by buffy clients
+		self.vt100 = True      # set nope by butty clients
 		self.slowmo_tx = SLOW_MOTION_TX
 		self.codec = 'utf-8'
 
@@ -65,9 +120,11 @@ class VT100_Client(asyncore.dispatcher):
 		# state registers
 		self.wizard_stage = 'start'
 		self.wizard_lastlen = 0
+		self.wizard_maxdelta = 0
 		self.handshake_sz = False
 		self.handshake_world = False
 		self.need_full_redraw = False
+		self.too_small = False
 		self.screen = []
 		self.w = 80
 		self.h = 24
@@ -105,12 +162,14 @@ class VT100_Client(asyncore.dispatcher):
 
 		# hotkeys
 		self.add_esc(u'\x12', 'redraw')
-		self.add_esc(u'\x1a', 'prev-chan')
+		self.add_esc(u'\x01', 'prev-chan')
 		self.add_esc(u'\x18', 'next-chan')
 
 		thr = threading.Thread(target=self.handshake_timeout)
 		thr.daemon = True
 		thr.start()
+
+
 
 	def handshake_timeout(self):
 		time.sleep(1)
@@ -145,11 +204,16 @@ class VT100_Client(asyncore.dispatcher):
 		#		return False
 		#	#print('ooo')
 		
-		return (
+		return not self.dead and (
 			self.backlog or
 			not self.replies.empty() or
 			not self.outbox.empty()
 		)
+
+	def handle_close(self):
+		self.host.part(self)
+
+
 
 	def handle_write(self):
 		if not self.writable():
@@ -187,34 +251,22 @@ class VT100_Client(asyncore.dispatcher):
 			self.backlog = msg[sent:]
 			#print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
 
+
+
 	def refresh(self, cursor_moved):
 		""" compose necessary ansi text and send to client """
 		with self.mutex and self.world.mutex:
-			if  not self.handshake_sz or \
+			if  self.too_small or \
+				not self.handshake_sz or \
 				not self.handshake_world or \
 				self.wizard_stage is not None:
-
-				#try:
-				#	raise RuntimeError('POSSIBLE BUG: attempting to refresh with handshakes sz:{0}, w:{1}'.format(
-				#		self.handshake_sz, self.handshake_world))
-				#except:
-				#	#exc = sys.exc_info()
-				#	#traceback.print_exception(*exc)
-				#	#del exc
-				#	
-				#	print(traceback.format_exc())
 				return
 
-			#self.say(u'\033[1;37;40m\033[H\033[K[ ├┐ ┌┬┐ ┌  æ ø å ]'.encode(self.codec, 'backslashreplace'))
-
-			full_redraw = self.need_full_redraw  # or not self.vt100
+			full_redraw = self.need_full_redraw
 			self.need_full_redraw = False
 
 			if not self.screen or len(self.screen) != self.h:
 				full_redraw = True
-
-			if full_redraw:
-				self.screen = ['x'] * self.h
 
 			if self.user.new_active_chan:
 				self.user.active_chan = self.user.new_active_chan
@@ -223,6 +275,11 @@ class VT100_Client(asyncore.dispatcher):
 			
 			to_send = u''
 			fix_color = False
+
+			if full_redraw:
+				self.screen = ['x'] * self.h
+				if not self.vt100:
+					to_send = u'\r\n' * self.h
 
 			to_send += self.update_chat_view(full_redraw)
 			if to_send:
@@ -238,13 +295,20 @@ class VT100_Client(asyncore.dispatcher):
 			if self.vt100:
 				to_send += self.update_text_input(full_redraw)
 
-			if '\033[' in self.linebuf or fix_color:
-				to_send += '\033[0m'
-			
-			if to_send or cursor_moved:
+				if '\033[' in self.linebuf or fix_color:
+					to_send += '\033[0m'
+				
+			#to_send += u'\033[10H' + u'qwertyuiopasdfghjklzxcvbnm'*3
+
+			if not self.vt100:
+				self.say(to_send.encode(self.codec, 'backslashreplace'))
+
+			elif to_send or cursor_moved:
 				to_send += u'\033[{0};{1}H'.format(self.h - self.y_input,
 					len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
 				self.say(to_send.encode(self.codec, 'backslashreplace'))
+
+
 
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
@@ -261,10 +325,17 @@ class VT100_Client(asyncore.dispatcher):
 			return trunc(top_bar, self.w)
 		return u''
 
+
+
 	def update_status_bar(self, full_redraw):
 		preface = u'\033[{0}H\033[0;37;44;48;5;235m'.format(self.h - self.y_status)
 		hhmmss = datetime.datetime.utcnow().strftime('%H%M%S')
 		uchan = self.user.active_chan
+		
+		#print('@@@ active chan = {0}, other chans {1}'.format(
+		#	self.user.active_chan.alias or self.user.active_chan.nchan.name,
+		#	u', '.join(x.alias or x.nchan.name for x in self.user.chans)))
+
 		nbuf  = self.user.chans.index(uchan)
 		nchan = uchan.nchan
 		chan_name = self.user.active_chan.nchan.name
@@ -301,10 +372,13 @@ class VT100_Client(asyncore.dispatcher):
 			activity or '',
 			len(nchan.uchans)), self.w)
 		
-		#if not self.vt100:
-		#
+		if not self.vt100:
+			now = int(time.time())
+			if full_redraw or (now % 5 == 1) or ((hilights or activity) and now % 2 == 1):
+				return '\r{0}   {1}> '.format(strip_ansi(line), self.user.nick)
+			return u''
 
-		if full_redraw:
+		elif full_redraw:
 			if self.screen[  self.h - (self.y_status + 1) ] != line:
 				self.screen[ self.h - (self.y_status + 1) ] = line
 				return trunc(line, self.w)
@@ -332,6 +406,8 @@ class VT100_Client(asyncore.dispatcher):
 
 		return u''
 	
+
+
 	def update_text_input(self, full_redraw):
 		msg_len = len(self.linebuf)
 		vis_text = self.linebuf
@@ -350,8 +426,18 @@ class VT100_Client(asyncore.dispatcher):
 			return u'\033[{0}H{1}\033[K'.format(self.h - self.y_input, line)
 		return u''
 	
+
+
 	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
+		
+		#if not self.vt100:
+		#	if u'\033' in msg.txt:
+		#		txt = strip_ansi(msg.txt)
+		#	else:
+		#		txt = msg.txt
+		#	return [u'\r{0} <{1}> {2}\n'.format(ts, msg.user, txt)]
+
 		if msg.txt.startswith(u'  ') or u'\n' in msg.txt:
 			txt = msg.txt.split('\n')  # splitlines removes trailing newline
 			for n in range(len(txt)):
@@ -359,26 +445,43 @@ class VT100_Client(asyncore.dispatcher):
 		else:
 			txt = unrag(msg.txt, msg_w) or [' ']
 		
-		for n in range(len(txt)):
-			if n == 0:
-				c2 = '\033[0m'
-				if msg.user == '-info-':
-					c1 = '\033[0;32m'
-				elif msg.user == '-err-':
-					c1 = '\033[1;33m'
+		for n, line in enumerate(txt):
+			if u'\033' in line:
+				if self.vt100:
+					line += u'\033[0m'
 				else:
-					c1 = ''
-					c2 = ''
-				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, txt[n])
+					line = strip_ansi(line)
+
+			if n == 0:
+				c1 = ''
+				c2 = ''
+				if self.vt100:
+					if msg.user == '-info-':
+						c1 = '\033[0;32m'
+						c2 = '\033[0m'
+					elif msg.user == '-err-':
+						c1 = '\033[1;33m'
+						c2 = '\033[0m'
+
+				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
 			else:
-				txt[n] = msg_nl + txt[n]
+				txt[n] = msg_nl + line
 		
 		return txt
 	
+
+
 	def update_chat_view(self, full_redraw):
 		ret = u''
 		ch = self.user.active_chan
 		nch = ch.nchan
+
+		#if not self.vt100:
+		#	if self.scroll_cmd is not None:
+		#		if self.scroll_cmd < 0:
+		#			#self.lock_to_bottom = False
+		#			# this doesn't work
+		#			full_redraw = True
 		
 		#print('\n@@@ update chat view @@@ {0}'.format(time.time()))
 		
@@ -413,8 +516,6 @@ class VT100_Client(asyncore.dispatcher):
 			msg_fmt = u'{1}{2:8}{3} {4}'
 			ts_fmt = '%H%M'
 		
-		#msg_w -= 1  # putty does not display the far right column ???
-
 		# first ensure our cache is sane
 		if not ch.vis or \
 			len(nch.msgs) <= ch.vis[0].im or \
@@ -519,13 +620,23 @@ class VT100_Client(asyncore.dispatcher):
 					if lines_left <= 0:
 						break
 			
+			if not self.vt100:
+				#ret = u'\r==========================\r\n'
+				#print(lines)
+				for ln in lines:
+					#print('sending {0} of {1}'.format(ln, len(lines)))
+					#if isinstance(lines, list):
+					#	print('lines is list')
+					ret += u'\r{0}{1}\r\n'.format(ln, ' '*((self.w-len(ln))-2))
+				return ret
+
 			while len(lines) < self.h - 3:
 				lines.append('--')
 			
 			for n in range(self.h - 3):
 				if self.screen[n+1] != lines[n]:
 					self.screen[n+1] = lines[n]
-					ret += u'\033[{0}H{1}\033[K'.format(n+2, self.screen[n+1])
+					ret += u'\033[{0}H\033[K{1}'.format(n+2, self.screen[n+1])
 		
 		else:
 			# full_redraw = False,
@@ -548,8 +659,6 @@ class VT100_Client(asyncore.dispatcher):
 					# fixed viewport
 					#print('@@@ not lock to bottom')
 					return ret
-
-# 94 41
 				
 				if nch.msgs[-1] == ch.vis[-1].msg:
 					# no new messages
@@ -574,7 +683,9 @@ class VT100_Client(asyncore.dispatcher):
 						print(ln)
 
 			# set scroll region:  chat pane
-			ret += u'\033[2;{0}r'.format(self.h - 2)
+			if self.vt100:
+				ret += u'\033[2;{0}r'.format(self.h - 2)
+
 			
 			# first / last visible message might have lines off-screen;
 			# check those first
@@ -665,25 +776,28 @@ class VT100_Client(asyncore.dispatcher):
 				for ln in txt_order:
 					#print(u'@@@ vis{0:2} stp{1:2} += {2}'.format(n_vis, n_steps, ln))
 
-					if lines_in_use < self.h - 3:
-						ret += u'\033[{0}H{1}\033[K'.format(lines_in_use + 2, ln)
+					if not self.vt100:
+						ret += u'\r{0}{1}\r\n'.format(ln, ' '*((self.w-len(ln))-2))
+
+					elif lines_in_use < self.h - 3:
+						ret += u'\033[{0}H\033[K{1}'.format(lines_in_use + 2, ln)
 						lines_in_use += 1
 
 					elif t_steps > 0:
 						# official way according to docs,
 						# doesn't work on windows
-						#ret += u'\033[{0}H\033[S{1}\033[K'.format(self.h - 2, ln)
+						#ret += u'\033[{0}H\033[S\033[K{1}'.format(self.h - 2, ln)
 						
 						# also works
-						ret += u'\033[{0}H\033D{1}\033[K'.format(self.h - 2, ln)
+						ret += u'\033[{0}H\033D\033[K{1}'.format(self.h - 2, ln)
 						
 					else:
 						# official way according to docs,
 						# doesn't work on inetutils-1.9.4
-						#ret += u'\033[2H\033[T{0}\033[K'.format(ln)
+						#ret += u'\033[2H\033[T\033[K{0}'.format(ln)
 						
 						# also works
-						ret += u'\033[2H\033M{0}\033[K'.format(ln)
+						ret += u'\033[2H\033M\033[K{0}'.format(ln)
 
 					n_vis += 1
 					n_steps += 1
@@ -710,7 +824,8 @@ class VT100_Client(asyncore.dispatcher):
 					partial_new = vmsg
 		
 			# release scroll region
-			ret += u'\033[r'
+			if self.vt100:
+				ret += u'\033[r'
 			
 			# trim away messages that went off-screen
 			if t_steps < 0:
@@ -802,6 +917,12 @@ class VT100_Client(asyncore.dispatcher):
 				for n, ln in enumerate(new_screen): print('new', ln, n)
 				time.sleep(100000)
 		
+			if not self.vt100:
+				if t_steps < 0:
+					# rely on vt100 code to determine the new display
+					# then retransmit the full display  (good enough)
+					return u'\r\n'*self.h + self.update_chat_view(True)
+
 		return ret
 
 
@@ -813,8 +934,8 @@ class VT100_Client(asyncore.dispatcher):
 			if u'\x03' in self.in_text:
 				sys.exit(0)
 
-		sep = u'{0}{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
-		ftop = u'\n'*12 + u'\033[H\033[J'
+		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
+		ftop = u'\n'*20 + u'\033[H\033[J'
 		top = ftop + ' [ r0c configurator ]\n'
 
 		if self.wizard_stage == 'start':
@@ -826,10 +947,13 @@ class VT100_Client(asyncore.dispatcher):
 	 qwer asdf
 
  """).replace(u"\n", u"\r\n").encode('utf-8'))
+#\033[10Hasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf
+
 			return
 
 
 		if self.wizard_stage == 'qwer_read':
+			nline = b'\x0d\x0a\x00'
 			btext = self.in_text.encode('utf-8')
 			delta = len(self.in_text) - self.wizard_lastlen
 			self.wizard_lastlen = len(self.in_text)
@@ -837,14 +961,40 @@ class VT100_Client(asyncore.dispatcher):
 				# acceptable if delta is exactly 2
 				# and the final characters are newline-ish
 				print('delta = {0}'.format(delta))
-				if delta > 2 or btext[-1] not in b'\x0d\x0a\x00':
+				if delta > 2 or btext[-1] not in nline:
+					if self.wizard_maxdelta < delta:
+						self.wizard_maxdelta = delta
+
+			#if any(ch in btext for ch in nline):
+			nl_a = next((i for i, ch in enumerate(btext) if ch in nline), None)
+			if nl_a is not None:
+				nl_b = next((i for i, ch in enumerate(reversed(btext)) if ch in nline), None)
+				if nl_b is not None:
+					etab = self.esc_tab.iteritems if PY2 else self.esc_tab.items
+					nl = btext[nl_a:len(btext)-nl_b]
+					drop = []
+					for key, value in etab():
+						if value == 'ret':
+							drop.append(key)
+					for key in drop:
+						del self.esc_tab[key]
+					self.esc_tab[nl.decode('utf-8')] = 'ret'
+					print('newline = {0}'.format(b2hex(nl)))
+
+				if self.wizard_maxdelta >= nl_a / 2:
 					self.linemode = True
 					print('setting linemode since d{0} and {1}ch; {2}'.format(
-						delta, len(self.in_text),
+						self.wizard_maxdelta, len(self.in_text),
 						b2hex(self.in_text.encode('utf-8'))))
 
-			if any(ch in btext for ch in b'\x0d\x0a\x00'):
 				self.wizard_stage = 'echo'
+				if self.in_text.startswith('wncat'):
+					self.linemode = True
+					self.echo_on = True
+					self.vt100 = False
+					self.codec = 'cp437'
+					self.wizard_stage = 'end'
+				#if self.in_text.startswith('no ansi'):
 
 			#print('now, last = {0}, {1}'.format(len(self.in_text), self.wizard_lastlen))
 			#if len(self.in_text) - self.wizard_lastlen > 1:
@@ -907,7 +1057,7 @@ class VT100_Client(asyncore.dispatcher):
    Mac OSX:  stty -f /dev/stdin -icanon
    Linux:    stty -icanon
 
- to accept and continue, press A&lm
+ press A to accept or Q to quit&lm
  """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 				return
 
@@ -915,8 +1065,11 @@ class VT100_Client(asyncore.dispatcher):
 
 
 		if self.wizard_stage == 'linemode_warn':
-			if u'a' in self.in_text.lower():
+			text = self.in_text.lower()
+			if u'a' in text:
 				self.wizard_stage = 'color'
+			elif u'q' in text:
+				self.host.part(self)
 
 
 		if self.wizard_stage == 'color':
@@ -971,17 +1124,23 @@ class VT100_Client(asyncore.dispatcher):
  WARNING:  
    your client or terminal is not vt100 compatible!
    I will reduce features to a bare minimum,
-   brace for a glitchy mess
+   but this is gonna be bad regardless
  
- to accept and continue, press A&lm
+   whenever the screen turns too glitchy
+   you can press CTRL-R and Enter to redraw
+ 
+ press A to accept or Q to quit&lm
  """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 				return
 
 
 		if self.wizard_stage == 'vt100_warn':
-			if u'a' in self.in_text.lower():
+			text = self.in_text.lower()
+			if u'a' in text:
 				self.wizard_stage = 'codec'
 				self.in_text = u''
+			elif u'q' in text:
+				self.host.part(self)
 
 
 		encs = [ 'utf-8',0,  'cp437',0,  'shift_jis',0,  'latin1',1,  'ascii',2 ]
@@ -1142,28 +1301,28 @@ class VT100_Client(asyncore.dispatcher):
 					if self.linepos > 0:
 						self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
 						self.linepos -= 1
-				elif act == 'ret' and self.linebuf:
-					
-					# add this to the message/command ("input") history
-					if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
-						self.msg_hist.append(self.linebuf)
-					
-					single = self.linebuf.startswith('/')
-					double = self.linebuf.startswith('//')
-					if single and not double:
-						# this is a command
-						self.user.exec_cmd(self.linebuf[1:])
-					else:
-						if double:
-							# remove escape character
-							self.linebuf = self.linebuf[1:]
+				elif act == 'ret':
+					if self.linebuf:
+						# add this to the message/command ("input") history
+						if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
+							self.msg_hist.append(self.linebuf)
 						
-						self.world.send_chan_msg(
-							self.user.nick, self.user.active_chan.nchan, self.linebuf)
+						single = self.linebuf.startswith('/')
+						double = self.linebuf.startswith('//')
+						if single and not double:
+							# this is a command
+							self.user.exec_cmd(self.linebuf[1:])
+						else:
+							if double:
+								# remove escape character
+								self.linebuf = self.linebuf[1:]
+							
+							self.world.send_chan_msg(
+								self.user.nick, self.user.active_chan.nchan, self.linebuf)
 
-					self.msg_hist_n = None
-					self.linebuf = u''
-					self.linepos = 0
+						self.msg_hist_n = None
+						self.linebuf = u''
+						self.linepos = 0
 				elif act == 'pgup':
 					self.scroll_cmd = -(self.h - 4)
 					#self.scroll_cmd = -10
@@ -1226,7 +1385,9 @@ class VT100_Client(asyncore.dispatcher):
 			print('2smol @ {0} {1}'.format(x, y))
 			msg = u'\033[H\033[1;37;41m\033[J\033[{0};{1}H{2}\033[0m'.format(y,x,msg)
 			self.say(msg.encode(self.codec, 'backslashreplace'))
+			self.too_small = True
 			return
+		self.too_small = False
 
 		with self.mutex:
 			if full_redraw or self.need_full_redraw:

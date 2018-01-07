@@ -105,7 +105,6 @@ def trunc(txt, maxlen):
 
 
 # adapted from trunc
-
 def strip_ansi(txt):
 	eoc = azAZ
 	ret = u''
@@ -121,7 +120,6 @@ def strip_ansi(txt):
 			pend = None
 		
 		if not counting:
-			ret += ch
 			if ch in eoc:
 				counting = True
 		else:
@@ -130,16 +128,14 @@ def strip_ansi(txt):
 				if pend.startswith(u'\033['):
 					counting = False
 				else:
-					clen += len(pend)
+					ret += pend
 					counting = True
-				ret += pend
 				pend = None
 			else:
 				if ch == u'\033':
 					pend = u'{0}'.format(ch)
 				else:
 					ret += ch
-					clen += 1
 	return ret
 
 
@@ -262,15 +258,12 @@ class Printer(object):
 	def __init__(self):
 		self.mutex = threading.Lock()
 	
-	def p(self, data, usercount=None):
+	def p(self, data):
 		with self.mutex:
-			if len(data) < 13:
-				data += ' ' * 13
-			if usercount:
-				sys.stdout.write('%s\n     %d users\r' % (data, usercount))
-			else:
-				sys.stdout.write('%s\n' % (data,))
-			sys.stdout.flush()
+			#if len(data) < 13:
+			#	data += ' ' * 13
+			sys.stdout.write('{0}\n'.format(data))
+			#sys.stdout.flush()
 
 
 

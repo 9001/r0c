@@ -59,13 +59,13 @@ p.p('  *  Creating world')
 world = World()
 
 p.p('  *  Starting Telnet server')
-telnet_host = TelnetHost(p, '0.0.0.0', telnet_port, world)
+telnet_server = TelnetServer(p, '0.0.0.0', telnet_port, world)
 
 p.p('  *  Starting NetCat server')
-netcat_host = NetcatHost(p, '0.0.0.0', netcat_port, world)
+netcat_server = NetcatServer(p, '0.0.0.0', netcat_port, world)
 
 p.p('  *  Starting push driver')
-push_thr = threading.Thread(target=push_worker, args=([telnet_host, netcat_host],))
+push_thr = threading.Thread(target=push_worker, args=([telnet_server, netcat_server],))
 push_thr.daemon = True
 push_thr.start()
 

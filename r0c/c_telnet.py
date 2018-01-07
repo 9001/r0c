@@ -5,7 +5,6 @@ if __name__ == '__main__':
 		'  run r0c.py instead'))
 
 import asyncore
-import socket
 import struct
 import sys
 
@@ -142,52 +141,13 @@ if not PY2:
 
 
 
-class TelnetHost(asyncore.dispatcher):
+class TelnetServer(VT100_Server):
 
 	def __init__(self, p, host, port, world):
-		asyncore.dispatcher.__init__(self)
-		self.p = p
-		self.world = world
-		self.clients = []
-		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-		if PY2:
-			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-		else:
-			self.set_reuse_addr()
-		
-		self.bind((host, port))
-		self.listen(1)
+		VT100_Server.__init__(self, p, host, port, world)
 
-	def con(self, msg, adr, cli=None):
-		if (cli is None):
-			cli = len(self.clients)
-		msg = ' %s %s - %s :%s' % (msg, fmt(), adr[0], adr[1])
-		self.p.p(msg, cli)
-	
-	def handle_accept(self):
-		socket, addr = self.accept()
-		self.con(' ++', addr, len(self.clients) + 1)
-		user = User(self.world, addr)
-		remote = TelnetClient(self, socket, addr, self.world, user)
-		user.post_init(remote)
-		self.world.add_user(user)
-		self.clients.append(remote)
-		remote.handshake_world = True
-		remote.conf_wizard()
-	
-	def broadcast(self, message):
-		for client in self.clients:
-			client.say(message)
-	
-	def part(self, remote):
-		self.clients.remove(remote)
-		#print('{0} was in {1} chans, {2}'.format(remote.user.nick, len(remote.user.chans), remote.user.chans[-1].alias or remote.user.chans[-1].nchan.name))
-		for uchan in list(remote.user.chans):
-			#print('leaving {0}'.format(uchan.alias or uchan.nchan.name))
-			self.world.part_chan(uchan)
-			#self.world.send_chan_msg('--', uchan.nchan, '\033[36m{0} has left\033[22m')
-		#self.broadcast('User disconnected: {0}'.format(remote.addr))
-		#self.con('  -', remote.addr)
+	def gen_remote(self, socket, addr, user):
+		return TelnetClient(self, socket, addr, self.world, user)
 
 
 
@@ -204,9 +164,14 @@ class TelnetClient(VT100_Client):
 
 	def handle_read(self):
 		with self.mutex:
+			if self.dead:
+				print('XXX reading when dead')
+				return
+
 			data = self.recv(MSG_LEN)
-			if not data:
+			if not data and not self.dead:
 				self.host.part(self)
+				return
 			
 			if HEXDUMP_IN:
 				hexdump(data, '-->>')

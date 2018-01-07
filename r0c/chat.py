@@ -127,13 +127,13 @@ Useful commands:
 Text formatting:
   \033[36mCTRL-O\033[0m  reset text formatting
   \033[36mCTRL-B\033[0m  bold/bright text on/off
-  \033[36mCTRL-C\033[0m  followed by a colour code:
+  \033[36mCTRL-K\033[0m  followed by a colour code:
 	   \033[36m2\033[0m  \033[32mgreen\033[0m,
 	 \033[36m3,1\033[0m  \033[33;41myellow on red\033[0m --
 		  say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
-  \033[36mCTRL-Z\033[0m  jump to previous channel
+  \033[36mCTRL-A\033[0m  jump to previous channel
   \033[36mCTRL-X\033[0m  jump to next channel
   \033[36m/3\033[0m      go to channel 3
   \033[36m/0\033[0m      go to this channel
@@ -253,7 +253,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 				for uchan in self.chans:
 					self.world.send_chan_msg('--', uchan.nchan,
-						'\033[36m"{0}" changed nick to "{1}"'.format(self.nick, nick))
+						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, nick))
 				
 				# update title in DM windows
 				for nchan in self.world.privchans:
@@ -346,6 +346,17 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd_str == 'u':
+			self.client.scroll_cmd = -(self.client.h - 4)
+		elif cmd_str == 'd':
+			self.client.scroll_cmd = +(self.client.h - 4)
+		elif cmd_str == 'n':
+			self.active_chan.lock_to_bottom = True
+			self.client.need_full_redraw = True
+			self.client.refresh(False)
+
+
+
 		else:
 
 			self.world.send_chan_msg('-err-', inf, """invalid command:  /{0}
@@ -422,10 +433,10 @@ class World(object):
 		with self.mutex:
 			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
-			print('@@@ user {0} chans {1}, {2}'.format(user.nick, len(user.chans), user.chans[-1].alias or user.chans[-1].nchan.name))
+			#print('@@@ user {0} chans {1}, {2}'.format(user.nick, len(user.chans), user.chans[-1].alias or user.chans[-1].nchan.name))
 			nchan.uchans.append(uchan)
 			self.send_chan_msg('--', nchan,
-				'\033[32m{0} has joined\033[0m'.format(user.nick))
+				'\033[1;32m{0}\033[22m has joined'.format(user.nick))
 			return uchan
 
 	def get_pub_chan(self, name):
@@ -478,4 +489,4 @@ class World(object):
 				del uchan
 
 			self.send_chan_msg('--', nchan,
-				'\033[33m{0} has left\033[0m'.format(user.nick))
+				'\033[1;33m{0}\033[22m has left'.format(user.nick))
