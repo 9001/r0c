@@ -141,6 +141,7 @@ Keybinds:
   \033[36mHome\033[0m / \033[36mEnd\033[0m      input field jump
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
+if you are using a mac, PgUp is fn-Shift-PgUp
 """
 
 # cp437 box æøå
@@ -150,9 +151,12 @@ Keybinds:
 
 #  >> if your terminal is blocking the CTRL key,
 #  >> press ESC followed by the 2nd key instead
-#Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-#Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum.
 
+		lipsum1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+		lipsum2 = "Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
+		for n in range(10):
+			text += lipsum1 + "\n"
+			text += lipsum2 + "\n"
 
 		uchan = self.world.join_priv_chan(self, 'r0c-status')
 		nchan = uchan.nchan
@@ -192,7 +196,53 @@ Keybinds:
 		
 		if cmd_str.startswith('me '):
 
-			self.world.send_chan_msg('*', self.active_chan.nchan, '{0} {1}'.format(self.nick, cmd_str[3:]))
+			self.world.send_chan_msg('***', self.active_chan.nchan, '\033[1m{0}\033[22m {1}'.format(self.nick, cmd_str[3:]))
+
+
+
+		elif cmd_str.startswith('nick '):
+
+			nick = cmd_str[5:].strip()
+			if not nick:
+				self.world.send_chan_msg('-err-', inf, """  
+[invalid arguments]
+  usage:     /nick  new_nickname
+  example:   /nick  spartacus""")
+				return
+
+			if nick.startswith('-'):
+				self.world.send_chan_msg('-err-', inf, """  
+nicks cannot start with "-" (dash)""")
+				return
+
+			if u' ' in nick or u'\t' in nick:
+				self.world.send_chan_msg('-err-', inf, """  
+nicks cannot contain whitespace""")
+				return
+
+			other_user = None
+			with self.world.mutex:
+				for usr in self.world.users:
+					if usr.nick == nick:
+						other_user = usr
+						break
+				
+				if other_user is not None:
+					self.world.send_chan_msg('-err-', inf, """  
+	that nick is taken""")
+					return
+
+				for uchan in self.chans:
+					self.world.send_chan_msg('--', uchan.nchan,
+						'\033[36m"{0}" changed nick to "{1}"'.format(self.nick, nick))
+				
+				# update title in DM windows
+				for nchan in self.world.privchans:
+					for usr in nchan.uchans:
+						if usr.alias == self.nick:
+							usr.alias = nick
+
+				self.nick = nick
 
 
 
@@ -224,11 +274,12 @@ Keybinds:
 			args = cmd_str.split(' ')
 
 			target = None
-			if len(args >= 2):
+			msg = None
+			if len(args) >= 2:
 				target = args[0]
-				cmd_str = cmd_str[len(target)+1:]
+				msg = cmd_str[len(target)+1:]
 
-			if not target or not cmd_str:
+			if not target or not msg:
 				self.world.send_chan_msg('-err-', inf, """  
 [invalid arguments]
   usage:     /msg   nickname   your message text
@@ -247,7 +298,9 @@ Keybinds:
   "{0}" is not online""".format(target))
 				return
 
-			self.world.join_priv_chan(self, target)
+			uchan = self.world.join_priv_chan(self, target)
+			self.new_active_chan = uchan
+			self.world.send_chan_msg(self.nick, uchan.nchan, msg)
 
 
 
@@ -297,14 +350,23 @@ class World(object):
 							return
 					
 					else:
-						print('[', nchan.uchans[0].alias, ']')
 						# private chat without the other user added yet;
 						# pull in the other user
-						self.send_chan_msg('-info-', nchan,
-							'searching for user "{0}"'.format(nchan.uchans[0].alias))
-						
-						# TODO
-						return
+						utarget = None
+						target = nchan.uchans[0].alias
+						for usr in self.users:
+							if usr.nick == target:
+								utarget = usr
+								break
+
+						if utarget is None:
+							self.send_chan_msg('-err-', nchan,
+								'\033[1;31mfailed to locate user "{0}"'.format(
+									nchan.uchans[0].alias))
+							return
+
+						self.join_chan_obj(utarget, nchan, from_nick)
+						# fallthrough to send message
 
 			msg = Message(from_nick, nchan, time.time(), text)
 			nchan.msgs.append(msg)
@@ -313,7 +375,7 @@ class World(object):
 
 	def join_chan_obj(self, user, nchan, alias=None):
 		with self.mutex:
-			uchan = UChannel(user, nchan)
+			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
 			nchan.uchans.append(uchan)
 			self.send_chan_msg('--', nchan,
@@ -334,8 +396,8 @@ class World(object):
 
 	def join_pub_chan(self, user, name):
 		with self.mutex:
-			chan = self.get_pub_chan(name)
-			if chan is None:
+			nchan = self.get_pub_chan(name)
+			if nchan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
 				self.pubchans.append(nchan)
 			
@@ -345,14 +407,13 @@ class World(object):
 
 	def join_priv_chan(self, user, alias):
 		with self.mutex:
-			chan = self.get_priv_chan(user, alias)
-			if chan is None:
+			uchan = self.get_priv_chan(user, alias)
+			if uchan is None:
 				nchan = NChannel(None, 'DM with [[uch_a]]')
 				self.privchans.append(nchan)
-			
-			ret = self.join_chan_obj(user, nchan)
-			ret.alias = alias
-			return ret
+				uchan = self.join_chan_obj(user, nchan)
+				uchan.alias = alias
+			return uchan
 
 	def part_chan(self, uchan):
 		with self.mutex:

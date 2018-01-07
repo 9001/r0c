@@ -236,10 +236,12 @@ class VT100_Client(asyncore.dispatcher):
 		nbuf  = self.user.chans.index(uchan)
 		nchan = uchan.nchan
 		chan_name = self.user.active_chan.nchan.name
+		chan_hash = '#'
 		if chan_name is None:
 			# private chat
+			chan_hash = '\033[1;37m'
 			chan_name = self.user.active_chan.alias
-		
+
 		hilights = []
 		activity = []
 		for i, chan in enumerate(self.user.chans):
@@ -259,8 +261,13 @@ class VT100_Client(asyncore.dispatcher):
 			offscreen = u'  \033[1;36m+{0}\033[22;39m'.format(
 				len(nchan.msgs) - uchan.vis[-1].im)
 
-		line = trunc(u'{0}{1}   {2}: #{3}{4}{5}{6}\033[K'.format(
-			preface, hhmmss, nbuf, chan_name, offscreen or '', hilights or '', activity or '', len(nchan.uchans)), self.w)
+		line = trunc(u'{0}{1}   {2}: {3}{4}{5}{6}{7}\033[K'.format(
+			preface, hhmmss,
+			nbuf, chan_hash, chan_name,
+			offscreen or '',
+			hilights or '',
+			activity or '',
+			len(nchan.uchans)), self.w)
 		
 		if full_redraw:
 			if self.screen[self.h-2] != line:
