@@ -63,11 +63,11 @@ def hexdump(pk, prefix=''):
 azAZ = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 def trunc(txt, maxlen):
-	clen = 0
+	eoc = azAZ
 	ret = u''
+	clen = 0
 	pend = None
 	counting = True
-	eoc = azAZ
 	for ch in txt:
 		
 		# escape sequences can never contain ESC;
@@ -105,11 +105,51 @@ def trunc(txt, maxlen):
 
 
 # adapted from trunc
+
+def strip_ansi(txt):
+	eoc = azAZ
+	ret = u''
+	pend = None
+	counting = True
+	for ch in txt:
+		
+		# escape sequences can never contain ESC;
+		# treat pend as regular text if so
+		if ch == u'\033' and pend:
+			ret += pend
+			counting = True
+			pend = None
+		
+		if not counting:
+			ret += ch
+			if ch in eoc:
+				counting = True
+		else:
+			if pend:
+				pend += ch
+				if pend.startswith(u'\033['):
+					counting = False
+				else:
+					clen += len(pend)
+					counting = True
+				ret += pend
+				pend = None
+			else:
+				if ch == u'\033':
+					pend = u'{0}'.format(ch)
+				else:
+					ret += ch
+					clen += 1
+	return ret
+
+
+
+# adapted from trunc
 def visual_length(txt):
+	eoc = azAZ
 	clen = 0
 	pend = None
 	counting = True
-	eoc = azAZ
 	for ch in txt:
 		
 		# escape sequences can never contain ESC;
@@ -140,7 +180,8 @@ def visual_length(txt):
 
 
 
-B35_CHARS = tuple('0123456789abcdefghijkmnopqrstuvwxyz')
+#B35_CHARS = tuple('0123456789abcdefghijkmnopqrstuvwxyz')
+B35_CHARS = tuple('abcdefghijkmnopqrstuvwxyz')
 B35_ATLAS = dict((c, i) for i, c in enumerate(B35_CHARS))
 B35_BASE = len(B35_CHARS)
 def b35enc(number):

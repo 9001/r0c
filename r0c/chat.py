@@ -104,12 +104,25 @@ class User(object):
 	def post_init(self, client):
 		self.client = client
 
-		# create status channel
-		# 
-		text = u"""
+	def create_channels(self):
+		if self.client.codec in ['utf-8','cp437','shift_jis']:
+			text = u"""
 	\033[1;31m╔═══════════════════╗    \033[0m
 \033[1;33m(o─═╣\033[22m r e t r \033[1m0\033[22m c h a t \033[1m╠═─o)\033[0m
 	\033[1;32m╚═══════════════════╝    \033[0m
+"""
+			
+		else:
+			text = u"""
+	 \033[1;31m/=================\\   \033[0m
+\033[1;33m(o-=]\033[22m r e t r \033[1m0\033[22m c h a t \033[1m[=-o)\033[0m
+	 \033[1;32m\\=================/   \033[0m
+"""
+		
+		text += u"""
+Useful commands:
+   \033[36m/nick\033[0m  change your nickname
+   \033[36m/help\033[0m  full commands listing
 
 Text formatting:
   \033[36mCTRL-O\033[0m  reset text formatting
@@ -141,6 +154,7 @@ Keybinds:
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
 if you are using a mac, PgUp is fn-Shift-PgUp
+
 """
 
 # cp437 box æøå
@@ -151,11 +165,16 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 #  >> if your terminal is blocking the CTRL key,
 #  >> press ESC followed by the 2nd key instead
 
-		lipsum1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-		lipsum2 = "Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
-		for n in range(10):
-			text += lipsum1 + "\n"
-			text += lipsum2 + "\n"
+# æ     ø     å
+# c3 a6 c3 b8 c3 a5 utf-8 to putty, works
+# c3 a6 c3 b8 c3 a5 utf-8 from putty, fucked
+
+		if False:
+			lipsum1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+			lipsum2 = "Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
+			for n in range(10):
+				text += lipsum1 + "\n"
+				text += lipsum2 + "\n"
 
 		uchan = self.world.join_priv_chan(self, 'r0c-status')
 		nchan = uchan.nchan
@@ -169,24 +188,25 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		
 
 
-		uchan = self.world.join_pub_chan(self, 'general')
-		nchan = uchan.nchan
-		for n in range(1,200):
-			#txt = u'{0:03}_{1} EOL'.format(
-			#	n, u'_dsfarg, {0:03}_'.format(n).join(
-			#		str(v).rjust(3, '0') for v in range(1, min(48, n))))
-			txt = u'{1}_{0:03}'.format(n,
-				u'_{0:03}     \\\\\\\\\n'.format(n).join(
-					str(v).rjust(v+4, ' ') for v in range(1, 12)))
-			self.world.send_chan_msg(self.nick, nchan, txt)
+		if True:
+			uchan = self.world.join_pub_chan(self, 'general')
+			nchan = uchan.nchan
+			if len(nchan.msgs) < 100:
+				for n in range(1,200):
+					#txt = u'{0:03}_{1} EOL'.format(
+					#	n, u'_dsfarg, {0:03}_'.format(n).join(
+					#		str(v).rjust(3, '0') for v in range(1, min(48, n))))
+					txt = u'{1}_{0:03}'.format(n,
+						u'_{0:03}     \\\\\\\\\n'.format(n).join(
+							str(v).rjust(v+4, ' ') for v in range(1, 12)))
+					self.world.send_chan_msg(self.nick, nchan, txt)
 
-
-
-		uchan = self.world.join_pub_chan(self, 'smalltalk')
-		nchan = uchan.nchan
-		for n in range(1,3):
-			txt = u'  message {0}\n      mes {0}'.format(n)
-			self.world.send_chan_msg(self.nick, nchan, txt)
+		if False:
+			uchan = self.world.join_pub_chan(self, 'smalltalk')
+			nchan = uchan.nchan
+			for n in range(1,3):
+				txt = u'  message {0}\n      mes {0}'.format(n)
+				self.world.send_chan_msg(self.nick, nchan, txt)
 
 
 
@@ -199,24 +219,24 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
-		elif cmd_str.startswith('nick '):
+		elif cmd_str.startswith('nick'):
 
 			nick = cmd_str[5:].strip()
 			if not nick:
-				self.world.send_chan_msg('-err-', inf, """  
-[invalid arguments]
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
   usage:     /nick  new_nickname
-  example:   /nick  spartacus""")
+  example:   /nick  spartacus
+""")
 				return
 
 			if nick.startswith('-'):
-				self.world.send_chan_msg('-err-', inf, """  
-nicks cannot start with "-" (dash)""")
+				self.world.send_chan_msg('-err-', inf, """nicks cannot start with "-" (dash)
+""")
 				return
 
 			if u' ' in nick or u'\t' in nick:
-				self.world.send_chan_msg('-err-', inf, """  
-nicks cannot contain whitespace""")
+				self.world.send_chan_msg('-err-', inf, """nicks cannot contain whitespace
+""")
 				return
 
 			other_user = None
@@ -227,8 +247,8 @@ nicks cannot contain whitespace""")
 						break
 				
 				if other_user is not None:
-					self.world.send_chan_msg('-err-', inf, """  
-	that nick is taken""")
+					self.world.send_chan_msg('-err-', inf, """that nick is taken
+""")
 					return
 
 				for uchan in self.chans:
@@ -245,29 +265,52 @@ nicks cannot contain whitespace""")
 
 
 
-		elif cmd_str.startswith('join '):
+		elif cmd_str.startswith('topic'):
+			topic = cmd_str[6:].strip()
+			if not topic:
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+  usage:     /topic  the_new_topic
+  example:   /topic  cooking recipes
+""")
+				return
+
+			uchan = self.active_chan
+			nchan = uchan.nchan
+			if nchan in self.world.privchans:
+				self.world.send_chan_msg('-err-', inf, """cannot change the topic of private channels""")
+				return
+
+			old_topic = nchan.topic
+			nchan.topic = topic
+			self.world.send_chan_msg('--', nchan,
+				'\033[36m{0} has changed the topic from [\033[0m{1}\033[36m] -to-> [\033[0m{2}\033[36m]\033[0m'.format(
+				self.nick, old_topic, topic))
+
+
+
+		elif cmd_str.startswith('join'):
 
 			chan_name = cmd_str.split(' ')
 			if len(chan_name) != 2:
-				self.world.send_chan_msg('-err-', inf, """  
-[invalid arguments]
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
   usage:     /join  #channel_name
-  example:   /join  #general""")
+  example:   /join  #general
+""")
 				return
 			
 			chan_name = chan_name[1]
 			if not chan_name.startswith('#'):
-				self.world.send_chan_msg('-err-', inf, """  
-[error]
+				self.world.send_chan_msg('-err-', inf, """[error]
   illegal channel name:  {0}
-  channel names must start with #""".format(chan_name))
+  channel names must start with #
+""".format(chan_name))
 				return
 
 			nchan = self.world.join_pub_chan(self, chan_name[1:]).nchan
 
 
 
-		elif cmd_str.startswith('msg '):
+		elif cmd_str.startswith('msg'):
 
 			cmd_str = cmd_str[4:]
 			args = cmd_str.split(' ')
@@ -279,10 +322,10 @@ nicks cannot contain whitespace""")
 				msg = cmd_str[len(target)+1:]
 
 			if not target or not msg:
-				self.world.send_chan_msg('-err-', inf, """  
-[invalid arguments]
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
   usage:     /msg   nickname   your message text
-  example:   /msg   ed   hello world""")
+  example:   /msg   ed   hello world
+""")
 				return
 
 			found = None
@@ -292,9 +335,9 @@ nicks cannot contain whitespace""")
 					break
 
 			if not found:
-				self.world.send_chan_msg('-err-', inf, """  
-[user not found]
-  "{0}" is not online""".format(target))
+				self.world.send_chan_msg('-err-', inf, """[user not found]
+  "{0}" is not online
+""".format(target))
 				return
 
 			uchan = self.world.join_priv_chan(self, target)
@@ -305,10 +348,10 @@ nicks cannot contain whitespace""")
 
 		else:
 
-			self.world.send_chan_msg('-err-', inf, """  
-invalid command:  /{0}
+			self.world.send_chan_msg('-err-', inf, """invalid command:  /{0}
   if you meant to send that as a message,
-  escape the leading "/" by adding another "/" """.format(cmd_str))
+  escape the leading "/" by adding another "/"
+""".format(cmd_str))
 
 
 
@@ -348,7 +391,7 @@ class World(object):
 				if len(nchan.uchans) == 1:
 					if nchan.uchans[0].alias == 'r0c-status':
 						if nchan.uchans[0].user.nick == from_nick:
-							self.send_chan_msg('-err-', nchan, '  \nthis buffer does not accept messages, only commands')
+							self.send_chan_msg('-err-', nchan, 'this buffer does not accept messages, only commands\n')
 							return
 					
 					else:
@@ -379,6 +422,7 @@ class World(object):
 		with self.mutex:
 			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
+			print('@@@ user {0} chans {1}, {2}'.format(user.nick, len(user.chans), user.chans[-1].alias or user.chans[-1].nchan.name))
 			nchan.uchans.append(uchan)
 			self.send_chan_msg('--', nchan,
 				'\033[32m{0} has joined\033[0m'.format(user.nick))
@@ -433,5 +477,5 @@ class World(object):
 					user.new_active_chan = user.chans[i]
 				del uchan
 
-			self.send_chan_msg(user.nick, nchan,
-				'{0} has left'.format(user.nick))
+			self.send_chan_msg('--', nchan,
+				'\033[33m{0} has left\033[0m'.format(user.nick))

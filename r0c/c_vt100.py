@@ -37,7 +37,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.y_input = 0       # offset from bottom of screen
 		self.y_status = 1      # offset from bottom of screen
 		self.linemode = False  # set true by buggy clients
-		self.no_vt100 = False  # set true by buffy clients
+		self.vt100 = True      # set nope by buffy clients
 		self.echo_on = False   # set true by butty clients
 		self.slowmo_tx = SLOW_MOTION_TX
 		self.codec = 'utf-8'
@@ -205,7 +205,9 @@ class VT100_Client(asyncore.dispatcher):
 				#	print(traceback.format_exc())
 				return
 
-			full_redraw = self.need_full_redraw
+			#self.say(u'\033[1;37;40m\033[H\033[K[ ├┐ ┌┬┐ ┌  æ ø å ]'.encode(self.codec, 'backslashreplace'))
+
+			full_redraw = self.need_full_redraw  # or not self.vt100
 			self.need_full_redraw = False
 
 			if not self.screen or len(self.screen) != self.h:
@@ -226,12 +228,16 @@ class VT100_Client(asyncore.dispatcher):
 			if to_send:
 				full_redraw = True
 
-			to_send += self.update_top_bar(full_redraw)
+			if self.vt100:
+				to_send += self.update_top_bar(full_redraw)
+
 			to_send += self.update_status_bar(full_redraw)
 			if to_send:
 				fix_color = True
 
-			to_send += self.update_text_input(full_redraw)
+			if self.vt100:
+				to_send += self.update_text_input(full_redraw)
+
 			if '\033[' in self.linebuf or fix_color:
 				to_send += '\033[0m'
 			
@@ -295,10 +301,14 @@ class VT100_Client(asyncore.dispatcher):
 			activity or '',
 			len(nchan.uchans)), self.w)
 		
+		#if not self.vt100:
+		#
+
 		if full_redraw:
 			if self.screen[  self.h - (self.y_status + 1) ] != line:
 				self.screen[ self.h - (self.y_status + 1) ] = line
 				return trunc(line, self.w)
+
 		else:
 			old = self.screen[ self.h - (self.y_status + 1) ]
 			self.screen[       self.h - (self.y_status + 1) ] = line
@@ -315,9 +325,10 @@ class VT100_Client(asyncore.dispatcher):
 				return trunc(line, self.w)
 
 			if changed_part1:
-				# send just the timestamp
-				return line[:cutoff]
-				#return u'\033[{0}H{1}'.format(self.h - self.y_status, hhmmss)  # drops colors
+				if int(time.time()) % 5 == 0:
+					# send just the timestamp
+					return line[:cutoff]
+					#return u'\033[{0}H{1}'.format(self.h - self.y_status, hhmmss)  # drops colors
 
 		return u''
 	
@@ -341,8 +352,8 @@ class VT100_Client(asyncore.dispatcher):
 	
 	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
-		if msg.txt.startswith(u'  '):
-			txt = msg.txt.splitlines()
+		if msg.txt.startswith(u'  ') or u'\n' in msg.txt:
+			txt = msg.txt.split('\n')  # splitlines removes trailing newline
 			for n in range(len(txt)):
 				txt[n] = trunc(txt[n], msg_w)
 		else:
@@ -350,7 +361,15 @@ class VT100_Client(asyncore.dispatcher):
 		
 		for n in range(len(txt)):
 			if n == 0:
-				txt[n] = msg_fmt.format(ts, msg.user[:nick_w], txt[n])
+				c2 = '\033[0m'
+				if msg.user == '-info-':
+					c1 = '\033[0;32m'
+				elif msg.user == '-err-':
+					c1 = '\033[1;33m'
+				else:
+					c1 = ''
+					c2 = ''
+				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, txt[n])
 			else:
 				txt[n] = msg_nl + txt[n]
 		
@@ -367,31 +386,31 @@ class VT100_Client(asyncore.dispatcher):
 			nick_w = 18
 			msg_w = self.w - 29
 			msg_nl = u' ' * 29
-			msg_fmt = u'{0}  {1:18} {2}'
+			msg_fmt = u'{0}  {1}{2:18}{3} {4}'
 			ts_fmt = '%H:%M:%S'
 		elif self.w >= 100:
 			nick_w = 14
 			msg_w = self.w - 25
 			msg_nl = u' ' * 25
-			msg_fmt = u'{0}  {1:14} {2}'
+			msg_fmt = u'{0}  {1}{2:14}{3} {4}'
 			ts_fmt = '%H:%M:%S'
 		elif self.w >= 80:
 			nick_w = 12
 			msg_w = self.w - 20
 			msg_nl = u' ' * 20
-			msg_fmt = u'{0} {1:12} {2}'
+			msg_fmt = u'{0} {1}{2:12}{3} {4}'
 			ts_fmt = '%H%M%S'
 		elif self.w >= 60:
 			nick_w = 8
 			msg_w = self.w - 15
 			msg_nl = u' ' * 15
-			msg_fmt = u'{0} {1:8} {2}'
+			msg_fmt = u'{0} {1}{2:8}{3} {4}'
 			ts_fmt = '%H:%M'
 		else:
 			nick_w = 8
 			msg_w = self.w - 9
 			msg_nl = u' ' * 9
-			msg_fmt = u'{1:8} {2}'
+			msg_fmt = u'{1}{2:8}{3} {4}'
 			ts_fmt = '%H%M'
 		
 		#msg_w -= 1  # putty does not display the far right column ???
@@ -501,7 +520,7 @@ class VT100_Client(asyncore.dispatcher):
 						break
 			
 			while len(lines) < self.h - 3:
-				lines.append('</>')
+				lines.append('--')
 			
 			for n in range(self.h - 3):
 				if self.screen[n+1] != lines[n]:
@@ -555,7 +574,6 @@ class VT100_Client(asyncore.dispatcher):
 						print(ln)
 
 			# set scroll region:  chat pane
-			print('SCROLL SET')
 			ret += u'\033[2;{0}r'.format(self.h - 2)
 			
 			# first / last visible message might have lines off-screen;
@@ -693,7 +711,6 @@ class VT100_Client(asyncore.dispatcher):
 		
 			# release scroll region
 			ret += u'\033[r'
-			print('SCROLL UNSET')
 			
 			# trim away messages that went off-screen
 			if t_steps < 0:
@@ -766,7 +783,7 @@ class VT100_Client(asyncore.dispatcher):
 					#print('@@@ 2 {0}'.format(ln))
 			
 			while len(new_screen) < self.h - 2:
-				new_screen.append('</>')
+				new_screen.append('--')
 
 			new_screen.append(self.screen[-2])
 			new_screen.append(self.screen[-1])
@@ -791,24 +808,24 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
-
 	def conf_wizard(self):
 		if DBG:
 			if u'\x03' in self.in_text:
 				sys.exit(0)
 
 		sep = u'{0}{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
+		ftop = u'\n'*12 + u'\033[H\033[J'
+		top = ftop + ' [ r0c configurator ]\n'
 
 		if self.wizard_stage == 'start':
 			self.wizard_stage = 'qwer_read'
 			self.in_text = u''
-			self.say(('\n'*8 + '[ r0c configurator ]' + u"""
+			self.say((top + u"""
+ type the text below, then hit [Enter]:  
 
-type the text below, then hit [Enter]:  
+	 qwer asdf
 
-	qwer asdf
-
-""").replace(u"\n", u"\r\n").encode('utf-8'))
+ """).replace(u"\n", u"\r\n").encode('utf-8'))
 			return
 
 
@@ -854,38 +871,44 @@ type the text below, then hit [Enter]:
 		if self.wizard_stage == 'echo':
 			self.wizard_stage = 'echo_answer'
 			self.in_text = u''
-			self.say((sep + u"""
-did your text appear as you were typing?  
+			self.say((u"""
 
-press Y or N&lm
-""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+   A:  text appeared as you typed
+
+   B:  nothing happened
+
+ press A or B&lm
+ """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 			return
 
 
 		if self.wizard_stage == 'echo_answer':
 			self.wizard_stage = 'linemode'
-			if u'y' in self.in_text.lower():
+			text = self.in_text.lower()
+			if u'a' in text:
 				self.echo_on = True
+			elif u'b' not in text:
+				self.wizard_stage = 'echo_answer'
 
 
 		if self.wizard_stage == 'linemode':
 			if self.linemode:
 				self.wizard_stage = 'linemode_warn'
 				self.in_text = u''
-				self.say((sep + u"""
-WARNING:  
-  your client is stuck in line-buffered mode,
-  this will cause visual glitches in text input.
-  Keys like PgUp and CTRL-Z are also buggy;
-  you must press the key twice followed by Enter.
+				self.say((top + u"""
+ WARNING:  
+   your client is stuck in line-buffered mode,
+   this will cause visual glitches in text input.
+   Keys like PgUp and CTRL-Z are also buggy;
+   you must press the key twice followed by Enter.
 
-if you are using Linux or Mac OSX, disconnect and
-run the following command before reconnecting:
-  Mac OSX:  stty -f /dev/stdin -icanon
-  Linux:    stty -icanon
+ if you are using Linux or Mac OSX, disconnect and
+ run the following command before reconnecting:
+   Mac OSX:  stty -f /dev/stdin -icanon
+   Linux:    stty -icanon
 
-to accept and continue, press A&lm
-""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+ to accept and continue, press A&lm
+ """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 				return
 
 			self.wizard_stage = 'color'
@@ -899,57 +922,59 @@ to accept and continue, press A&lm
 		if self.wizard_stage == 'color':
 			self.wizard_stage = 'color_answer'
 			self.in_text = u''
-			self.say((sep + u"""
-does colours work?  
-\033[1;31mred, \033[32mgreen, \033[33myellow, \033[34mblue\033[0m
+			self.say((top + u"""
+ does colours work?  
+ \033[1;31mred, \033[32mgreen, \033[33myellow, \033[34mblue\033[0m
 
-press Y or N&lm
-""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+ press Y or N&lm
+ """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 			return
 
 
 		if self.wizard_stage == 'color_answer':
 			
-			if u'y' in self.in_text.lower():
+			text = self.in_text.lower()
+			if u'y' in text:
 				self.wizard_stage = 'codec'
 				self.in_text = u''
 			
-			elif u'n' in self.in_text.lower():
+			elif u'n' in text:
 				self.wizard_stage = 'vt100'
 				self.in_text = u''
 				
 				self.say((sep + u"""
-what did you see instead?  
+ what did you see instead?  
 
-  A:  "red, green, yellow, blue"
-	  -- either in just one colour
-		 or otherwise in incorrect colours
+   A:  "red, green, yellow, blue"
+	   -- either in just one colour
+		  or otherwise in incorrect colours
 
-  B:  "[1;31mred, [32mgreen, [33myellow, [36mblue[0m"
+   B:  "[1;31mred, [32mgreen, [33myellow, [36mblue[0m"
 
-press A or B&lm
-""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+ press A or B&lm
+ """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 				return
 
 
 		if self.wizard_stage == 'vt100':
-			if u'a' in self.in_text.lower():
+			text = self.in_text.lower()
+			if u'a' in text:
 				# vt100 itself is probably fine, don't care
 				self.wizard_stage = 'codec'
 				self.in_text = u''
 
-			elif u'b' in self.in_text.lower():
+			elif u'b' in text:
 				self.wizard_stage = 'vt100_warn'
-				self.no_vt100 = True
+				self.vt100 = False
 				self.in_text = u''
-				self.say((sep + u"""
-WARNING:  
-  your client or terminal is not vt100 compatible!
-  I will reduce features to a bare minimum,
-  brace for a glitchy mess
-
-to accept and continue, press A&lm
-""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+				self.say((top + u"""
+ WARNING:  
+   your client or terminal is not vt100 compatible!
+   I will reduce features to a bare minimum,
+   brace for a glitchy mess
+ 
+ to accept and continue, press A&lm
+ """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
 				return
 
 
@@ -959,64 +984,50 @@ to accept and continue, press A&lm
 				self.in_text = u''
 
 
+		encs = [ 'utf-8',0,  'cp437',0,  'shift_jis',0,  'latin1',1,  'ascii',2 ]
+		unis = [ u'├┐ ┌┬┐ ┌ ',  u'Ð Ñ Ã ',  u'all the above are messed up ' ]
+		AZ = u'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+		
 		if self.wizard_stage == 'codec':
 			self.wizard_stage = 'codec_answer'
 			self.in_text = u''
-			hmr = u"├┐ ┌┬┐ ┌  æ ø å"
-			part1 = u"""
-which line below reads "hmr"?
+			def u8(tx):
+				return tx.encode('utf-8', 'backslashreplace')
 
-  A:   """
-			part2 = u"""
+			to_send = u8((ftop + u'\n which line looks like "hmr" or "dna"?\n').replace(u'\n', u'\r\n'))
 
-  B:   """
-			part3 = u"""
+			if not self.vt100:
+				for nth, (enc, uni) in enumerate(zip(encs[::2], encs[1::2])):
+					to_send += u8(u'\r\n\r\n   {0}:  '.format(AZ[nth]))
+					try:
+						to_send += unis[uni].encode(enc, 'backslashreplace')
+					except:
+						to_send += u8('<codec not available>')
+				to_send += u8(u'\r\n')
+			else:
+				for nth, (enc, uni) in enumerate(zip(encs[::2], encs[1::2])):
+					to_send += u8(u'\033[{0}H   {1}:  '.format(nth*2+4, AZ[nth]))
+					try:
+						to_send += unis[uni].encode(enc, 'backslashreplace')
+					except:
+						to_send += u8('<codec not available>')
+					to_send += u8(u'\033[J\033[{0}H\033[J'.format(nth*2+5))
 
-  C:   """
-			part4 = u"""
-
-  D:   none of the above
-
-press A/B/C/D&lm
-"""
-
+			to_send += u8(u'\r\n press {0}{1}\r\n'.format(u'/'.join(AZ[:nth+1]),
+				u', followed by [Enter]' if self.linemode else u':'))
 			
-			
-			enc_err = '<codec not available>'.encode('utf-8')
-
-			try:    enca = hmr.encode('utf-8', 'backslashreplace')
-			except: enca = enc_err
-
-			try:    encb = hmr.encode('cp437', 'backslashreplace')
-			except: encb = enc_err
-
-			try:    encc = hmr.encode('shift_jis', 'backslashreplace')
-			except: encc = enc_err
-
-			self.say(
-				(sep + part1).replace(u'\n', u'\r\n').encode('utf-8') +
-				enca +
-				part2.replace(u'\n', u'\r\n').encode('utf-8') +
-				encb +
-				part3.replace(u'\n', u'\r\n').encode('utf-8') +
-				encc +
-				part4.replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
-
+			self.say(to_send)
 			return
 
 
 		if self.wizard_stage == 'codec_answer':
-			self.wizard_stage = 'end'
-			if u'a' in self.in_text.lower():
-				self.codec = 'utf-8'
-			elif u'b' in self.in_text.lower():
-				self.codec = 'cp437'
-			elif u'c' in self.in_text.lower():
-				self.codec = 'shift_jis'
-			elif u'd' in self.in_text.lower():
-				self.codec = 'ascii'
-			else:
-				self.wizard_stage = 'codec_answer'
+			found = False
+			text = self.in_text.lower()
+			for n, letter in enumerate(AZ[:int(2+len(encs)/2)].lower()):
+				if letter in text:
+					self.wizard_stage = 'end'
+					self.codec = encs[n*2]
+					break
 
 
 		if self.wizard_stage == 'end':
@@ -1028,9 +1039,10 @@ press A/B/C/D&lm
 			if self.linemode:
 				self.y_input, self.y_status = self.y_status, self.y_input
 
-			print('client conf:  linemode({0})  no_vt100({1})  echo_on({2})  codec({3})'.format(
-				self.linemode, self.no_vt100, self.echo_on, self.codec))
+			print('client conf:  linemode({0})  vt100({1})  echo_on({2})  codec({3})'.format(
+				self.linemode, self.vt100, self.echo_on, self.codec))
 
+			self.user.create_channels()
 
 
 
@@ -1081,7 +1093,8 @@ press A/B/C/D&lm
 				plain = u''
 				for pch in aside:
 					nch = ord(pch)
-					if nch < 0x20 or (self.codec == 'utf-8' and nch >= 0x80 and nch < 0x100):
+					#print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
+					if nch < 0x20:  # or (self.codec == 'utf-8' and nch >= 0x80 and nch < 0x100):
 						print('substituting non-printable \\x{0:02x}'.format(nch))
 						plain += '?'
 					else:

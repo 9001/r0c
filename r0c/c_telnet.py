@@ -181,8 +181,13 @@ class TelnetHost(asyncore.dispatcher):
 	
 	def part(self, remote):
 		self.clients.remove(remote)
-		self.broadcast('User disconnected: {0}'.format(remote.addr))
-		self.con('  -', remote.addr)
+		#print('{0} was in {1} chans, {2}'.format(remote.user.nick, len(remote.user.chans), remote.user.chans[-1].alias or remote.user.chans[-1].nchan.name))
+		for uchan in list(remote.user.chans):
+			#print('leaving {0}'.format(uchan.alias or uchan.nchan.name))
+			self.world.part_chan(uchan)
+			#self.world.send_chan_msg('--', uchan.nchan, '\033[36m{0} has left\033[22m')
+		#self.broadcast('User disconnected: {0}'.format(remote.addr))
+		#self.con('  -', remote.addr)
 
 
 
@@ -198,7 +203,6 @@ class TelnetClient(VT100_Client):
 		self.replies.put(initial_neg)
 
 	def handle_read(self):
-		print('using codec {0}'.format(self.codec))
 		with self.mutex:
 			data = self.recv(MSG_LEN)
 			if not data:
@@ -231,7 +235,7 @@ class TelnetClient(VT100_Client):
 						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec))
 						self.in_bytes = self.in_bytes[uee.start:]
 
-					elif len(self.in_bytes) < uee.start + 6:
+					elif len(self.in_bytes) < uee.start + 6 and self.codec != 'ascii':
 						
 						print('need more data to parse unicode codepoint at {0} in {1} ...probably'.format(
 							uee.start, len(self.in_bytes)))
