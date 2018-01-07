@@ -38,11 +38,12 @@ class UChannel(object):
 
 
 class VisMessage(object):
-	def __init__(self, msg, txt, im, nv):
+	def __init__(self, msg, txt, im, car, cdr):
 		self.msg = msg          # the message object
 		self.txt = txt          # the formatted text
 		self.im = im            # offset into the channel's message list
-		self.nv = nv            # number of visible lines
+		self.car = car          # first visible line
+		self.cdr = cdr          # last visible line
 
 
 
@@ -155,7 +156,7 @@ Keybinds:
 		nchan = self.world.join_chan(self, 'general').nchan
 		for n in range(1,200):
 			txt = u'{0}: {1} EOL'.format(
-				n, u', {0}_'.format(n).join(str(v) for v in range(1, min(8, n))))
+				n, u', {0}_'.format(n).join(str(v) for v in range(1, min(64, n))))
 			self.world.send_chan_msg(self.nick, nchan, txt)
 
 

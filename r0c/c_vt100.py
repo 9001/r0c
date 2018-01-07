@@ -278,7 +278,7 @@ class Client(asyncore.dispatcher):
 		ch = self.user.active_chan
 		nch = ch.nchan
 		
-		print('\n@@@ update chat view @@@ {0}'.format(time.time()))
+		#print('\n@@@ update chat view @@@ {0}'.format(time.time()))
 		
 		if self.w >= 140:
 			nick_w = 18
@@ -338,14 +338,17 @@ class Client(asyncore.dispatcher):
 					imsg = len(nch.msgs) - n
 					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
-					n_vis = len(txt)
+					car = 0
+					cdr = len(txt) - 1
+					n_vis = cdr + 1
 					if n_vis >= lines_left:
 						n_vis = lines_left
+						car = cdr - n_vis
 					
 					ch.vis.append(
-						VisMessage(msg, txt, imsg, n_vis))
+						VisMessage(msg, txt, imsg, car, cdr))
 					
-					for ln in reversed(txt[-n_vis:]):
+					for ln in reversed(txt[car:]):
 						lines.append(ln)
 					
 					imsg -= 1
@@ -406,15 +409,41 @@ class Client(asyncore.dispatcher):
 				ref = ch.vis[-1]
 			
 			txt = []
-			# Number of Visible lines != Total Number of lines
-			if ref.nv != len(ref.txt):
-				if t_steps < 0:
-					# grab n first lines; scrolling up
-					txt = ref.txt[:len(ref.txt)-ref.nv]
-				else:
-					# grab n last lines; scrolling down
-					txt = ref.txt[-(len(ref.txt)-ref.nv):]
-			
+
+			# number of visible lines != total number of lines
+			if t_steps < 0 and ref.car != 0:
+				# scrolling up; grab offscreen text at top
+				#print('\ncar {0}   cdr {1}   len {2}'.format(ref.car, ref.cdr, len(ref.txt)))
+				#print('lines retained {0} - {1} = {2}'.format(self.h-3, abs_steps, (self.h - 3) - abs_steps))
+
+				# (h-3)-abs is number of lines retained from last screen
+				ref.cdr = ref.car + (self.h - 3) - abs_steps
+				if ref.cdr >= len(ref.txt):
+					ref.cdr = len(ref.txt) - 1
+
+				ref.car -= abs_steps
+				if ref.car < 0:
+					ref.car = 0
+
+				txt = ref.txt[ref.car:ref.cdr+1]
+
+				#print('need to add {0}'.format(txt))
+				#time.sleep(20)
+
+			elif t_steps > 0 and ref.cdr != len(ref.txt) - 1:
+				# grab n last lines; scrolling down
+				ref.car = ref.cdr - ((self.h - 3) - abs_steps)
+				if ref.car < 0:
+					ref.car = 0
+				
+				ref.cdr += abs_steps
+				if ref.cdr >= len(ref.txt):
+					ref.cdr = len(ref.txt) - 1
+
+				txt = ref.txt[ref.car:ref.cdr+1]
+
+			n_steps += len(txt)
+		
 			# write lines to send buffer
 			for ln in txt:
 				print('@@@ PARTIAL += {0}'.format(ln))
@@ -423,10 +452,6 @@ class Client(asyncore.dispatcher):
 						self.h - 2, ln)
 				else:
 					ret += u'\033[T\033[2H{0}\033[K'.format(ln)
-
-				n_steps += 1
-				if n_steps >= abs_steps:
-					break
 			
 			# get message offset to start from
 			if t_steps < 0:
@@ -434,8 +459,8 @@ class Client(asyncore.dispatcher):
 			else:
 				imsg = ch.vis[-1].im
 			
-			print('@@@ num chan messages {0}, num vis messages {1}, bottom is {2}'.format(
-				len(nch.msgs), len(ch.vis), imsg))
+			print('@@@ num chan messages {0}, num vis messages {1}, retained {2} = {3}'.format(
+				len(nch.msgs), len(ch.vis), imsg, nch.msgs[imsg].text[:6]))
 			dbg = ''
 			for m in ch.vis:
 				dbg += '{0}, '.format(m.im)
@@ -465,20 +490,32 @@ class Client(asyncore.dispatcher):
 				for ln in txt_order:
 					print(u'@@@ += {0}'.format(ln))
 					if t_steps > 0:
-						ret += u'\033[{0}H\033D{1}\033[K'.format(
-						#ret += u'\033[S\033[{0}H{1}\033[K'.format(
-							self.h - 2, ln)
+						# official way according to docs
+						ret += u'\033[{0}H\033[S{1}\033[K'.format(self.h - 2, ln)
+						
+						# also works
+						#ret += u'\033[{0}H\033D{1}\033[K'.format(self.h - 2, ln)
+							
 					else:
-						#ret += u'\033[H\033[A\033[2H{0}\033[K'.format(ln)
+						# official way according to docs
+						#ret += u'\033[2H\033[T{0}\033[K'.format(ln)
+						
+						# also works
 						ret += u'\033[2H\033M{0}\033[K'.format(ln)
-						#ret += u'\033[T\033[2H{0}\033[K'.format(ln)
 
 					n_vis += 1
 					n_steps += 1
 					if n_steps >= abs_steps:
 						break
 				
-				vmsg = VisMessage(msg, txt, imsg, n_vis)
+				if t_steps < 0:
+					new_cdr = len(txt) - 1
+					new_car = new_cdr - n_vis
+				else:
+					new_car = 0
+					new_cdr = n_vis - 1
+
+				vmsg = VisMessage(msg, txt, imsg, new_car, new_cdr)
 
 				if t_steps < 0:
 					ch.vis.insert(0, vmsg)
@@ -500,19 +537,18 @@ class Client(asyncore.dispatcher):
 					break
 				
 				n_msg += 1
-				if len(vmsg.txt) > ln_left:
-					vmsg.nv = ln_left
-					ln_left = 0
-					break
+				msg_sz = (vmsg.cdr - vmsg.car) + 1
 				
-				if i != 0:
-					# first message has correct Num_lines_Visible from
-					# when the VisMessage was created and sent above;
-					# remaining messages are full, aside from last
-					vmsg.nv = len(vmsg.txt)
-				
-				ln_left -= vmsg.nv
-			
+				if msg_sz >= ln_left:
+					if msg_sz > ln_left:
+						if t_steps < 0:
+							vmsg.cdr -= msg_sz - ln_left
+						else:
+							vmsg.car += msg_sz - ln_left
+					msg_sz = ln_left
+
+				ln_left -= msg_sz
+
 			if t_steps < 0:
 				ch.vis = ch.vis[:n_msg]
 			else:
@@ -521,14 +557,7 @@ class Client(asyncore.dispatcher):
 			# update the server-side screen buffer
 			new_screen = [self.screen[0]]
 			for i, vmsg in enumerate(ch.vis):
-				prt = vmsg.txt
-				if vmsg.nv < len(prt):
-					if i == 0:
-						prt = vmsg.txt[-vmsg.nv:]
-					else:
-						prt = vmsg.txt[:vmsg.nv]
-				
-				for ln in prt:
+				for ln in vmsg.txt[vmsg.car:vmsg.cdr+1]:
 					new_screen.append(ln)
 			
 			new_screen.append(self.screen[-2])
@@ -536,6 +565,9 @@ class Client(asyncore.dispatcher):
 			self.screen = new_screen
 			
 			print('@@@ done - new screen is {0}'.format(len(self.screen)))
+			if len(self.screen) != self.h:
+				print('!!! but client is {0} wtf'.format(self.h))
+				time.sleep(10)
 		
 		return ret
 
