@@ -29,6 +29,7 @@ else:
 
 
 
+DBG = True
 MSG_LEN = 8192
 HEX_WIDTH = 16
 
@@ -259,6 +260,7 @@ class Client(asyncore.dispatcher):
 		asyncore.dispatcher.__init__(self, socket)
 		self.host = host
 		self.socket = socket
+		self.mutex = threading.Lock()
 		self.outbox = Queue()
 		self.replies = Queue()
 		self.backlog = None
@@ -266,6 +268,7 @@ class Client(asyncore.dispatcher):
 		self.in_text = u''
 		self.linebuf = u''
 		self.linepos = 0
+		self.lineview = 0
 		self.screen = []
 		
 		self.msg_too_small = [
@@ -284,20 +287,24 @@ class Client(asyncore.dispatcher):
 		self.esc_tab = {}
 		self.add_esc(u'\x1b\x5bD', 'cl')
 		self.add_esc(u'\x1b\x5bC', 'cr')
+		self.add_esc(u'\x1b\x5bA', 'cu')
+		self.add_esc(u'\x1b\x5bB', 'cd')
 		self.add_esc(u'\x1b\x5b\x31\x7e', 'home')
 		self.add_esc(u'\x1b\x5b\x34\x7e', 'end')
 		self.add_esc(u'\x1b\x5b\x35\x7e', 'pgup')
 		self.add_esc(u'\x1b\x5b\x36\x7e', 'pgdn')
 		self.add_esc(u'\x08', 'bs')
+		self.add_esc(u'\x0d\x0a', 'ret')
+		self.add_esc(u'\x0d\x00', 'ret')
 
 		self.w = 80
 		self.h = 24
 		for x in range(self.h):
 			self.screen.append(u'*' * self.w)
 		
-		#self.test_send_lines()
-
 		self.nick = 'dude'
+		self.msg_hist = []
+		self.msg_hist_n = None
 
 	def add_esc(self, key, act):
 		hist = u''
@@ -344,6 +351,11 @@ class Client(asyncore.dispatcher):
 		
 		sent = self.send(msg)
 		self.backlog = msg[sent:]
+
+	def send_status_line_update(self):
+		with self.mutex:
+			if self.update_status_line():
+				self.send_lines([self.h-2], False)
 	
 	def update_status_line(self):
 		hhmmss = datetime.datetime.utcnow().strftime('%H:%M:%S')
@@ -363,8 +375,18 @@ class Client(asyncore.dispatcher):
 			return True
 	
 	def update_text_input(self):
-		visible_text = self.linebuf
-		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.nick, visible_text)
+		msg_len = len(self.linebuf)
+		vis_text = self.linebuf
+		free_space = self.w - (len(self.nick) + 2 + 1)  # nick chrome + final char on screen
+		if msg_len <= free_space:
+			self.lineview = 0
+		else:
+			if self.linepos < self.lineview:
+				self.lineview = self.linepos
+			elif self.linepos > self.lineview + free_space:
+				self.lineview = self.linepos - free_space
+			vis_text = vis_text[self.lineview:self.lineview+free_space]
+		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.nick, vis_text)
 		if self.screen[self.h-1] == line:
 			return False
 		else:
@@ -374,8 +396,7 @@ class Client(asyncore.dispatcher):
 	def send_lines(self, to_send, cursor_moved):
 		if not to_send and not cursor_moved:
 			return
-		dbg = True
-		if dbg and to_send:
+		if DBG and to_send:
 			dstr = '<<--  lines:  '
 			dlo = None
 			dlast = None
@@ -398,94 +419,121 @@ class Client(asyncore.dispatcher):
 		msg = u''
 		for n in to_send:
 			msg += u'\033[{0}H{1}\033[K'.format(n+1, self.screen[n])
-		msg += u'\033[{0};{1}H'.format(self.h, len(self.nick) + 3 + self.linepos)
+		msg += u'\033[{0};{1}H'.format(self.h, len(self.nick) + 2 + self.linepos + 1 - self.lineview)
 		self.say(msg.encode('utf-8'))
 
 	def read_cb(self, full_redraw):
-		# TODO: parse cursor keys, backspace, etc
-		
 		aside = u''
 		old_cursor = self.linepos
-		if False:
-			for ch in self.in_text:
-				if ch == u'\x1b':
-					if aside:
-						print('discarding partial escape sequence: {0}'.format(b2hex(aside)))
-						self.place_text(aside)
-					aside = ch
-				elif aside == u'\x1b':
-					if ch == u'\x5b':
-						aside += ch
+		for ch in self.in_text:
+			if DBG:
+				if ch == '\x03':
+					sys.exit(0)
+			
+			was_esc = None
+			if aside and aside in self.esc_tab:
+				# text until now is an incomplete escape sequence;
+				# if the new character turns into an invalid sequence
+				# we'll turn the old one into a plaintext string
+				was_esc = aside
+			
+			aside += ch
+			if not aside in self.esc_tab:
+				if was_esc:
+					# new character made the escape sequence invalid;
+					# print old buffer as plaintext and create a new
+					# escape sequence buffer for just the new char
+					
+					if ch in self.esc_tab:
+						# ...but only if the new character is
+						# potentially the start of a new esc.seq.
+						aside = was_esc
 					else:
-						print('discarding unknown escape sequence: {0}'.format(b2hex(aside + ch)))
-						self.place_text(aside)
-						aside = u''
-				elif aside == u'\x1b\x5b':
-					if ch == 'D':
-						self.linepos -= 1
-						if self.linepos < 0:
-							self.linepos = 0
-						aside = u''
-					elif ch == 'C':
-						self.linepos += 1
-						if self.linepos > len(self.linebuf):
-							self.linepos = len(self.linebuf)
-						aside = u''
-					elif ch in u'\x31\x34':
-						# home/end: 1b 5b 31 7e
-						self.aside += ch
-
-				elif aside:
-					print('discarding unknown escape sequence: {0}'.format(b2hex(aside + ch)))
-					self.place_text(aside)
-					aside = u''
-				elif ch == u'\x08':
-					self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
-					self.linepos -= 1
+						# in this case it isn't
+						was_esc = False
+				
+				plain = u''
+				for pch in aside:
+					nch = ord(pch)
+					if nch < 0x20 or (nch >= 0x80 and nch < 0x100):
+						print('substituting non-printable \\x{0:2x}'.format(nch))
+						plain += '?'
+					else:
+						plain += pch
+				
+				self.linebuf = self.linebuf[:self.linepos] + plain + self.linebuf[self.linepos:]
+				self.linepos += len(plain)
+				self.msg_hist_n = None
+				
+				if was_esc:
+					aside = ch
 				else:
-					self.place_text(ch)
-					self.linepos += 1
-			if aside:
-				print('need more data for {0} runes'.format(len(aside)))
-				self.in_text = aside
+					aside = u''
+			
 			else:
-				self.in_text = u''
-		else:
-			for ch in self.in_text:
-				aside += ch
-				if not aside in self.esc_tab:
-					self.linebuf = self.linebuf[:self.linepos] + aside + self.linebuf[self.linepos:]
-					self.linepos += len(aside)
-					aside = u''
-				else:
-					act = self.esc_tab[aside]
-					if not act:
-						continue
-					aside = u''
-					if act == 'cl':
-						self.linepos -= 1
-						if self.linepos < 0:
-							self.linepos = 0
-						aside = u''
-					elif act == 'cr':
-						self.linepos += 1
-						if self.linepos > len(self.linebuf):
-							self.linepos = len(self.linebuf)
-						aside = u''
-					elif act == 'home':
+				# this is an escape sequence; handle it
+				act = self.esc_tab[aside]
+				if not act:
+					continue
+				
+				if DBG:
+					print('escape sequence [{0}] = {1}'.format(b2hex(aside), act))
+
+				hist_step = 0
+
+				aside = u''
+				if act == 'cl':
+					self.linepos -= 1
+					if self.linepos < 0:
 						self.linepos = 0
-					elif act == 'end':
+				elif act == 'cr':
+					self.linepos += 1
+					if self.linepos > len(self.linebuf):
 						self.linepos = len(self.linebuf)
-					elif act == 'bs':
+				elif act == 'cu':
+					hist_step = -1
+				elif act == 'cd':
+					hist_step = 1
+				elif act == 'home':
+					self.linepos = 0
+				elif act == 'end':
+					self.linepos = len(self.linebuf)
+				elif act == 'bs':
+					if self.linepos > 0:
 						self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
 						self.linepos -= 1
+				elif act == 'ret':
+					if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
+						self.msg_hist.append(self.linebuf)
+					self.msg_hist_n = None
+					self.linebuf = u''
+					self.linepos = 0
+				else:
+					print('unimplemented action: {0}'.format(act))
+
+				if hist_step == 0:
+					self.msg_hist_n = None
+				else:
+					if self.msg_hist_n == None:
+						if hist_step < 0:
+							self.msg_hist_n = len(self.msg_hist) - 1
 					else:
-						print('unimplemented action: {0}'.format(act))
-			if aside:
-				print('need more data for {0} runes'.format(len(aside)))
-				self.in_text = aside
-			else:
-				self.in_text = u''
+						self.msg_hist_n += hist_step
+
+					if self.msg_hist_n != None:
+						if self.msg_hist_n < 0 or self.msg_hist_n >= len(self.msg_hist):
+							self.msg_hist_n = None
+
+					if self.msg_hist_n == None:
+						self.linebuf = u''
+					else:
+						self.linebuf = self.msg_hist[self.msg_hist_n]
+					self.linepos = 0
+		if aside:
+			print('need more data for {0} runes: {1}'.format(len(aside), b2hex(aside)))
+			self.in_text = aside
+		else:
+			self.in_text = u''
 
 		if self.w < 20 or self.h < 4:
 			msg = 'x'
@@ -564,129 +612,152 @@ class TelnetClient(Client):
 		self.replies.put(b'\xff\xfd\x1f')  # do naws
 		
 	def handle_read(self):
-		data = self.recv(MSG_LEN)
-		if not data:
-			self.host.part(self)
-		
-		hexdump(data, '-->>')
-		
-		self.in_bytes += data
-		
-		full_redraw = False
-		
-		while self.in_bytes:
+		with self.mutex:
+			data = self.recv(MSG_LEN)
+			if not data:
+				self.host.part(self)
 			
-			len_at_start = len(self.in_bytes)
+			hexdump(data, '-->>')
 			
-			try:
-				src = u'{0}'.format(self.in_bytes.decode('utf-8'))
-				self.in_bytes = self.in_bytes[0:0]
+			self.in_bytes += data
 			
-			except UnicodeDecodeError as uee:
+			full_redraw = False
+			
+			while self.in_bytes:
 				
-				# first check whether the offending byte is an inband signal
-				if len(self.in_bytes) > uee.start and self.in_bytes[uee.start] == xff:
-					
-					# it is, keep the text before it
-					src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8'))
-					self.in_bytes = self.in_bytes[uee.start:]
+				len_at_start = len(self.in_bytes)
 				
-				else:
-					
-					# it can't be helped
-					print('warning: unparseable data:')
-					hexdump(self.in_bytes, 'XXX ')
-					src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8', 'backslashreplace'))
-					self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
-			
-			#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]
-			#self.linepos += len(src)
-			self.in_text += src
-			
-			if self.in_bytes and self.in_bytes[0] == xff:
-				#cmd = b''.join([self.in_bytes[:3]])
-				cmd = self.in_bytes[:3]
-				if len(cmd) < 3:
-					print('need more data for generic negotiation')
-					break
+				try:
+					src = u'{0}'.format(self.in_bytes.decode('utf-8'))
+					self.in_bytes = self.in_bytes[0:0]
 				
-				if verbs.get(cmd[1]):
-					if not subjects.get(cmd[2]):
-						print('[X] subject not implemented: '.format(b2hex(cmd)))
-						continue
-			
-					print('-->> negote:  {0}  {1} {2}'.format(
-						b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
+				except UnicodeDecodeError as uee:
 					
-					if cmd[:2] == b'\xff\xfe':  # dont
-						print('<<-- n.resp:  {0}  DONT -> WILL NOT'.format(b2hex(cmd[:3])))
-						self.replies.put(b''.join([b'\xff\xfc', cmd[2:3]]))
-						#print('           :  {0}'.format(b2hex(response)))
+					# first check whether the offending byte is an inband signal
+					if len(self.in_bytes) > uee.start and self.in_bytes[uee.start] == xff:
+						
+						# it is, keep the text before it
+						src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8'))
+						self.in_bytes = self.in_bytes[uee.start:]
 					
-					if cmd[:2] == b'\xff\xfd':  # do
-						if cmd[2] in neg_ok:
-							print('<<-- n.resp:  {0}  DO -> WILL'.format(b2hex(cmd[:3])))
-							response = b'\xfb' # will
-						else:
-							print('<<-- n.resp:  {0}  DO -> WILL NOT'.format(b2hex(cmd[:3])))
-							response = b'\xfd' # wont
-
-						#print('           :  {0}'.format(b2hex(response)))
-						self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
-					
-					self.in_bytes = self.in_bytes[3:]
-				
-				elif cmd[1] == b'\xfa'[0] and len(self.in_bytes) >= 3:
-					eon = self.in_bytes.find(b'\xff\xf0')
-					if eon <= 0 or eon > 16:
-						#print('invalid subnegotiation:')
-						#hexdump(self.in_bytes, 'XXX ')
-						#self.in_bytes = self.in_bytes[0:0]
-						print('need more data for sub-negotiation')
-						break
 					else:
-						#cmd = b''.join([self.in_bytes[:12]])  # at least 9
-						cmd = self.in_bytes[:eon]
-						self.in_bytes = self.in_bytes[eon+2:]
-						print('-->> subneg:  {0}'.format(b2hex(cmd)))
 						
-						if cmd[2] == b'\x1f'[0]:
-							full_redraw = True
-							
-							# spec says to send \xff\xff in place of \xff
-							# for literals in negotiations, some clients do
-							while True:
-								ofs = cmd.find(b'\xff\xff')
-								if ofs < 0:
-									break
-								cmd = cmd[:ofs] + cmd[ofs+1:]
-							print('           :  {0}'.format(b2hex(cmd)))
-							
-							srch_from = 7
-							#print('srch_from {0}'.format(b2hex(cmd[7:])))
-							self.w, self.h = struct.unpack('>HH', cmd[3:7])
-							print('terminal sz:  {0}x{1}'.format(self.w, self.h))
-							if self.w >= 512:
-								print('screen width {0} reduced to 80'.format(self.w))
-								self.w = 80
-							if self.h >= 512:
-								print('screen height {0} reduced to 24'.format(self.h))
-								self.h = 24
+						# it can't be helped
+						print('warning: unparseable data:')
+						hexdump(self.in_bytes, 'XXX ')
+						src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8', 'backslashreplace'))
+						self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
+				
+				#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]
+				#self.linepos += len(src)
+				self.in_text += src
+				
+				if self.in_bytes and self.in_bytes[0] == xff:
+					#cmd = b''.join([self.in_bytes[:3]])
+					cmd = self.in_bytes[:3]
+					if len(cmd) < 3:
+						print('need more data for generic negotiation')
+						break
+					
+					if verbs.get(cmd[1]):
+						if not subjects.get(cmd[2]):
+							print('[X] subject not implemented: '.format(b2hex(cmd)))
+							continue
+				
+						print('-->> negote:  {0}  {1} {2}'.format(
+							b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
 						
-				else:
-					print('=== invalid negotiation:')
+						if cmd[:2] == b'\xff\xfe':  # dont
+							print('<<-- n.resp:  {0}  DONT -> WILL NOT'.format(b2hex(cmd[:3])))
+							self.replies.put(b''.join([b'\xff\xfc', cmd[2:3]]))
+							#print('           :  {0}'.format(b2hex(response)))
+						
+						if cmd[:2] == b'\xff\xfd':  # do
+							if cmd[2] in neg_ok:
+								print('<<-- n.resp:  {0}  DO -> WILL'.format(b2hex(cmd[:3])))
+								response = b'\xfb' # will
+							else:
+								print('<<-- n.resp:  {0}  DO -> WILL NOT'.format(b2hex(cmd[:3])))
+								response = b'\xfd' # wont
+
+							#print('           :  {0}'.format(b2hex(response)))
+							self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
+						
+						self.in_bytes = self.in_bytes[3:]
+					
+					elif cmd[1] == b'\xfa'[0] and len(self.in_bytes) >= 3:
+						eon = self.in_bytes.find(b'\xff\xf0')
+						if eon <= 0 or eon > 16:
+							#print('invalid subnegotiation:')
+							#hexdump(self.in_bytes, 'XXX ')
+							#self.in_bytes = self.in_bytes[0:0]
+							print('need more data for sub-negotiation')
+							break
+						else:
+							#cmd = b''.join([self.in_bytes[:12]])  # at least 9
+							cmd = self.in_bytes[:eon]
+							self.in_bytes = self.in_bytes[eon+2:]
+							print('-->> subneg:  {0}'.format(b2hex(cmd)))
+							
+							if cmd[2] == b'\x1f'[0]:
+								full_redraw = True
+								
+								# spec says to send \xff\xff in place of \xff
+								# for literals in negotiations, some clients do
+								while True:
+									ofs = cmd.find(b'\xff\xff')
+									if ofs < 0:
+										break
+									cmd = cmd[:ofs] + cmd[ofs+1:]
+								print('           :  {0}'.format(b2hex(cmd)))
+								
+								srch_from = 7
+								#print('srch_from {0}'.format(b2hex(cmd[7:])))
+								self.w, self.h = struct.unpack('>HH', cmd[3:7])
+								print('terminal sz:  {0}x{1}'.format(self.w, self.h))
+								if self.w >= 512:
+									print('screen width {0} reduced to 80'.format(self.w))
+									self.w = 80
+								if self.h >= 512:
+									print('screen height {0} reduced to 24'.format(self.h))
+									self.h = 24
+							
+					else:
+						print('=== invalid negotiation:')
+						hexdump(self.in_bytes, 'XXX ')
+						self.in_bytes = self.in_bytes[0:0]
+				
+				if len(self.in_bytes) == len_at_start:
+					print('=== unhandled data from client:')
 					hexdump(self.in_bytes, 'XXX ')
 					self.in_bytes = self.in_bytes[0:0]
 			
-			if len(self.in_bytes) == len_at_start:
-				print('=== unhandled data from client:')
-				hexdump(self.in_bytes, 'XXX ')
-				self.in_bytes = self.in_bytes[0:0]
-		
-		self.read_cb(full_redraw)
+			self.read_cb(full_redraw)
 
 
-	
+
+def push_worker(ifaces):
+	last_ts = None
+	while True:
+		while True:
+			ts = time.time()
+			its = int(ts)
+			if its != last_ts:
+				last_ts = its
+				#print('=== {0}'.format(its))
+				break
+			if ts - its < 0.98:
+				#print(ts-its)
+				time.sleep((1-(ts-its))*0.9)
+			else:
+				time.sleep(0.01)
+
+		for iface in ifaces:
+			for client in iface.clients:
+				client.send_status_line_update()
+
+
+
 def signal_handler(signal, frame):
 	print('\n-(!) SHUTDOWN-')
 	sys.exit(0)
@@ -696,19 +767,6 @@ def signal_handler(signal, frame):
 if __name__ != '__main__':
 	print('this is not a library')
 	sys.exit(1)
-
-#if True:
-#	with open('/home/kog/Documents/telnet.txt', 'rb') as f:
-#		d = f.read()
-#		print(d)
-#		try:
-#			print(d.decode('utf-8', 'strict'))
-#		except UnicodeDecodeError as uee:
-#			print('busted {{{0}..{1}}}'.format(uee.start, uee.end))
-#			print(uee)
-#			print('bbb')
-#		print(d[:9].decode('utf-8', 'strict'))
-#		sys.exit(0)
 
 if len(sys.argv) != 3:
 	print('need argument 1:  telnet port (or 0 to disable)')
@@ -728,6 +786,11 @@ signal.signal(signal.SIGINT, signal_handler)
 
 p.p('  *  Starting telnet server')
 telnet_host = TelnetHost(p, '0.0.0.0', telnet_port)
+
+p.p('  *  Starting push driver')
+push_thr = threading.Thread(target=push_worker, args=([telnet_host],))
+push_thr.daemon = True
+push_thr.start()
 
 p.p('  *  Running')
 asyncore.loop(0.05)
