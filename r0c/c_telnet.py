@@ -70,7 +70,8 @@ verbs = {
 	b"\xfb": "WILL"
 }
 
-neg_ok = [
+neg_ok = []
+neg_ign = [
 	b'\x01',  # echo
 	b'\x03',  # suppress go-ahead
 	b'\x1f'   # negotiate window size
@@ -98,6 +99,7 @@ if not PY2:
 	verbs    = dict_2to3(verbs)
 	subjects = dict_2to3(subjects)
 	neg_ok   = list_2to3(neg_ok)
+	neg_ign  = list_2to3(neg_ign)
 
 
 
@@ -146,10 +148,24 @@ class TelnetClient(Client):
 	
 	def __init__(self, host, socket, address, world, user):
 		Client.__init__(self, host, socket, address, world, user)
-		self.replies.put(b'\xff\xfe\x22')  # don't linemode
-		self.replies.put(b'\xff\xfb\x01')  # will echo
-		self.replies.put(b'\xff\xfd\x1f')  # do naws
 		
+		config =  b'\xff\xfb\x03'  # will sga
+		config += b'\xff\xfb\x01'  # will echo
+		config += b'\xff\xfd\x1f'  # do naws
+		self.replies.put(config)
+
+		#cfg_thr = threading.Thread(target=self.do_config)
+		#cfg_thr.daemon = True
+		#cfg_thr.start()
+
+	def do_config(self):
+		time.sleep(1)
+		config =  b'\xff\xfe\x22'  # don't linemode
+		try:
+			self.replies.put(config)
+		except:
+			pass
+
 	def handle_read(self):
 		with self.mutex:
 			data = self.recv(MSG_LEN)
@@ -203,25 +219,28 @@ class TelnetClient(Client):
 						if not subjects.get(cmd[2]):
 							print('[X] subject not implemented: '.format(b2hex(cmd)))
 							continue
-				
+
 						print('-->> negote:  {0}  {1} {2}'.format(
 							b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
-						
+
 						if cmd[:2] == b'\xff\xfe':  # dont
 							print('<<-- n.resp:  {0}  DONT -> WILL NOT'.format(b2hex(cmd[:3])))
 							self.replies.put(b''.join([b'\xff\xfc', cmd[2:3]]))
 							#print('           :  {0}'.format(b2hex(response)))
-						
+
 						if cmd[:2] == b'\xff\xfd':  # do
 							if cmd[2] in neg_ok:
 								print('<<-- n.resp:  {0}  DO -> WILL'.format(b2hex(cmd[:3])))
 								response = b'\xfb' # will
+							elif cmd[2] in neg_ign:
+								response = None
 							else:
 								print('<<-- n.resp:  {0}  DO -> WILL NOT'.format(b2hex(cmd[:3])))
 								response = b'\xfd' # wont
 
-							#print('           :  {0}'.format(b2hex(response)))
-							self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
+							if response is not None:
+								#print('           :  {0}'.format(b2hex(response)))
+								self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
 						
 						self.in_bytes = self.in_bytes[3:]
 					
@@ -247,7 +266,7 @@ class TelnetClient(Client):
 								while True:
 									ofs = cmd.find(b'\xff\xff')
 									if ofs < 0:
-									    break
+										break
 									cmd = cmd[:ofs] + cmd[ofs+1:]
 								print('           :  {0}'.format(b2hex(cmd)))
 								

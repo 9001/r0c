@@ -123,6 +123,49 @@ def b35dec(b35str):
 
 
 
+def visualize_all_unicode_codepoints_as_utf8():
+	stats = [0]*256
+	nmax = sys.maxunicode + 1
+	print('collecting all codepoints until {0}d, 0x{1:x}'.format(
+		nmax, nmax))
+	
+	if PY2:
+		to_unicode = unichr
+		from_char = ord
+	else:
+		to_unicode = chr
+		from_char = int
+	
+	for n in range(nmax):
+		if n % 0x10000 == 0:
+			print('at codepoint {0:6x} of {1:6x},  {2:5.2f}%'.format(
+				n, nmax, (100.0 * n) / nmax))
+		ch = to_unicode(n)
+		
+		try:
+			bs = ch.encode('utf-8')
+		except:
+			# python2 allows encoding ud800 as \xed\xa0\x80 which is an illegal sequence in utf8;
+			# python -c "for x in unichr(0xd800).encode('utf-8'): print '{0:2x}'.format(ord(x))"
+			continue
+		
+		for b in bs:
+			stats[from_char(b)] += 1
+
+	print()
+	for i, n in enumerate(stats):
+		v = n
+		if v == 0:
+			v = 'illegal value'
+		elif v == 1:
+			v = 'single-use value'
+		print('byte 0x{0:2x} occurences: {1}'.format(i, v))
+	print()
+
+#visualize_all_unicode_codepoints_as_utf8()
+
+
+
 class Printer(object):
 	
 	def __init__(self):

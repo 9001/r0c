@@ -9,6 +9,8 @@ import threading
 
 from util import *
 
+PY2 = (sys.version_info[0] == 2)
+
 
 
 class NChannel(object):
@@ -27,8 +29,15 @@ class UChannel(object):
 		self.scroll_pos = None  # locked to bottom, otherwise msg int of top msg
 		self.last_ts = None     # last time the user viewed this channel
 		self.last_hl = None     # last hilight
+		self.last_draw = None   # last time this channel was sent
 		self.hilights = False
 		self.activity = False
+		self.iv_car = None      # first visible message, int
+		self.tv_car = None      # first visible message, timestamp
+		self.nv_car = None      # first visible message, num lines
+		self.iv_cdr = None      # last visible message, int
+		self.tv_cdr = None      # last visible message, timestamp
+		self.nv_cdr = None      # last visible message, num lines
 
 
 
@@ -58,7 +67,10 @@ class User(object):
 			while True:
 				#print(plain)
 				nv = hashlib.sha256(plain.encode('utf-8')).digest()
-				nv = int.from_bytes(nv, 'big')
+				if PY2:
+					nv = int(nv.encode('hex'), 16)
+				else:
+					nv = int.from_bytes(nv, 'big')
 				#nv = base64.b64encode(nv).decode('utf-8')
 				nv = b35enc(nv)
 				nv = nv.replace('+','').replace('/','')[:6]
@@ -81,7 +93,7 @@ class User(object):
 				break
 		
 		if not self.nick:
-			raise RuntimeException("out of legit nicknames")
+			raise RuntimeError("out of legit nicknames")
 
 		# create status channel
 		# 
@@ -130,7 +142,7 @@ class World(object):
 		with self.mutex:
 			for ch in self.nchans:
 				if ch.name == nchan.name:
-					raise RuntimeException('add_chan already exists')
+					raise RuntimeError('add_chan already exists')
 			self.nchans.append(nchan)
 			join_chan(user, nchan)
 
@@ -140,19 +152,20 @@ class World(object):
 				with uchan.user.mutex:
 					uchan.user.refresh()
 
-	def send_chan_msg(self, nchan, msg):
+	def send_chan_msg(self, from_nick, nchan, text):
 		with self.mutex:
+			msg = Message(from_nick, nchan, time.time(), text)
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
-			refresh_chan(nchan)
+			self.refresh_chan(nchan)
 
 	def join_chan(self, user, nchan):
 		with self.mutex:
-			uchan = Uchannel(user, nchan)
+			uchan = UChannel(user, nchan)
 			user.chans.append(uchan)
-			nchan.users.append(uchan)
+			nchan.uchans.append(uchan)
 			user.new_active_chan = uchan
-			send_chan_msg(nchan,
+			self.send_chan_msg(user.nick, nchan,
 				'{0} has joined'.format(user.nick))
 
 	def part_chan(self, uchan):
@@ -171,5 +184,5 @@ class World(object):
 					user.new_active_chan = user.chans[i]
 				del uchan
 
-			send_chan_msg(nchan,
+			send_chan_msg(user.nick, nchan,
 				'{0} has left'.format(user.nick))

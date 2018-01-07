@@ -6,6 +6,7 @@ if __name__ == '__main__':
 DBG = True
 HEXDUMP_IN = True
 HEXDUMP_OUT = False
+#HEXDUMP_OUT = True
 
 MSG_LEN = 8192
 HEX_WIDTH = 16

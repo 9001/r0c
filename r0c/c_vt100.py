@@ -63,6 +63,11 @@ class Client(asyncore.dispatcher):
 		self.add_esc(u'\x0d\x0a', 'ret')
 		self.add_esc(u'\x0d\x00', 'ret')
 
+		# inetutils-1.9.4
+		self.add_esc(u'\x7f', 'bs')
+		self.add_esc(u'\x1b\x4f\x48', 'home')
+		self.add_esc(u'\x1b\x4f\x46', 'end')
+
 		self.w = 80
 		self.h = 24
 		for x in range(self.h):
@@ -78,12 +83,12 @@ class Client(asyncore.dispatcher):
 			if hist == key:
 				break
 			if hist in self.esc_tab and self.esc_tab[hist]:
-				raise RuntimeException('partial escape code [{0}] matching fully defined escape code for [{1}]'.format(
-					hist, act))
+				raise RuntimeError('partial escape code [{0}] matching fully defined escape code for [{1}]'.format(
+					b2hex(hist), act))
 			self.esc_tab[hist] = False
 		if key in self.esc_tab and self.esc_tab[key] != act:
-			raise RuntimeException('fully defined escape code [{0}] for [{1}] matches other escape code for [{2}]'.format(
-				key, act, self.esc_tab[key]))
+			raise RuntimeError('fully defined escape code [{0}] for [{1}] matches other escape code for [{2}]'.format(
+				b2hex(key), act, self.esc_tab[key]))
 		self.esc_tab[key] = act
 
 	def say(self, message):
@@ -138,7 +143,7 @@ class Client(asyncore.dispatcher):
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
 		top_bar = u'\033[1H\033[44;48;5;235;38;5;220m{0}\033[K'.format(
-			self.user.active_chan.topic)
+			self.user.active_chan.nchan.topic)
 		
 		if self.screen[0] != top_bar:
 			self.screen[0] = top_bar
@@ -151,14 +156,15 @@ class Client(asyncore.dispatcher):
 		nChan = self.user.chans.index(self.user.active_chan)
 		nChans = len(self.user.chans)
 		nUsers = len(self.user.active_chan.nchan.uchans)
-		chan_name = self.user.active_chan.name
+		chan_name = self.user.active_chan.nchan.name
 		
 		hilights = []
+		activity = []
 		for i, chan in enumerate(self.user.chans):
-			if chan.activity:
-				activity.append(i)
 			if chan.hilights:
 				hilights.append(i)
+			if chan.activity:
+				activity.append(i)
 		
 		if hilights:
 			hilights = u'\033[1;33mh {0}\033[22;39m'.format(','.join(hilights))

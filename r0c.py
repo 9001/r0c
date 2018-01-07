@@ -15,7 +15,11 @@ __copyright__ = 2017
 
 
 
+import sys
 import signal
+
+if sys.version_info[0] == 2:
+	sys.dont_write_bytecode = True
 
 from r0c.config import *
 from r0c.util import *
@@ -59,7 +63,5 @@ push_thr.start()
 p.p('  *  Running')
 asyncore.loop(0.05)
 
-# while true; do sleep 0.2; t=$(stat -c%Y /free/dev/chatsrv.py); [[ "x$t" != "x$ot" ]] || continue; ot=$t; printf .; ps ax | grep -E 'python[23] \./chatsrv' | awk '{print $1}' | while read pid; do kill -9 $pid; done; done
-# cd /free/dev/; while true; do for n in 2 3; do printf '\033[0m'; python$n ./chatsrv.py 23 4312; [[ $? -eq 1 ]] && sleep 1; sleep 0.2; done; done
-
-# cat irc.server.irc.freenode.net.weechatlog | sed -r 's/^....-..-.. ..:..:..[\t ]*--[\t ]*(#[^ ]*)\(([0-9]+)\).*/\2 \1/' | sort -n | grep -vE '^....-..-.. ..:..:..' | uniq -f 1
+print(" !!! you shouldn't be seeing this")
+sys.exit(1)
