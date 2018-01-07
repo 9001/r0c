@@ -4,6 +4,7 @@ if __name__ == '__main__':
 		'  this file is part of retr0chat',
 		'  run r0c.py instead'))
 
+import traceback
 import threading
 import asyncore
 import datetime
@@ -21,7 +22,7 @@ if PY2:
 else:
 	from queue import Queue
 
-class Client(asyncore.dispatcher):
+class VT100_Client(asyncore.dispatcher):
 	
 	def __init__(self, host, socket, address, world, user):
 		asyncore.dispatcher.__init__(self, socket)
@@ -34,6 +35,9 @@ class Client(asyncore.dispatcher):
 		self.replies = Queue()
 		self.backlog = None
 		self.last_tx = None
+		self.handshake_sz = False
+		self.handshake_world = False
+		self.need_full_redraw = False
 		self.slowmo_tx = SLOW_MOTION_TX
 		self.in_bytes = b''
 		self.in_text = u''
@@ -82,6 +86,14 @@ class Client(asyncore.dispatcher):
 		self.msg_hist = []
 		self.msg_hist_n = None
 
+		thr = threading.Thread(target=self.handshake_timeout)
+		thr.daemon = True
+		thr.start()
+
+	def handshake_timeout(self):
+		time.sleep(1)
+		self.handshake_sz = True
+
 	def add_esc(self, key, act):
 		hist = u''
 		for c in key:
@@ -96,6 +108,9 @@ class Client(asyncore.dispatcher):
 			raise RuntimeError('fully defined escape code [{0}] for [{1}] matches other escape code for [{2}]'.format(
 				b2hex(key), act, self.esc_tab[key]))
 		self.esc_tab[key] = act
+
+	def request_terminal_size(self):
+		pass
 
 	def say(self, message):
 		self.outbox.put(message)
@@ -131,7 +146,7 @@ class Client(asyncore.dispatcher):
 			msg = src.get()
 		
 		if HEXDUMP_OUT:
-			if len(msg) < 100:
+			if len(msg) < HEXDUMP_TRUNC:
 				hexdump(msg, '<<--')
 			else:
 				print('<<--       :  [{0} byte]'.format(len(msg)))
@@ -150,9 +165,24 @@ class Client(asyncore.dispatcher):
 			self.backlog = msg[sent:]
 			#print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
 
-	def refresh(self, full_redraw, cursor_moved):
+	def refresh(self, cursor_moved):
 		""" compose necessary ansi text and send to client """
 		with self.mutex:
+			if not self.handshake_sz or not self.handshake_world:
+				try:
+					raise RuntimeError('POSSIBLE BUG: attempting to refresh with handshakes sz:{0}, w:{1}'.format(
+						self.handshake_sz, self.handshake_world))
+				except:
+					#exc = sys.exc_info()
+					#traceback.print_exception(*exc)
+					#del exc
+					
+					print(traceback.format_exc())
+				return
+
+			full_redraw = self.need_full_redraw
+			self.need_full_redraw = False
+
 			if self.user.new_active_chan:
 				self.user.active_chan = self.user.new_active_chan
 				self.user.new_active_chan = None
@@ -258,12 +288,12 @@ class Client(asyncore.dispatcher):
 	
 	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
-		if msg.text.startswith(u' '):
-			txt = msg.text.splitlines()
+		if msg.txt.startswith(u' '):
+			txt = msg.txt.splitlines()
 			for n in range(len(txt)):
 				txt[n] = trunc(txt[n], msg_w)
 		else:
-			txt = unrag(msg.text, msg_w) or [' ']
+			txt = unrag(msg.txt, msg_w) or [' ']
 		
 		for n in range(len(txt)):
 			if n == 0:
@@ -282,14 +312,14 @@ class Client(asyncore.dispatcher):
 		
 		if self.w >= 140:
 			nick_w = 18
-			msg_w = self.w - 28
-			msg_nl = u' ' * 28
+			msg_w = self.w - 29
+			msg_nl = u' ' * 29
 			msg_fmt = u'{0}  {1:18} {2}'
 			ts_fmt = '%H:%M:%S'
 		elif self.w >= 100:
 			nick_w = 14
-			msg_w = self.w - 24
-			msg_nl = u' ' * 24
+			msg_w = self.w - 25
+			msg_nl = u' ' * 25
 			msg_fmt = u'{0}  {1:14} {2}'
 			ts_fmt = '%H:%M:%S'
 		elif self.w >= 80:
@@ -311,6 +341,8 @@ class Client(asyncore.dispatcher):
 			msg_fmt = u'{1:8} {2}'
 			ts_fmt = '%H%M'
 		
+		#msg_w -= 1  # windows telnet does not allow text on the far right
+
 		# first ensure our cache is sane
 		if not ch.vis or \
 			len(nch.msgs) <= ch.vis[0].im or \
@@ -328,19 +360,19 @@ class Client(asyncore.dispatcher):
 		
 		if full_redraw:
 			lines = []
+			lines_left = self.h - 3
+
 			if ch.lock_to_bottom:
 				# lock to bottom, full redraw:
-				# last message will be added first
-				# and will always be partially visible
-				lines_left = self.h - 3
+				# newest/bottom message will be added first
 				ch.vis = []
 				for n, msg in enumerate(reversed(nch.msgs)):
 					imsg = len(nch.msgs) - n
 					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
+					n_vis = len(txt)
 					car = 0
-					cdr = len(txt) - 1
-					n_vis = cdr + 1
+					cdr = n_vis
 					if n_vis >= lines_left:
 						n_vis = lines_left
 						car = cdr - n_vis
@@ -359,6 +391,32 @@ class Client(asyncore.dispatcher):
 				ch.vis.reverse()
 				lines.reverse()
 			
+			else:
+				# fixed scroll position:
+				# oldest/top message will be added first
+				imsg = ch.vis[0].im
+				ch.vis = []
+				for n, msg in enumerate(nch.msgs[ imsg : imsg + self.h-3 ]):
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+					
+					n_vis = len(txt)
+					car = 0
+					cdr = n_vis
+					if n_vis >= lines_left:
+						n_vis = lines_left
+						cdr = n_vis
+					
+					ch.vis.append(
+						VisMessage(msg, txt, imsg, car, cdr))
+					
+					for ln in txt[:cdr]:
+						lines.append(ln)
+					
+					imsg += 1
+					lines_left -= n_vis
+					if lines_left <= 0:
+						break
+			
 			while len(lines) < self.h - 3:
 				lines.append('--')
 			
@@ -376,14 +434,18 @@ class Client(asyncore.dispatcher):
 			self.scroll_cmd = None
 			
 			if t_steps:
+				#print('@@@ have scroll steps')
 				ch.lock_to_bottom = False
 			else:
+				#print('@@@ no scroll steps')
 				if not ch.lock_to_bottom:
 					# fixed viewport
+					#print('@@@ not lock to bottom')
 					return ret
 				
 				if nch.msgs[-1] == ch.vis[-1].msg:
 					# no new messages
+					#print('@@@ no new messages: {0}'.format(ch.vis[-1].txt[0][:40]))
 					return ret
 				
 				#print('@@@ len(nch) {0}, len(ch.vis) {1}, -1={2}, 0={3}'.format(
@@ -399,7 +461,12 @@ class Client(asyncore.dispatcher):
 			
 			abs_steps = abs(t_steps)    # abs(total steps)
 			
-			print('@@@ gonna scroll {0} lines'.format(abs_steps))
+			#print('@@@ gonna scroll {0} lines'.format(abs_steps))
+
+			if False:
+				for msg in ch.vis:
+					for ln in msg.txt[msg.car:msg.cdr]:
+						print(ln)
 
 			# first / last visible message might have lines off-screen;
 			# check those first
@@ -416,42 +483,53 @@ class Client(asyncore.dispatcher):
 				#print('\ncar {0}   cdr {1}   len {2}'.format(ref.car, ref.cdr, len(ref.txt)))
 				#print('lines retained {0} - {1} = {2}'.format(self.h-3, abs_steps, (self.h - 3) - abs_steps))
 
-				# (h-3)-abs is number of lines retained from last screen
-				ref.cdr = ref.car + (self.h - 3) - abs_steps
+				retained_lines = (self.h - 3) - abs_steps
+				ref.cdr = ref.car + retained_lines
 				if ref.cdr >= len(ref.txt):
-					ref.cdr = len(ref.txt) - 1
+					ref.cdr = len(ref.txt)
 
+				old_car = ref.car
 				ref.car -= abs_steps
 				if ref.car < 0:
 					ref.car = 0
 
-				txt = ref.txt[ref.car:ref.cdr+1]
+				actual_steps = old_car - ref.car
 
-				#print('need to add {0}'.format(txt))
+				txt = ref.txt[ ref.car : ref.car + actual_steps ]
+				txt.reverse()
+
+				#print('need to add:\n    {0}'.format('\n    '.join(txt)))
 				#time.sleep(20)
 
-			elif t_steps > 0 and ref.cdr != len(ref.txt) - 1:
+			elif t_steps > 0 and ref.cdr != len(ref.txt):
 				# grab n last lines; scrolling down
-				ref.car = ref.cdr - ((self.h - 3) - abs_steps)
+				retained_lines = (self.h - 3) - abs_steps
+				ref.car = ref.cdr - (retained_lines)
 				if ref.car < 0:
 					ref.car = 0
 				
+				old_cdr = ref.cdr
 				ref.cdr += abs_steps
 				if ref.cdr >= len(ref.txt):
-					ref.cdr = len(ref.txt) - 1
+					ref.cdr = len(ref.txt)
 
-				txt = ref.txt[ref.car:ref.cdr+1]
+				actual_steps = ref.cdr - old_cdr
 
-			n_steps += len(txt)
+				txt = ref.txt[ ref.cdr - actual_steps : ref.cdr ]
+
+			#print('@@@ lines left {0} - {1} = {2}'.format(abs_steps, n_steps, abs_steps - n_steps))
 		
+			n_steps += len(txt)
+
 			# write lines to send buffer
 			for ln in txt:
-				print('@@@ PARTIAL += {0}'.format(ln))
+				#print('@@@ PARTIAL += {0}'.format(ln))
 				if t_steps > 0:
-					ret += u'\033[S\033[{0}H{1}\033[K'.format(
-						self.h - 2, ln)
+					ret += u'\033[{0}H\033D{1}\033[K'.format(self.h - 2, ln)
 				else:
-					ret += u'\033[T\033[2H{0}\033[K'.format(ln)
+					ret += u'\033[2H\033M{0}\033[K'.format(ln)
+
+			#print('@@@ lines left {0} - {1} = {2}'.format(abs_steps, n_steps, abs_steps - n_steps))
 			
 			# get message offset to start from
 			if t_steps < 0:
@@ -459,12 +537,13 @@ class Client(asyncore.dispatcher):
 			else:
 				imsg = ch.vis[-1].im
 			
-			print('@@@ num chan messages {0}, num vis messages {1}, retained {2} = {3}'.format(
-				len(nch.msgs), len(ch.vis), imsg, nch.msgs[imsg].text[:6]))
-			dbg = ''
-			for m in ch.vis:
-				dbg += '{0}, '.format(m.im)
-			print('@@@ {0}'.format(dbg))
+			if False:
+				print('@@@ num chan messages {0}, num vis messages {1}, retained {2} = {3}'.format(
+					len(nch.msgs), len(ch.vis), imsg, nch.msgs[imsg].txt[:6]))
+				dbg = ''
+				for m in ch.vis:
+					dbg += '{0}, '.format(m.im)
+				print('@@@ {0}'.format(dbg))
 			
 			# scroll until n_steps reaches abs_steps
 			while n_steps < abs_steps:
@@ -488,16 +567,18 @@ class Client(asyncore.dispatcher):
 				# write lines to send buffer
 				n_vis = 0
 				for ln in txt_order:
-					print(u'@@@ += {0}'.format(ln))
+					#print(u'@@@ += {0}'.format(ln))
 					if t_steps > 0:
-						# official way according to docs
-						ret += u'\033[{0}H\033[S{1}\033[K'.format(self.h - 2, ln)
+						# official way according to docs,
+						# doesn't work on windows
+						#ret += u'\033[{0}H\033[S{1}\033[K'.format(self.h - 2, ln)
 						
 						# also works
-						#ret += u'\033[{0}H\033D{1}\033[K'.format(self.h - 2, ln)
-							
+						ret += u'\033[{0}H\033D{1}\033[K'.format(self.h - 2, ln)
+						
 					else:
-						# official way according to docs
+						# official way according to docs,
+						# doesn't work on inetutils-1.9.4
 						#ret += u'\033[2H\033[T{0}\033[K'.format(ln)
 						
 						# also works
@@ -509,13 +590,14 @@ class Client(asyncore.dispatcher):
 						break
 				
 				if t_steps < 0:
-					new_cdr = len(txt) - 1
+					new_cdr = len(txt)
 					new_car = new_cdr - n_vis
 				else:
 					new_car = 0
-					new_cdr = n_vis - 1
+					new_cdr = n_vis
 
 				vmsg = VisMessage(msg, txt, imsg, new_car, new_cdr)
+				#print('@@@ vismsg len({0}) car({1}) cdr({2}) -- {3}'.format(len(txt), new_car, new_cdr, txt[0][:30]))
 
 				if t_steps < 0:
 					ch.vis.insert(0, vmsg)
@@ -524,9 +606,9 @@ class Client(asyncore.dispatcher):
 			
 			# trim away messages that went off-screen
 			if t_steps < 0:
-				vis_order = reversed(ch.vis)
-			else:
 				vis_order = ch.vis
+			else:
+				vis_order = reversed(ch.vis)
 			
 			n_msg = 0
 			screen_buf = []
@@ -537,7 +619,7 @@ class Client(asyncore.dispatcher):
 					break
 				
 				n_msg += 1
-				msg_sz = (vmsg.cdr - vmsg.car) + 1
+				msg_sz = vmsg.cdr - vmsg.car
 				
 				if msg_sz >= ln_left:
 					if msg_sz > ln_left:
@@ -549,6 +631,8 @@ class Client(asyncore.dispatcher):
 
 				ln_left -= msg_sz
 
+				#print('@@@ 1 {0}'.format('\n@@@ 1 '.join(vmsg.txt[vmsg.car : vmsg.cdr])))
+
 			if t_steps < 0:
 				ch.vis = ch.vis[:n_msg]
 			else:
@@ -557,35 +641,34 @@ class Client(asyncore.dispatcher):
 			# update the server-side screen buffer
 			new_screen = [self.screen[0]]
 			for i, vmsg in enumerate(ch.vis):
-				for ln in vmsg.txt[vmsg.car:vmsg.cdr+1]:
+				for ln in vmsg.txt[vmsg.car:vmsg.cdr]:
 					new_screen.append(ln)
+
+					#print('@@@ 2 {0}'.format(ln))
+
 			
 			new_screen.append(self.screen[-2])
 			new_screen.append(self.screen[-1])
+			old_screen = self.screen
 			self.screen = new_screen
 			
-			print('@@@ done - new screen is {0}'.format(len(self.screen)))
+			ch.lock_to_bottom = (
+				ch.vis[-1].msg == nch.msgs[-1] and \
+				ch.vis[-1].cdr == len(ch.vis[-1].txt) )
+
+			#print('@@@ lock_to_bottom:', ch.lock_to_bottom)
+
 			if len(self.screen) != self.h:
-				print('!!! but client is {0} wtf'.format(self.h))
-				time.sleep(10)
+				print('!!! new screen is {0} but client is {1}'.format(len(self.screen), self.h))
+				for n, ln in enumerate(old_screen): print('o',   ln, n)
+				for n, ln in enumerate(new_screen): print('new', ln, n)
+				time.sleep(100000)
 		
 		return ret
 
-	def dummy_update_chat_view(self, full_redraw):
-		# TODO: naive implementation;
-		#       should impl screen scrolling
-		ret = u''
-		for n in range(self.h - 3):
-			line = u'{0}<{1:-4d}>{2}<>'.format(
-				u'\033[0m' if n==0 else '',
-				n + 1, '*' * (self.w - 8))
-			
-			if self.screen[n+1] != line:
-				self.screen[n+1] = line
-				ret += u'\033[{0}H{1}'.format(n+2, self.screen[n+1])
-		return ret
-
 	def read_cb(self, full_redraw):
+		# only called by (telnet|netcat).py:handle_read,
+		# only called within locks on self.mutex
 		aside = u''
 		old_cursor = self.linepos
 		for ch in self.in_text:
@@ -640,7 +723,7 @@ class Client(asyncore.dispatcher):
 					continue
 				
 				if DBG:
-					print('escape sequence [{0}] = {1}'.format(b2hex(aside), act))
+					print(' escape seq:  {0} = {1}'.format(b2hex(aside), act))
 
 				hist_step = 0
 
@@ -668,6 +751,8 @@ class Client(asyncore.dispatcher):
 				elif act == 'ret':
 					if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
 						self.msg_hist.append(self.linebuf)
+					self.world.send_chan_msg(
+						self.user.nick, self.user.active_chan.nchan, self.linebuf)
 					self.msg_hist_n = None
 					self.linebuf = u''
 					self.linepos = 0
@@ -718,11 +803,15 @@ class Client(asyncore.dispatcher):
 			self.say(msg.encode('utf-8'))
 			return
 
-		if full_redraw:
-			self.screen = ['x'] * self.h
-
-		self.refresh(full_redraw,
-			old_cursor != self.linepos)
+		with self.mutex:
+			if full_redraw:
+				self.screen = ['x'] * self.h
+				self.need_full_redraw = True
+			
+			if not self.handshake_sz:
+				print('!!! read_cb without handshake_sz')
+			else:
+				self.refresh(old_cursor != self.linepos)
 
 
 
@@ -744,4 +833,6 @@ def push_worker(ifaces):
 
 		for iface in ifaces:
 			for client in iface.clients:
-				client.refresh(False, False)
+				if not client.handshake_sz:
+					print('!!! push_worker without handshake_sz')
+				client.refresh(False)

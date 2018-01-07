@@ -11,7 +11,7 @@ __version__   = "0.9"
 __author__    = "ed <a@ocv.me>"
 __credits__   = ["stackoverflow.com"]
 __license__   = "MIT"
-__copyright__ = 2017
+__copyright__ = 2018
 
 
 
@@ -24,6 +24,7 @@ if sys.version_info[0] == 2:
 from r0c.config   import *
 from r0c.util     import *
 from r0c.c_vt100  import *
+from r0c.c_netcat import *
 from r0c.c_telnet import *
 from r0c.chat     import *
 
@@ -34,8 +35,13 @@ if __name__ != '__main__':
 	sys.exit(1)
 
 if len(sys.argv) != 3:
-	print('need argument 1:  telnet port (or 0 to disable)')
-	print('need argument 2:  netcat port (or 0 to disable)')
+	print()
+	print('  need argument 1:  Telnet port  (or 0 to disable)')
+	print('  need argument 2:  NetCat port  (or 0 to disable)')
+	print()
+	print('  example:')
+	print('    {0} 23 531'.format(sys.argv[0]))
+	print()
 	sys.exit(1)
 
 telnet_port = int(sys.argv[1])
@@ -52,16 +58,19 @@ signal.signal(signal.SIGINT, signal_handler)
 p.p('  *  Creating world')
 world = World()
 
-p.p('  *  Starting telnet server')
+p.p('  *  Starting Telnet server')
 telnet_host = TelnetHost(p, '0.0.0.0', telnet_port, world)
 
+p.p('  *  Starting NetCat server')
+netcat_host = NetcatHost(p, '0.0.0.0', netcat_port, world)
+
 p.p('  *  Starting push driver')
-push_thr = threading.Thread(target=push_worker, args=([telnet_host],))
+push_thr = threading.Thread(target=push_worker, args=([telnet_host, netcat_host],))
 push_thr.daemon = True
 push_thr.start()
 
 p.p('  *  Running')
 asyncore.loop(0.05)
 
-print(" !!! you shouldn't be seeing this")
+print(" !!! whoops that's a crash")
 sys.exit(1)

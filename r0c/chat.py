@@ -41,18 +41,18 @@ class VisMessage(object):
 	def __init__(self, msg, txt, im, car, cdr):
 		self.msg = msg          # the message object
 		self.txt = txt          # the formatted text
-		self.im = im            # offset into the channel's message list
+		self.im  = im           # offset into the channel's message list
 		self.car = car          # first visible line
-		self.cdr = cdr          # last visible line
+		self.cdr = cdr          # last visible line PLUS ONE
 
 
 
 class Message(object):
-	def __init__(self, user, to, ts, text):
+	def __init__(self, user, to, ts, txt):
 		self.user = user        # str username
-		self.to = to            # obj nchannel
-		self.ts = ts            # int timestamp
-		self.text = text        # str text
+		self.to   = to          # obj nchannel
+		self.ts   = ts          # int timestamp
+		self.txt  = txt         # str text
 
 
 
@@ -101,7 +101,9 @@ class User(object):
 		if not self.nick:
 			raise RuntimeError("out of legit nicknames")
 
-	def post_init(self):
+	def post_init(self, client):
+		self.client = client
+
 		# create status channel
 		# 
 		text = u"""
@@ -155,8 +157,9 @@ Keybinds:
 		
 		nchan = self.world.join_chan(self, 'general').nchan
 		for n in range(1,200):
-			txt = u'{0}: {1} EOL'.format(
-				n, u', {0}_'.format(n).join(str(v) for v in range(1, min(64, n))))
+			txt = u'{0:03}_{1} EOL'.format(
+				n, u'_dsfarg, {0:03}_'.format(n).join(
+					str(v).rjust(3, '0') for v in range(1, min(48, n))))
 			self.world.send_chan_msg(self.nick, nchan, txt)
 
 
@@ -174,8 +177,9 @@ class World(object):
 	def refresh_chan(self, nchan):
 		for uchan in nchan.uchans:
 			if uchan.user.active_chan == uchan:
-				with uchan.user.client.mutex:
-					uchan.user.refresh()
+				if not uchan.user.client.handshake_sz:
+					print('!!! refresh_chan without handshake_sz')
+				uchan.user.client.refresh(False)
 
 	def send_chan_msg(self, from_nick, nchan, text):
 		with self.mutex:

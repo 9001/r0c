@@ -11,7 +11,7 @@ import struct
 import time
 import sys
 
-from .util   import *
+from .util    import *
 from .c_vt100 import *
 
 PY2 = (sys.version_info[0] == 2)
@@ -130,9 +130,10 @@ class TelnetHost(asyncore.dispatcher):
 		self.con(' ++', addr, len(self.clients) + 1)
 		user = User(self.world, addr)
 		remote = TelnetClient(self, socket, addr, self.world, user)
-		user.post_init()
+		user.post_init(remote)
 		self.world.add_user(user)
 		self.clients.append(remote)
+		remote.handshake_world = True
 	
 	def broadcast(self, message):
 		for client in self.clients:
@@ -145,10 +146,10 @@ class TelnetHost(asyncore.dispatcher):
 
 
 
-class TelnetClient(Client):
+class TelnetClient(VT100_Client):
 	
 	def __init__(self, host, socket, address, world, user):
-		Client.__init__(self, host, socket, address, world, user)
+		VT100_Client.__init__(self, host, socket, address, world, user)
 		
 		config =  b'\xff\xfb\x03'  # will sga
 		config += b'\xff\xfb\x01'  # will echo
@@ -184,6 +185,13 @@ class TelnetClient(Client):
 						# it is, keep the text before it
 						src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8'))
 						self.in_bytes = self.in_bytes[uee.start:]
+
+					elif len(self.in_bytes) < uee.start + 6:
+						
+						print('need more data to parse unicode codepoint at {0} in {1} ...probably'.format(
+							uee.start, len(self.in_bytes)))
+						hexdump(self.in_bytes[-8:], 'XXX ')
+						return
 					
 					else:
 						
@@ -269,6 +277,8 @@ class TelnetClient(Client):
 								if self.h >= 512:
 									print('screen height {0} reduced to 24'.format(self.h))
 									self.h = 24
+
+								self.handshake_sz = True
 							
 					else:
 						print('=== invalid negotiation:')
