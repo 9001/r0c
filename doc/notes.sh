@@ -22,7 +22,7 @@ sudo socat TCP-LISTEN:23,range=127.0.0.1/24,reuseaddr,fork TCP:127.0.0.1:2323
 
 
 # create backup
-cd ~/dev && tar -czvf r0c-$(date +%Y-%m%d-%H%M).tgz --exclude='*.pyc' r0c 
+cd ~/dev && tar -czvf backups/r0c-$(date +%Y-%m%d-%H%M).tgz --exclude='*.pyc' r0c 
 
 
 # convert space -> tabs

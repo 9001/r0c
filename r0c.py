@@ -21,11 +21,11 @@ import signal
 if sys.version_info[0] == 2:
 	sys.dont_write_bytecode = True
 
-from r0c.config import *
-from r0c.util import *
-from r0c.c_vt100 import *
+from r0c.config   import *
+from r0c.util     import *
+from r0c.c_vt100  import *
 from r0c.c_telnet import *
-from r0c.chat import *
+from r0c.chat     import *
 
 
 

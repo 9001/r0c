@@ -219,9 +219,42 @@ class Client(asyncore.dispatcher):
 		return u''
 
 	def update_chat_view(self, full_redraw):
-		# TODO: naive implementation;
-		#       should impl screen scrolling
 		ret = u''
+		ch = self.user.active_chan
+		nch = ch.nchan
+		if full_redraw:
+			lines = []
+			if ch.scroll_pos is None:
+				# lock to bottom: last message will be added first
+				# and will always be partially visible
+				imsg = len(nch.msgs) - 1
+				lines_left = self.h - 3
+				ch.cdr_im = imsg
+				ch.cdr_ts = nch.msgs[imsg].ts
+				ch.cdr_lv = None  # set in loop below
+				while imsg >= 0:
+					txt = nch.msgs[imsg]
+					# unrag here
+					txt = ['{0} {1} {2}'.format(txt)]
+					n_vis = len(txt)
+					if n_vis >= lines_left:
+						n_vis = lines_left
+						ch.car_im = imsg
+						ch.car_ts = nch.msgs[imsg]
+						ch.car_lv = n_vis
+					
+					if ch.cdr.lv is None:
+						ch.cdr.lv = n_vis
+					
+					imsg -= 1
+					lines_left -= n_vis
+					if lines_left <= 0:
+						break
+				
+			while len(lines) < self.h - 3:
+				lines.append('--')
+			
+			self.screen = self.screen[:1] + lines + self.screen[-2:]
 		for n in range(self.h - 3):
 			line = u'{0}<{1:-4d}>{2}<>'.format(
 				u'\033[0m' if n==0 else '',

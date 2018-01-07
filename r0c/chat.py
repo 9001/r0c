@@ -26,18 +26,18 @@ class UChannel(object):
 	def __init__(self, user, nchan):
 		self.user = user        # the user which this object belongs to
 		self.nchan = nchan      # the NChannel object
-		self.scroll_pos = None  # locked to bottom, otherwise msg int of top msg
 		self.last_ts = None     # last time the user viewed this channel
 		self.last_hl = None     # last hilight
 		self.last_draw = None   # last time this channel was sent
 		self.hilights = False
 		self.activity = False
-		self.iv_car = None      # first visible message, int
-		self.tv_car = None      # first visible message, timestamp
-		self.nv_car = None      # first visible message, num lines
-		self.iv_cdr = None      # last visible message, int
-		self.tv_cdr = None      # last visible message, timestamp
-		self.nv_cdr = None      # last visible message, num lines
+		self.scroll_pos = None  # locked to bottom, otherwise ts of top msg
+		self.car_im = None      # first visible message, int
+		self.car_ts = None      # first visible message, timestamp
+		self.car_lv = None      # first visible message, num lines
+		self.cdr_im = None      # last visible message, int
+		self.cdr_ts = None      # last visible message, timestamp
+		self.cdr_lv = None      # last visible message, num lines
 
 
 
@@ -102,6 +102,19 @@ class User(object):
 		text = """
 Welcome to retr0chat
 
+Text formatting:
+  CTRL-O  reset text formatting
+  CTRL-B  bold/bright text on/off
+  CTRL-C  followed by a color code:
+	   1  \033[31mred\033[0m
+	   2  \033[32mgreen\033[0m
+	   3  \033[33myellow\033[0m
+	   4  \033[34mblue\033[0m
+	   5  \033[35mpurple\033[0m
+	   6  \033[36mcyan\033[0m
+	   7  \033[37mwhite\033[0m
+	 3,4  \033[33;43myellow on blue\033[0m
+
 Switching channels:
   CTRL-Z  jump to previous channel
   CTRL-X  jump to next channel
@@ -117,7 +130,7 @@ Leaving a chatroom:
 Changing your nickname:
   /nick new_name
 
-if your terminal is interrupting the CTRL key,
+if your terminal is blocking the CTRL key,
 press ESC followed by the 2nd key instead
 """
 		for line in text.splitlines():
