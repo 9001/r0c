@@ -167,7 +167,7 @@ class VT100_Client(asyncore.dispatcher):
 
 	def refresh(self, cursor_moved):
 		""" compose necessary ansi text and send to client """
-		with self.mutex:
+		with self.mutex and self.world.mutex:
 			if not self.handshake_sz or not self.handshake_world:
 				try:
 					raise RuntimeError('POSSIBLE BUG: attempting to refresh with handshakes sz:{0}, w:{1}'.format(
@@ -341,7 +341,7 @@ class VT100_Client(asyncore.dispatcher):
 			msg_fmt = u'{1:8} {2}'
 			ts_fmt = '%H%M'
 		
-		#msg_w -= 1  # windows telnet does not allow text on the far right
+		#msg_w -= 1  # putty does not display the far right column ???
 
 		# first ensure our cache is sane
 		if not ch.vis or \
@@ -442,6 +442,8 @@ class VT100_Client(asyncore.dispatcher):
 					# fixed viewport
 					#print('@@@ not lock to bottom')
 					return ret
+
+# 94 41
 				
 				if nch.msgs[-1] == ch.vis[-1].msg:
 					# no new messages
@@ -470,52 +472,59 @@ class VT100_Client(asyncore.dispatcher):
 
 			# first / last visible message might have lines off-screen;
 			# check those first
+			txt = []
+			
+			# scrolling up; grab offscreen text at top
 			if t_steps < 0:
 				ref = ch.vis[0]
-			elif t_steps > 0:
-				ref = ch.vis[-1]
-			
-			txt = []
-
-			# number of visible lines != total number of lines
-			if t_steps < 0 and ref.car != 0:
-				# scrolling up; grab offscreen text at top
-				#print('\ncar {0}   cdr {1}   len {2}'.format(ref.car, ref.cdr, len(ref.txt)))
-				#print('lines retained {0} - {1} = {2}'.format(self.h-3, abs_steps, (self.h - 3) - abs_steps))
-
-				retained_lines = (self.h - 3) - abs_steps
-				ref.cdr = ref.car + retained_lines
-				if ref.cdr >= len(ref.txt):
-					ref.cdr = len(ref.txt)
-
-				old_car = ref.car
-				ref.car -= abs_steps
-				if ref.car < 0:
-					ref.car = 0
-
-				actual_steps = old_car - ref.car
-
-				txt = ref.txt[ ref.car : ref.car + actual_steps ]
-				txt.reverse()
-
-				#print('need to add:\n    {0}'.format('\n    '.join(txt)))
-				#time.sleep(20)
-
-			elif t_steps > 0 and ref.cdr != len(ref.txt):
-				# grab n last lines; scrolling down
-				retained_lines = (self.h - 3) - abs_steps
-				ref.car = ref.cdr - (retained_lines)
-				if ref.car < 0:
-					ref.car = 0
 				
-				old_cdr = ref.cdr
-				ref.cdr += abs_steps
-				if ref.cdr >= len(ref.txt):
-					ref.cdr = len(ref.txt)
+				if ref.car != 0:
+					#print('\ncar {0}   cdr {1}   len {2}'.format(ref.car, ref.cdr, len(ref.txt)))
+					#print('lines retained {0} - {1} = {2}'.format(self.h-3, abs_steps, (self.h - 3) - abs_steps))
+					
+					# check how many lines we may end up scrolling
+					max_steps = ref.car
+					if ref.
+					
 
-				actual_steps = ref.cdr - old_cdr
+					retained_lines = (self.h - 3) - abs_steps
+					ref.cdr = ref.car + retained_lines
+					if ref.cdr >= len(ref.txt):
+						ref.cdr = len(ref.txt)
 
-				txt = ref.txt[ ref.cdr - actual_steps : ref.cdr ]
+					old_car = ref.car
+					ref.car -= abs_steps
+					if ref.car < 0:
+						ref.car = 0
+
+					actual_steps = old_car - ref.car
+
+					txt = ref.txt[ ref.car : ref.car + actual_steps ]
+					txt.reverse()
+
+					#print('need to add:\n    {0}'.format('\n    '.join(txt)))
+					#time.sleep(20)
+				
+			else:
+				ref = ch.vis[-1]
+				
+				if ref.cdr != len(ref.txt):
+					# grab n last lines; scrolling down
+					retained_lines = (self.h - 3) - abs_steps
+					ref.car = ref.cdr - retained_lines
+					if ref.car < 0:
+						ref.car = 0
+					
+					old_cdr = ref.cdr
+					ref.cdr += abs_steps
+					if ref.cdr >= len(ref.txt):
+						ref.cdr = len(ref.txt)
+
+					actual_steps = ref.cdr - old_cdr
+
+					txt = ref.txt[ ref.cdr - actual_steps : ref.cdr ]
+					
+					#print('down {0}/{1} actual, {2} req, {3} car, {4} cdr, {5} old_cdr'.format(actual_steps, len(txt), abs_steps, ref.car, ref.cdr, old_cdr))
 
 			#print('@@@ lines left {0} - {1} = {2}'.format(abs_steps, n_steps, abs_steps - n_steps))
 		
