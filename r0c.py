@@ -101,20 +101,21 @@ if not PY2:
 	xff = 0xff
 	xf0 = 0xf0
 	
-	n_verbs = {}
-	for k, v in verbs.items():
-		n_verbs[k[0]] = v
-	verbs = n_verbs
-	
-	n_subjects = {}
-	for k, v in subjects.items():
-		n_subjects[k[0]] = v
-	subjects = n_subjects
+	def dict_2to3(src):
+		ret = {}
+		for k, v in src.items():
+			ret[k[0]] = v
+		return ret
 
-	n_neg_ok = []
-	for v in neg_ok:
-		n_neg_ok.append(v[0])
-	neg_ok = n_neg_ok
+	def list_2to3(src):
+		ret = []
+		for v in src:
+			ret.append(v[0])
+		return ret
+	
+	verbs    = dict_2to3(verbs)
+	subjects = dict_2to3(subjects)
+	neg_ok   = list_2to3(neg_ok)
 
 
 
@@ -147,12 +148,15 @@ def hexdump(pk, prefix=''):
 	while ofs < lpk:
 		hexstr += b2hex(pk[ofs:ofs+8])
 		hexstr += '  '
-		ascstr += ''.join(map(lambda b: chr(b) if b >= 0x20 and b < 0x7f else '.', pk[ofs:ofs+8]))
+		if PY2:
+			ascstr += ''.join(map(lambda b: b if ord(b) >= 0x20 and ord(b) < 0x7f else '.', pk[ofs:ofs+8]))
+		else:
+			ascstr += ''.join(map(lambda b: chr(b) if b >= 0x20 and b < 0x7f else '.', pk[ofs:ofs+8]))
 		ascstr += ' '
 		hexlen += 8
 		ofs += 8
 		
-		if hexlen >= HEX_WIDTH or ofs >= lpk - 1:
+		if hexlen >= HEX_WIDTH or ofs >= lpk:
 			print('{0}{1:8x}  {2}{3}{4}'.format(
 				prefix, hexofs, hexstr,
 				' '*(ascstr_width-len(hexstr)), ascstr))
@@ -162,7 +166,6 @@ def hexdump(pk, prefix=''):
 			ascstr = ''
 
 def trunc(txt, maxlen):
-	#print('truncating to {0}: {1}'.format(maxlen, txt))
 	clen = 0
 	ret = u''
 	pend = None
@@ -170,7 +173,6 @@ def trunc(txt, maxlen):
 	az = 'abcdefghijklmnopqrstuvwxyz'
 	for ch in txt:
 		if not counting:
-			#print('[{0}] not counted'.format(ch))
 			ret += ch
 			if ch in az:
 				counting = True
@@ -220,7 +222,6 @@ class TelnetHost(asyncore.dispatcher):
 		self.p = p
 		self.clients = []
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-		#help(self)
 		if PY2:
 			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		else:
@@ -261,7 +262,8 @@ class Client(asyncore.dispatcher):
 		self.outbox = Queue()
 		self.replies = Queue()
 		self.backlog = None
-		self.incoming = b''
+		self.in_bytes = b''
+		self.in_text = u''
 		self.linebuf = u''
 		self.linepos = 0
 		self.screen = []
@@ -279,12 +281,38 @@ class Client(asyncore.dispatcher):
 			':('
 		]
 
+		self.esc_tab = {}
+		self.add_esc(u'\x1b\x5bD', 'cl')
+		self.add_esc(u'\x1b\x5bC', 'cr')
+		self.add_esc(u'\x1b\x5b\x31\x7e', 'home')
+		self.add_esc(u'\x1b\x5b\x34\x7e', 'end')
+		self.add_esc(u'\x1b\x5b\x35\x7e', 'pgup')
+		self.add_esc(u'\x1b\x5b\x36\x7e', 'pgdn')
+		self.add_esc(u'\x08', 'bs')
+
 		self.w = 80
 		self.h = 24
 		for x in range(self.h):
 			self.screen.append(u'*' * self.w)
 		
+		#self.test_send_lines()
+
 		self.nick = 'dude'
+
+	def add_esc(self, key, act):
+		hist = u''
+		for c in key:
+			hist += c
+			if hist == key:
+				break
+			if hist in self.esc_tab and self.esc_tab[hist]:
+				raise RuntimeException('partial escape code [{0}] matching fully defined escape code for [{1}]'.format(
+					hist, act))
+			self.esc_tab[hist] = False
+		if key in self.esc_tab and self.esc_tab[key] != act:
+			raise RuntimeException('fully defined escape code [{0}] for [{1}] matches other escape code for [{2}]'.format(
+				key, act, self.esc_tab[key]))
+		self.esc_tab[key] = act
 
 	def say(self, message):
 		self.outbox.put(message)
@@ -310,9 +338,9 @@ class Client(asyncore.dispatcher):
 			msg = src.get()
 		
 		if len(msg) < 100:
-			hexdump(msg, 'out ')
+			hexdump(msg, '<<--')
 		else:
-			print('out        :  [{0} byte]'.format(len(msg)))
+			print('<<--       :  [{0} byte]'.format(len(msg)))
 		
 		sent = self.send(msg)
 		self.backlog = msg[sent:]
@@ -323,8 +351,8 @@ class Client(asyncore.dispatcher):
 		nChans = 3
 		nUsers = 17
 		chan_name = u'general'
-		hilight_chans = u'\033[33mH \033[1m2,5,8\033[22;39m'
-		active_chans = u'\033[32mA \033[1m1,3,4,6,7\033[22;39m'
+		hilight_chans = u'\033[1;33mh 2,5,8\033[22;39m'
+		active_chans = u'\033[1;32ma 1,3,4,6,7\033[22;39m'
 		line = trunc(
 			u'\033[0;37;44;48;5;235m{0}   {1} #{2}   {3}   {4}'.format(
 			hhmmss, nChan, chan_name, hilight_chans, active_chans, nUsers), self.w)
@@ -343,19 +371,122 @@ class Client(asyncore.dispatcher):
 			self.screen[self.h-1] = line
 			return True
 	
-	def send_lines(self, to_send):
-		print('sending lno.  {0}'.format(to_send))
+	def send_lines(self, to_send, cursor_moved):
+		if not to_send and not cursor_moved:
+			return
+		dbg = True
+		if dbg and to_send:
+			dstr = '<<--  lines:  '
+			dlo = None
+			dlast = None
+			for v in to_send:
+				if dlast != v - 1:
+					if dlo is not None:
+						if dlo == dlast:
+							dstr += '{0}, '.format(dlo)
+						else:
+							dstr += '{0}-{1}, '.format(dlo, dlast)
+					dlo = v
+				dlast = v
+			if dlo == dlast:
+				dstr += str(dlo)
+			else:
+				dstr += '{0}-{1}'.format(dlo, dlast)
+			print(dstr)
+		
+		#print('<<--  lines:  {0}'.format(to_send))
 		msg = u''
 		for n in to_send:
 			msg += u'\033[{0}H{1}\033[K'.format(n+1, self.screen[n])
 		msg += u'\033[{0};{1}H'.format(self.h, len(self.nick) + 3 + self.linepos)
 		self.say(msg.encode('utf-8'))
-	
-	def read_cb(self, full_redraw, text):
+
+	def read_cb(self, full_redraw):
 		# TODO: parse cursor keys, backspace, etc
-		self.linebuf = self.linebuf[:self.linepos] + text + self.linebuf[self.linepos:]
-		self.linepos += len(text)
 		
+		aside = u''
+		old_cursor = self.linepos
+		if False:
+			for ch in self.in_text:
+				if ch == u'\x1b':
+					if aside:
+						print('discarding partial escape sequence: {0}'.format(b2hex(aside)))
+						self.place_text(aside)
+					aside = ch
+				elif aside == u'\x1b':
+					if ch == u'\x5b':
+						aside += ch
+					else:
+						print('discarding unknown escape sequence: {0}'.format(b2hex(aside + ch)))
+						self.place_text(aside)
+						aside = u''
+				elif aside == u'\x1b\x5b':
+					if ch == 'D':
+						self.linepos -= 1
+						if self.linepos < 0:
+							self.linepos = 0
+						aside = u''
+					elif ch == 'C':
+						self.linepos += 1
+						if self.linepos > len(self.linebuf):
+							self.linepos = len(self.linebuf)
+						aside = u''
+					elif ch in u'\x31\x34':
+						# home/end: 1b 5b 31 7e
+						self.aside += ch
+
+				elif aside:
+					print('discarding unknown escape sequence: {0}'.format(b2hex(aside + ch)))
+					self.place_text(aside)
+					aside = u''
+				elif ch == u'\x08':
+					self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
+					self.linepos -= 1
+				else:
+					self.place_text(ch)
+					self.linepos += 1
+			if aside:
+				print('need more data for {0} runes'.format(len(aside)))
+				self.in_text = aside
+			else:
+				self.in_text = u''
+		else:
+			for ch in self.in_text:
+				aside += ch
+				if not aside in self.esc_tab:
+					self.linebuf = self.linebuf[:self.linepos] + aside + self.linebuf[self.linepos:]
+					self.linepos += len(aside)
+					aside = u''
+				else:
+					act = self.esc_tab[aside]
+					if not act:
+						continue
+					aside = u''
+					if act == 'cl':
+						self.linepos -= 1
+						if self.linepos < 0:
+							self.linepos = 0
+						aside = u''
+					elif act == 'cr':
+						self.linepos += 1
+						if self.linepos > len(self.linebuf):
+							self.linepos = len(self.linebuf)
+						aside = u''
+					elif act == 'home':
+						self.linepos = 0
+					elif act == 'end':
+						self.linepos = len(self.linebuf)
+					elif act == 'bs':
+						self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
+						self.linepos -= 1
+					else:
+						print('unimplemented action: {0}'.format(act))
+			if aside:
+				print('need more data for {0} runes'.format(len(aside)))
+				self.in_text = aside
+			else:
+				self.in_text = u''
+
 		if self.w < 20 or self.h < 4:
 			msg = 'x'
 			for cand in self.msg_too_small:
@@ -399,7 +530,7 @@ class Client(asyncore.dispatcher):
 		if self.update_text_input():
 			to_send.append(self.h-1)
 		
-		self.send_lines(to_send)
+		self.send_lines(to_send, old_cursor != self.linepos)
 		
 		## backspace
 		#while True:
@@ -437,47 +568,46 @@ class TelnetClient(Client):
 		if not data:
 			self.host.part(self)
 		
-		hexdump(data, 'in  ')
+		hexdump(data, '-->>')
 		
-		self.incoming += data
+		self.in_bytes += data
 		
-		text = u''
 		full_redraw = False
 		
-		while self.incoming:
+		while self.in_bytes:
 			
-			len_at_start = len(self.incoming)
+			len_at_start = len(self.in_bytes)
 			
 			try:
-				src = u'{0}'.format(self.incoming.decode('utf-8'))
-				self.incoming = self.incoming[0:0]
+				src = u'{0}'.format(self.in_bytes.decode('utf-8'))
+				self.in_bytes = self.in_bytes[0:0]
 			
 			except UnicodeDecodeError as uee:
 				
 				# first check whether the offending byte is an inband signal
-				if len(self.incoming) > uee.start and self.incoming[uee.start] == xff:
+				if len(self.in_bytes) > uee.start and self.in_bytes[uee.start] == xff:
 					
 					# it is, keep the text before it
-					src = u'{0}'.format(self.incoming[:uee.start].decode('utf-8'))
-					self.incoming = self.incoming[uee.start:]
+					src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8'))
+					self.in_bytes = self.in_bytes[uee.start:]
 				
 				else:
 					
 					# it can't be helped
 					print('warning: unparseable data:')
-					hexdump(self.incoming, 'XXX ')
-					src = u'{0}'.format(self.incoming[:uee.start].decode('utf-8', 'backslashreplace'))
-					self.incoming = self.incoming[0:0]  # todo: is this correct?
+					hexdump(self.in_bytes, 'XXX ')
+					src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8', 'backslashreplace'))
+					self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
 			
 			#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]
 			#self.linepos += len(src)
-			text += src
+			self.in_text += src
 			
-			if self.incoming and self.incoming[0] == xff:
-				#cmd = b''.join([self.incoming[:3]])
-				cmd = self.incoming[:3]
+			if self.in_bytes and self.in_bytes[0] == xff:
+				#cmd = b''.join([self.in_bytes[:3]])
+				cmd = self.in_bytes[:3]
 				if len(cmd) < 3:
-					print('need more data')
+					print('need more data for generic negotiation')
 					break
 				
 				if verbs.get(cmd[1]):
@@ -485,40 +615,40 @@ class TelnetClient(Client):
 						print('[X] subject not implemented: '.format(b2hex(cmd)))
 						continue
 			
-					print('negotiation:  {0} {1} {2}'.format(
+					print('-->> negote:  {0}  {1} {2}'.format(
 						b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
 					
 					if cmd[:2] == b'\xff\xfe':  # dont
-						print('   response:  {0} DONT -> WILL NOT'.format(b2hex(cmd[:3])))
+						print('<<-- n.resp:  {0}  DONT -> WILL NOT'.format(b2hex(cmd[:3])))
 						self.replies.put(b''.join([b'\xff\xfc', cmd[2:3]]))
 						#print('           :  {0}'.format(b2hex(response)))
 					
 					if cmd[:2] == b'\xff\xfd':  # do
 						if cmd[2] in neg_ok:
-							print('   response:  {0} DO -> WILL'.format(b2hex(cmd[:3])))
+							print('<<-- n.resp:  {0}  DO -> WILL'.format(b2hex(cmd[:3])))
 							response = b'\xfb' # will
 						else:
-							print('   response:  {0} DO -> WILL NOT'.format(b2hex(cmd[:3])))
+							print('<<-- n.resp:  {0}  DO -> WILL NOT'.format(b2hex(cmd[:3])))
 							response = b'\xfd' # wont
 
 						#print('           :  {0}'.format(b2hex(response)))
 						self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
 					
-					self.incoming = self.incoming[3:]
+					self.in_bytes = self.in_bytes[3:]
 				
-				elif cmd[1] == b'\xfa'[0] and len(self.incoming) >= 3:
-					eon = self.incoming.find(b'\xff\xf0')
+				elif cmd[1] == b'\xfa'[0] and len(self.in_bytes) >= 3:
+					eon = self.in_bytes.find(b'\xff\xf0')
 					if eon <= 0 or eon > 16:
 						#print('invalid subnegotiation:')
-						#hexdump(self.incoming, 'XXX ')
-						#self.incoming = self.incoming[0:0]
-						print('need more data')
+						#hexdump(self.in_bytes, 'XXX ')
+						#self.in_bytes = self.in_bytes[0:0]
+						print('need more data for sub-negotiation')
 						break
 					else:
-						#cmd = b''.join([self.incoming[:12]])  # at least 9
-						cmd = self.incoming[:eon]
-						self.incoming = self.incoming[eon+2:]
-						print('    sub-neg:  {0}'.format(b2hex(cmd)))
+						#cmd = b''.join([self.in_bytes[:12]])  # at least 9
+						cmd = self.in_bytes[:eon]
+						self.in_bytes = self.in_bytes[eon+2:]
+						print('-->> subneg:  {0}'.format(b2hex(cmd)))
 						
 						if cmd[2] == b'\x1f'[0]:
 							full_redraw = True
@@ -544,16 +674,16 @@ class TelnetClient(Client):
 								self.h = 24
 						
 				else:
-					print('invalid negotiation:')
-					hexdump(self.incoming, 'XXX ')
-					self.incoming = self.incoming[0:0]
+					print('=== invalid negotiation:')
+					hexdump(self.in_bytes, 'XXX ')
+					self.in_bytes = self.in_bytes[0:0]
 			
-			if len(self.incoming) == len_at_start:
-				print('unhandled data from client:')
-				hexdump(self.incoming, 'XXX ')
-				self.incoming = self.incoming[0:0]
-			
-		self.read_cb(full_redraw, text)
+			if len(self.in_bytes) == len_at_start:
+				print('=== unhandled data from client:')
+				hexdump(self.in_bytes, 'XXX ')
+				self.in_bytes = self.in_bytes[0:0]
+		
+		self.read_cb(full_redraw)
 
 
 	
