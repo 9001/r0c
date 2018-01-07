@@ -4,11 +4,9 @@ if __name__ == '__main__':
 		'  this file is part of retr0chat',
 		'  run r0c.py instead'))
 
-import threading
 import asyncore
 import socket
 import struct
-import time
 import sys
 
 from .util    import *
@@ -70,15 +68,56 @@ verbs = {
 	b"\xfb": "WILL"
 }
 
-neg_ok = []
-neg_ign = [
-	b'\x01',  # echo
-	b'\x03',  # suppress go-ahead
-	b'\x1f'   # negotiate window size
-]
-
 xff = b'\xff'
 xf0 = b'\xf0'
+
+
+
+if not FORCE_LINEMODE:
+	# standard operation procedure;
+	# we'll handle all rendering
+
+	neg_will = [
+		b'\x1f',  # negotiate window size
+		b'\x01',  # echo
+		b'\x03'   # suppress go-ahead
+	]
+
+	neg_wont = [
+	]
+
+	neg_dont = [
+		b'\x25'   # authentication
+	]
+
+	initial_neg =  b''
+	initial_neg += b'\xff\xfb\x03'  # will sga
+	initial_neg += b'\xff\xfb\x01'  # will echo
+	initial_neg += b'\xff\xfd\x1f'  # do naws
+
+else:
+	# debug / negative test;
+	# have client linebuffer
+	
+	neg_will = [
+		b'\x1f'   # negotiate window size
+	]
+
+	neg_wont = [
+		b'\x01',  # echo
+		b'\x03'   # suppress go-ahead
+	]
+
+	initial_neg =  b''
+	#initial_neg += b'\xff\xfc\x03'  # won't sga
+	#initial_neg += b'\xff\xfc\x01'  # won't echo
+	initial_neg += b'\xff\xfd\x01'  # do echo
+	initial_neg += b'\xff\xfd\x22'  # do linemode
+	initial_neg += b'\xff\xfd\x1f'  # do naws
+
+
+
+
 
 if not PY2:
 	xff = 0xff
@@ -98,8 +137,8 @@ if not PY2:
 	
 	verbs    = dict_2to3(verbs)
 	subjects = dict_2to3(subjects)
-	neg_ok   = list_2to3(neg_ok)
-	neg_ign  = list_2to3(neg_ign)
+	neg_will = list_2to3(neg_will)
+	neg_wont = list_2to3(neg_wont)
 
 
 
@@ -134,6 +173,7 @@ class TelnetHost(asyncore.dispatcher):
 		self.world.add_user(user)
 		self.clients.append(remote)
 		remote.handshake_world = True
+		remote.conf_wizard()
 	
 	def broadcast(self, message):
 		for client in self.clients:
@@ -151,10 +191,11 @@ class TelnetClient(VT100_Client):
 	def __init__(self, host, socket, address, world, user):
 		VT100_Client.__init__(self, host, socket, address, world, user)
 		
-		config =  b'\xff\xfb\x03'  # will sga
-		config += b'\xff\xfb\x01'  # will echo
-		config += b'\xff\xfd\x1f'  # do naws
-		self.replies.put(config)
+		#if FORCE_LINEMODE:
+		#	self.y_input, self.y_status = self.y_status, self.y_input
+
+		self.neg_done = []
+		self.replies.put(initial_neg)
 
 	def handle_read(self):
 		with self.mutex:
@@ -220,34 +261,36 @@ class TelnetClient(VT100_Client):
 						print('-->> negote:  {0}  {1} {2}'.format(
 							b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
 
-						if cmd[:2] == b'\xff\xfe':  # dont
-							print('<<-- n.resp:  {0}  DONT -> WILL NOT'.format(b2hex(cmd[:3])))
-							self.replies.put(b''.join([b'\xff\xfc', cmd[2:3]]))
-							#print('           :  {0}'.format(b2hex(response)))
+						response = None
+						if cmd in self.neg_done:
+							print('-><- n.loop:  {0}'.format(b2hex(cmd)))
 
-						if cmd[:2] == b'\xff\xfd':  # do
-							if cmd[2] in neg_ok:
-								print('<<-- n.resp:  {0}  DO -> WILL'.format(b2hex(cmd[:3])))
-								response = b'\xfb' # will
-							elif cmd[2] in neg_ign:
-								response = None
-							else:
-								print('<<-- n.resp:  {0}  DO -> WILL NOT'.format(b2hex(cmd[:3])))
-								response = b'\xfd' # wont
+						elif cmd[:2] == b'\xff\xfe':  # dont
+							response = b'\xfc'        # will not
+							if cmd[2] in neg_will:
+								response = b'\xfb'    # will
 
-							if response is not None:
-								#print('           :  {0}'.format(b2hex(response)))
-								self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
+						elif cmd[:2] == b'\xff\xfd':  # do
+							response = b'\xfb'        # will
+							if cmd[2] in neg_wont:
+								response = b'\xfc'    # will not
 						
+						if response is not None:
+							print('<<-- n.resp:  {0}  {1} -> {2}'.format(
+								b2hex(cmd[:3]), verbs.get(cmd[1]), verbs.get(response[0])))
+							self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
+							self.neg_done.append(cmd)
+					
 						self.in_bytes = self.in_bytes[3:]
 					
 					elif cmd[1] == b'\xfa'[0] and len(self.in_bytes) >= 3:
 						eon = self.in_bytes.find(b'\xff\xf0')
-						if eon <= 0 or eon > 16:
+						if eon <= 0:
 							#print('invalid subnegotiation:')
 							#hexdump(self.in_bytes, 'XXX ')
 							#self.in_bytes = self.in_bytes[0:0]
-							print('need more data for sub-negotiation')
+							print('need more data for sub-negotiation: {0}'.format(
+								b2hex(self.in_bytes)))
 							break
 						else:
 							#cmd = b''.join([self.in_bytes[:12]])  # at least 9
@@ -267,8 +310,6 @@ class TelnetClient(VT100_Client):
 									cmd = cmd[:ofs] + cmd[ofs+1:]
 								print('           :  {0}'.format(b2hex(cmd)))
 								
-								srch_from = 7
-								#print('srch_from {0}'.format(b2hex(cmd[7:])))
 								self.w, self.h = struct.unpack('>HH', cmd[3:7])
 								print('terminal sz:  {0}x{1}'.format(self.w, self.h))
 								if self.w >= 512:

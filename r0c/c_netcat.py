@@ -4,11 +4,8 @@ if __name__ == '__main__':
 		'  this file is part of retr0chat',
 		'  run r0c.py instead'))
 
-import threading
 import asyncore
 import socket
-import struct
-import time
 import sys
 
 from .util    import *
@@ -79,7 +76,7 @@ class TelnetClient(VT100_Client):
 			self.in_bytes += data
 			
 			try:
-				src = u'{0}'.format(self.in_bytes.decode('utf-8'))
+				src = u'{0}'.format(self.in_bytes.decode(self.codec))
 				self.in_bytes = self.in_bytes[0:0]
 			
 			except UnicodeDecodeError as uee:
@@ -92,7 +89,7 @@ class TelnetClient(VT100_Client):
 					# it can't be helped
 					print('warning: unparseable data:')
 					hexdump(self.in_bytes, 'XXX ')
-					src = u'{0}'.format(self.in_bytes[:uee.start].decode('utf-8', 'backslashreplace'))
+					src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec, 'backslashreplace'))
 					self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
 			
 			#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]

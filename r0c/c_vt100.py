@@ -31,21 +31,46 @@ class VT100_Client(asyncore.dispatcher):
 		self.socket = socket
 		self.world = world
 		self.user = user
+
+		# config
+		self.y_input = 0       # offset from bottom of screen
+		self.y_status = 1      # offset from bottom of screen
+		self.linemode = False  # set true by buggy clients
+		self.no_vt100 = False  # set true by buffy clients
+		self.echo_on = False   # set true by butty clients
+		self.slowmo_tx = SLOW_MOTION_TX
+		self.codec = 'cp437'
+		self.codec = 'utf-8'
+
+		# outgoing data
 		self.outbox = Queue()
 		self.replies = Queue()
-		self.backlog = None
 		self.last_tx = None
-		self.handshake_sz = False
-		self.handshake_world = False
-		self.need_full_redraw = False
-		self.slowmo_tx = SLOW_MOTION_TX
+
+		# incoming data
+		self.backlog = None
 		self.in_bytes = b''
 		self.in_text = u''
+
+		# incoming requests
+		self.scroll_cmd = None
+
+		# input buffer
 		self.linebuf = u''
 		self.linepos = 0
 		self.lineview = 0
-		self.scroll_cmd = None
+		self.msg_hist = []
+		self.msg_hist_n = None
+
+		# state registers
+		self.wizard_stage = 'start'
+		self.wizard_lastlen = 0
+		self.handshake_sz = False
+		self.handshake_world = False
+		self.need_full_redraw = False
 		self.screen = []
+		self.w = 80
+		self.h = 24
 		
 		self.msg_too_small = [
 			'your screen is too small',
@@ -82,14 +107,6 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x12', 'redraw')
 		self.add_esc(u'\x1a', 'prev-chan')
 		self.add_esc(u'\x18', 'next-chan')
-
-		self.w = 80
-		self.h = 24
-		for x in range(self.h):
-			self.screen.append(u'*' * self.w)
-		
-		self.msg_hist = []
-		self.msg_hist_n = None
 
 		thr = threading.Thread(target=self.handshake_timeout)
 		thr.daemon = True
@@ -173,20 +190,29 @@ class VT100_Client(asyncore.dispatcher):
 	def refresh(self, cursor_moved):
 		""" compose necessary ansi text and send to client """
 		with self.mutex and self.world.mutex:
-			if not self.handshake_sz or not self.handshake_world:
-				try:
-					raise RuntimeError('POSSIBLE BUG: attempting to refresh with handshakes sz:{0}, w:{1}'.format(
-						self.handshake_sz, self.handshake_world))
-				except:
-					#exc = sys.exc_info()
-					#traceback.print_exception(*exc)
-					#del exc
-					
-					print(traceback.format_exc())
+			if  not self.handshake_sz or \
+				not self.handshake_world or \
+				self.wizard_stage is not None:
+
+				#try:
+				#	raise RuntimeError('POSSIBLE BUG: attempting to refresh with handshakes sz:{0}, w:{1}'.format(
+				#		self.handshake_sz, self.handshake_world))
+				#except:
+				#	#exc = sys.exc_info()
+				#	#traceback.print_exception(*exc)
+				#	#del exc
+				#	
+				#	print(traceback.format_exc())
 				return
 
 			full_redraw = self.need_full_redraw
 			self.need_full_redraw = False
+
+			if not self.screen or len(self.screen) != self.h:
+				full_redraw = True
+
+			if full_redraw:
+				self.screen = ['x'] * self.h
 
 			if self.user.new_active_chan:
 				self.user.active_chan = self.user.new_active_chan
@@ -210,9 +236,9 @@ class VT100_Client(asyncore.dispatcher):
 				to_send += '\033[0m'
 			
 			if to_send or cursor_moved:
-				to_send += u'\033[{0};{1}H'.format(self.h, len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
-				#self.say(to_send.encode('utf-8'))
-				self.say(to_send.encode('cp437'))
+				to_send += u'\033[{0};{1}H'.format(self.h - self.y_input,
+					len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
+				self.say(to_send.encode(CODEC))
 
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
@@ -230,7 +256,7 @@ class VT100_Client(asyncore.dispatcher):
 		return u''
 
 	def update_status_bar(self, full_redraw):
-		preface = u'\033[{0}H\033[0;37;44;48;5;235m'.format(self.h-1)
+		preface = u'\033[{0}H\033[0;37;44;48;5;235m'.format(self.h - self.y_status)
 		hhmmss = datetime.datetime.utcnow().strftime('%H%M%S')
 		uchan = self.user.active_chan
 		nbuf  = self.user.chans.index(uchan)
@@ -270,12 +296,12 @@ class VT100_Client(asyncore.dispatcher):
 			len(nchan.uchans)), self.w)
 		
 		if full_redraw:
-			if self.screen[self.h-2] != line:
-				self.screen[self.h-2] = line
+			if self.screen[  self.h - (self.y_status + 1) ] != line:
+				self.screen[ self.h - (self.y_status + 1) ] = line
 				return trunc(line, self.w)
 		else:
-			old = self.screen[self.h-2]
-			self.screen[self.h-2] = line
+			old = self.screen[ self.h - (self.y_status + 1) ]
+			self.screen[       self.h - (self.y_status + 1) ] = line
 			
 			if len(old) != len(line):
 				return trunc(line, self.w)
@@ -291,7 +317,7 @@ class VT100_Client(asyncore.dispatcher):
 			if changed_part1:
 				# send just the timestamp
 				return line[:cutoff]
-				#return u'\033[{0}H{1}'.format(self.h-1, hhmmss)  # drops colors
+				#return u'\033[{0}H{1}'.format(self.h - self.y_status, hhmmss)  # drops colors
 
 		return u''
 	
@@ -308,9 +334,9 @@ class VT100_Client(asyncore.dispatcher):
 				self.lineview = self.linepos - free_space
 			vis_text = vis_text[self.lineview:self.lineview+free_space]
 		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.user.nick, vis_text)
-		if self.screen[self.h-1] != line:
-			self.screen[self.h-1] = line
-			return u'\033[{0}H{1}\033[K'.format(self.h, line)
+		if self.screen[  self.h - (self.y_input + 1) ] != line:
+			self.screen[ self.h - (self.y_input + 1) ] = line
+			return u'\033[{0}H{1}\033[K'.format(self.h - self.y_input, line)
 		return u''
 	
 	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
@@ -519,9 +545,6 @@ class VT100_Client(asyncore.dispatcher):
 				# push all new messages
 				t_steps = 99999999999
 			
-			# set scroll region:  chat pane
-			ret += u'\033[2;{0}r'.format(self.h - 2)
-			
 			abs_steps = abs(t_steps)    # abs(total steps)
 			
 			#print('@@@ gonna scroll {0} lines'.format(abs_steps))
@@ -531,6 +554,10 @@ class VT100_Client(asyncore.dispatcher):
 					for ln in msg.txt[msg.car:msg.cdr]:
 						print(ln)
 
+			# set scroll region:  chat pane
+			print('SCROLL SET')
+			ret += u'\033[2;{0}r'.format(self.h - 2)
+			
 			# first / last visible message might have lines off-screen;
 			# check those first
 			partial = None      # currently offscreen text
@@ -644,7 +671,7 @@ class VT100_Client(asyncore.dispatcher):
 					n_steps += 1
 					if n_steps >= abs_steps:
 						break
-				
+
 				if t_steps < 0:
 					new_cdr = len(txt)
 					new_car = new_cdr - n_vis
@@ -663,6 +690,10 @@ class VT100_Client(asyncore.dispatcher):
 				if partial:
 					partial = None
 					partial_new = vmsg
+		
+			# release scroll region
+			ret += u'\033[r'
+			print('SCROLL UNSET')
 			
 			# trim away messages that went off-screen
 			if t_steps < 0:
@@ -671,7 +702,6 @@ class VT100_Client(asyncore.dispatcher):
 				vis_order = reversed(ch.vis)
 			
 			n_msg = 0
-			screen_buf = []
 			ln_left = self.h - 3
 			
 			for i, vmsg in enumerate(vis_order):
@@ -726,7 +756,7 @@ class VT100_Client(asyncore.dispatcher):
 
 				partial_new.txt = partial_org.txt
 				partial_new.msg = partial_org.msg
-			
+
 			# update the server-side screen buffer
 			new_screen = [self.screen[0]]
 			for i, vmsg in enumerate(ch.vis):
@@ -759,9 +789,224 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
+
+
+
+	def conf_wizard(self):
+		if DBG:
+			if u'\x03' in self.in_text:
+				sys.exit(0)
+
+		sep = u'{0}{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
+
+		if self.wizard_stage == 'start':
+			self.wizard_stage = 'qwer_read'
+			self.in_text = u''
+			self.say(('\n'*8 + '[ r0c configurator ]' + u"""
+
+type the text below, then hit [Enter]:  
+
+	qwer asdf
+
+""").replace(u"\n", u"\r\n").encode('utf-8'))
+			return
+
+
+		if self.wizard_stage == 'qwer_read':
+			btext = self.in_text.encode('utf-8')
+			delta = len(self.in_text) - self.wizard_lastlen
+			self.wizard_lastlen = len(self.in_text)
+			if delta > 1:
+				# acceptable if delta is exactly 2
+				# and the final characters are newline-ish
+				print('delta = {0}'.format(delta))
+				if delta > 2 or btext[-1] not in b'\x0d\x0a\x00':
+					self.linemode = True
+					print('setting linemode since d{0} and {1}ch; {2}'.format(
+						delta, len(self.in_text),
+						b2hex(self.in_text.encode('utf-8'))))
+
+			if any(ch in btext for ch in b'\x0d\x0a\x00'):
+				self.wizard_stage = 'echo'
+
+			#print('now, last = {0}, {1}'.format(len(self.in_text), self.wizard_lastlen))
+			#if len(self.in_text) - self.wizard_lastlen > 1:
+			#	ofs = self.in_text.lower().find(u'y')
+			#	ex_len = None
+			#	if ofs >= 0:
+			#		ex_len = ofs + 3
+			#	else:
+			#		ofs = self.in_text.lower().find(u'n')
+			#		if ofs >= 0:
+			#			ex_len = ofs + 3
+			#
+			#	if self.wizard_lastlen < 2 or \
+			#		(ex_len is not None and ex_len >= self.wizard_lastlen):
+			#
+			#		print('setting linemode since d{0} and ex({1}) >= in({2}); {3}'.format(
+			#			len(self.in_text) - self.wizard_lastlen,
+			#			ex_len, len(self.in_text),
+			#			b2hex(self.in_text.encode('utf-8'))))
+			#
+			#		self.linemode = True
+
+
+		if self.wizard_stage == 'echo':
+			self.wizard_stage = 'echo_answer'
+			self.in_text = u''
+			self.say((sep + u"""
+did your text appear as you were typing?  
+
+press Y or N&lm
+""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+			return
+
+
+		if self.wizard_stage == 'echo_answer':
+			self.wizard_stage = 'linemode'
+			if u'y' in self.in_text.lower():
+				self.echo_on = True
+
+
+		if self.wizard_stage == 'linemode':
+			if self.linemode:
+				self.wizard_stage = 'linemode_warn'
+				self.in_text = u''
+				self.say((sep + u"""
+WARNING:  
+  your client is stuck in line-buffered mode,
+  this will cause visual glitches in text input.
+  Keys like PgUp and CTRL-Z are also buggy;
+  you must press the key twice followed by Enter.
+
+if you are using Linux or Mac OSX, disconnect and
+run the following command before reconnecting:
+  Mac OSX:  stty -f /dev/stdin -icanon
+  Linux:    stty -icanon
+
+to accept and continue, press A&lm
+""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+				return
+
+			self.wizard_stage = 'color'
+
+
+		if self.wizard_stage == 'linemode_warn':
+			if u'a' in self.in_text or u'A' in self.in_text:
+				self.wizard_stage = 'color'
+
+
+		if self.wizard_stage == 'color':
+			self.wizard_stage = 'color_answer'
+			self.in_text = u''
+			self.say((sep + u"""
+does colours work?  
+\033[1;31mred, \033[32mgreen, \033[33myellow, \033[34mblue\033[0m
+
+press Y or N&lm
+""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+			return
+
+
+		if self.wizard_stage == 'color_answer':
+			
+			if u'y' in self.in_text.lower():
+				self.wizard_stage = 'end'
+				self.in_text = u''
+			
+			elif u'n' in self.in_text.lower():
+				self.wizard_stage = 'vt100'
+				self.in_text = u''
+				
+				self.say((sep + u"""
+what did you see instead?  
+
+  A:  "red, green, yellow, blue"
+	  -- either in just one colour
+		 or otherwise in incorrect colours
+
+  B:  "[1;31mred, [32mgreen, [33myellow, [36mblue[0m"
+
+press A or B&lm
+""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+				return
+
+
+		if self.wizard_stage == 'vt100':
+			if u'a' in self.in_text.lower():
+				# vt100 itself is probably fine, don't care
+				self.wizard_stage = 'end'
+				self.in_text = u''
+
+			elif u'b' in self.in_text.lower():
+				self.wizard_stage = 'vt100_warn'
+				self.no_vt100 = True
+				self.in_text = u''
+				self.say((sep + u"""
+WARNING:  
+  your client or terminal is not vt100 compatible!
+  I will reduce features to a bare minimum,
+  brace for a glitchy mess
+
+to accept and continue, press A&lm
+""").replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+				return
+
+
+		if self.wizard_stage == 'vt100_warn':
+			if u'a' in self.in_text.lower():
+				self.wizard_stage = 'end'
+				self.in_text = u''
+
+
+		if self.wizard_stage == 'codec':
+			self.wizard_stage = 'codec_answer'
+			self.in_text = u''
+			hmr = u"├┐ ┌┬┐ ┌ "
+
+			self.say(
+				(sep + part1).replace(u'\n', u'\r\n').encode('utf-8') +
+				hmr.encode('utf-8') +
+				part2.replace(u'\n', u'\r\n').encode('utf-8') +
+				hmr.encode('cp437') +
+				part3.replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
+
+			return
+
+
+		if self.wizard_stage == 'codec_answer':
+			self.wizard_stage = 'end'
+
+		if self.wizard_stage == 'end':
+			self.wizard_stage = None
+			self.in_text = u''
+			
+			# if linemode, swap status and input:
+			# that way the screen won't scroll on enter
+			if self.linemode:
+				self.y_input, self.y_status = self.y_status, self.y_input
+
+			print('client conf:  linemode({0})  no_vt100({1})  echo_on({2})  codec({3})'.format(
+				self.linemode, self.no_vt100, self.echo_on, self.codec))
+
+
+
+
+
+
 	def read_cb(self, full_redraw):
 		# only called by (telnet|netcat).py:handle_read,
 		# only called within locks on self.mutex
+
+		#self.wizard_stage = None
+		if self.wizard_stage is not None:
+			self.conf_wizard()
+			
+			if self.wizard_stage is not None:
+				return
+
+			full_redraw = True
+
 		aside = u''
 		old_cursor = self.linepos
 		for ch in self.in_text:
@@ -925,12 +1170,11 @@ class VT100_Client(asyncore.dispatcher):
 			y += 1
 			print('2smol @ {0} {1}'.format(x, y))
 			msg = u'\033[H\033[1;37;41m\033[J\033[{0};{1}H{2}\033[0m'.format(y,x,msg)
-			self.say(msg.encode('utf-8'))
+			self.say(msg.encode(CODEC))
 			return
 
 		with self.mutex:
-			if full_redraw:
-				self.screen = ['x'] * self.h
+			if full_redraw or self.need_full_redraw:
 				self.need_full_redraw = True
 			
 			if not self.handshake_sz:

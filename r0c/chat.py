@@ -5,7 +5,6 @@ if __name__ == '__main__':
 		'  run r0c.py instead'))
 
 import hashlib
-import base64
 import threading
 
 from .util import *
@@ -335,8 +334,11 @@ class World(object):
 	def refresh_chan(self, nchan):
 		for uchan in nchan.uchans:
 			if uchan.user.active_chan == uchan:
-				if not uchan.user.client.handshake_sz:
+				if not uchan.user.client.handshake_sz or \
+					uchan.user.client.wizard_stage is not None:
+
 					print('!!! refresh_chan without handshake_sz')
+					continue
 				uchan.user.client.refresh(False)
 
 	def send_chan_msg(self, from_nick, nchan, text):
