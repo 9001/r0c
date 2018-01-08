@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 if __name__ == '__main__':
-	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
-		'  this file is part of retr0chat',
-		'  run r0c.py instead'))
+	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
 import traceback
 import threading
@@ -81,7 +79,7 @@ class VT100_Client(asyncore.dispatcher):
 	
 	def __init__(self, host, socket, address, world, user):
 		asyncore.dispatcher.__init__(self, socket)
-		self.mutex = threading.RLock()
+		#self.mutex = threading.RLock()
 		self.host = host
 		self.socket = socket
 		self.world = world
@@ -265,7 +263,7 @@ class VT100_Client(asyncore.dispatcher):
 
 	def refresh(self, cursor_moved):
 		""" compose necessary ansi text and send to client """
-		with self.mutex and self.world.mutex:
+		with self.world.mutex:
 			if  self.too_small or \
 				not self.handshake_sz or \
 				not self.handshake_world or \
@@ -733,10 +731,12 @@ class VT100_Client(asyncore.dispatcher):
 			else:
 				ref = ch.vis[-1]
 				if ref.cdr != len(ref.txt):
-					for n, ln in enumerate(ref.txt):
-						print('{0:2} {1} {2}'.format(n, ln,
-							'== car' if n == ref.car else \
-							'== cdr' if n == ref.cdr - 1 else ''))
+
+					if debug_scrolling:
+						for n, ln in enumerate(ref.txt):
+							print('{0:2} {1} {2}'.format(n, ln,
+								'== car' if n == ref.car else \
+								'== cdr' if n == ref.cdr - 1 else ''))
 
 					partial = ref.txt[ref.cdr:]
 					partial_org = ref
@@ -874,7 +874,7 @@ class VT100_Client(asyncore.dispatcher):
 
 				ln_left -= msg_sz
 
-				#print('@@@ 1 {0}'.format('\n@@@ 1 '.join(vmsg.txt[vmsg.car : vmsg.cdr])))
+				#print('@@@ 1 {0}'.format('\r\n@@@ 1 '.join(vmsg.txt[vmsg.car : vmsg.cdr])))
 
 			if t_steps < 0:
 				ch.vis = ch.vis[:n_msg]
@@ -971,7 +971,7 @@ class VT100_Client(asyncore.dispatcher):
 			self.say((top + u"""
  type the text below, then hit [Enter]:  
 
-	 qwer asdf
+   qwer asdf
 
  """).replace(u"\n", u"\r\n").encode('utf-8'))
 #\033[10Hasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf
@@ -987,7 +987,7 @@ class VT100_Client(asyncore.dispatcher):
 			if delta > 1:
 				# acceptable if delta is exactly 2
 				# and the final characters are newline-ish
-				print('delta = {0}'.format(delta))
+				print('qwer delta = {0}'.format(delta))
 				if delta > 2 or btext[-1] not in nline:
 					if self.wizard_maxdelta < delta:
 						self.wizard_maxdelta = delta
@@ -1006,11 +1006,12 @@ class VT100_Client(asyncore.dispatcher):
 					for key in drop:
 						del self.esc_tab[key]
 					self.esc_tab[nl.decode('utf-8')] = 'ret'
-					print('newline = {0}'.format(b2hex(nl)))
+					print('qwer newline = {0}'.format(b2hex(nl)))
 
 				if self.wizard_maxdelta >= nl_a / 2:
+					self.echo = True
 					self.linemode = True
-					print('setting linemode since d{0} and {1}ch; {2}'.format(
+					print('setting linemode+echo since d{0} and {1}ch; {2}'.format(
 						self.wizard_maxdelta, len(self.in_text),
 						b2hex(self.in_text.encode('utf-8'))))
 
@@ -1046,11 +1047,15 @@ class VT100_Client(asyncore.dispatcher):
 
 
 		if self.wizard_stage == 'echo':
+			if self.linemode:
+				# echo is always enabled if linemode, skip this stage
+				self.wizard_stage = 'linemode'
+				return
 			self.wizard_stage = 'echo_answer'
 			self.in_text = u''
 			self.say((u"""
 
-   A:  text appeared as you typed
+   A:  your text appeared as you typed
 
    B:  nothing happened
 
@@ -1126,8 +1131,8 @@ class VT100_Client(asyncore.dispatcher):
  what did you see instead?  
 
    A:  "red, green, yellow, blue"
-	   -- either in just one colour
-		  or otherwise in incorrect colours
+       -- either in just one colour
+          or otherwise incorrect colours
 
    B:  "[1;31mred, [32mgreen, [33myellow, [36mblue[0m"
 
@@ -1180,7 +1185,7 @@ class VT100_Client(asyncore.dispatcher):
 			def u8(tx):
 				return tx.encode('utf-8', 'backslashreplace')
 
-			to_send = u8((ftop + u'\n which line looks like  "hmr"  or  "dna" ?\n').replace(u'\n', u'\r\n'))
+			to_send = u8((ftop + u'\n which line looks like  "hmr"  or  "dna" ?').replace(u'\n', u'\r\n'))
 
 			if not self.vt100:
 				for nth, (enc, uni) in enumerate(zip(encs[::2], encs[1::2])):
@@ -1217,16 +1222,20 @@ class VT100_Client(asyncore.dispatcher):
 
 
 		if self.wizard_stage == 'end':
-			self.wizard_stage = None
-			self.in_text = u''
-			
-			# if linemode, swap status and input:
+			# if echo enabled, swap status and input:
 			# that way the screen won't scroll on enter
-			if self.linemode:
+			if self.echo_on:
 				self.y_input, self.y_status = self.y_status, self.y_input
 
 			print('client conf:  linemode({0})  vt100({1})  echo_on({2})  codec({3})'.format(
 				self.linemode, self.vt100, self.echo_on, self.codec))
+
+			self.wizard_stage = None
+			self.in_text = u''
+			
+			#print('{0} is going to sleep'.format(threading.current_thread()))
+			#monitor_threads()
+			#time.sleep(3)
 
 			self.user.create_channels()
 
@@ -1236,7 +1245,7 @@ class VT100_Client(asyncore.dispatcher):
 
 	def read_cb(self, full_redraw):
 		# only called by (telnet|netcat).py:handle_read,
-		# only called within locks on self.mutex
+		# only called within locks on self.world.mutex
 
 		#self.wizard_stage = None
 		if self.wizard_stage is not None:
@@ -1393,7 +1402,8 @@ class VT100_Client(asyncore.dispatcher):
 						self.linebuf = self.msg_hist[self.msg_hist_n]
 					self.linepos = len(self.linebuf)
 		if aside:
-			print('need more data for {0} runes: {1}'.format(len(aside), b2hex(aside)))
+			if DBG:
+				print('need more data for {0} runes: {1}'.format(len(aside), b2hex(aside)))
 			self.in_text = aside
 		else:
 			self.in_text = u''
@@ -1401,7 +1411,7 @@ class VT100_Client(asyncore.dispatcher):
 		if self.w < 20 or self.h < 4:
 			msg = 'x'
 			for cand in self.msg_too_small:
-				print('{0} <= {1}'.format(len(cand), self.w))
+				#print('{0} <= {1}'.format(len(cand), self.w))
 				if len(cand) <= self.w:
 					msg = cand
 					break
@@ -1416,13 +1426,13 @@ class VT100_Client(asyncore.dispatcher):
 			return
 		self.too_small = False
 
-		with self.mutex:
+		with self.world.mutex:
 			if full_redraw or self.need_full_redraw:
 				self.need_full_redraw = True
 			
 			if not self.handshake_sz:
-				print('!!! read_cb without handshake_sz')
+				if DBG:
+					print('!!! read_cb without handshake_sz')
 			else:
 				self.refresh(old_cursor != self.linepos)
-
 

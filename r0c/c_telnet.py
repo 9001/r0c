@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 if __name__ == '__main__':
-	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
-		'  this file is part of retr0chat',
-		'  run r0c.py instead'))
+	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
 import asyncore
 import struct
@@ -164,7 +162,7 @@ class TelnetClient(VT100_Client):
 		self.replies.put(initial_neg)
 
 	def handle_read(self):
-		with self.mutex:
+		with self.world.mutex:
 			if self.dead:
 				print('XXX reading when dead')
 				return
@@ -172,8 +170,6 @@ class TelnetClient(VT100_Client):
 			data = self.recv(8192)
 			if not data:
 				if not self.dead:
-					# seems like handle_close or handle_error gets
-					# called willy-nilly when somebody disconnects
 					self.host.part(self)
 				return
 			
@@ -235,12 +231,14 @@ class TelnetClient(VT100_Client):
 							print('[X] subject not implemented: '.format(b2hex(cmd)))
 							continue
 
-						print('-->> negote:  {0}  {1} {2}'.format(
-							b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
+						if DBG:
+							print('-->> negote:  {0}  {1} {2}'.format(
+								b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])))
 
 						response = None
 						if cmd in self.neg_done:
-							print('-><- n.loop:  {0}'.format(b2hex(cmd)))
+							if DBG:
+								print('-><- n.loop:  {0}'.format(b2hex(cmd)))
 
 						elif cmd[:2] == b'\xff\xfe':  # dont
 							response = b'\xfc'        # will not
@@ -253,8 +251,9 @@ class TelnetClient(VT100_Client):
 								response = b'\xfc'    # will not
 						
 						if response is not None:
-							print('<<-- n.resp:  {0}  {1} -> {2}'.format(
-								b2hex(cmd[:3]), verbs.get(cmd[1]), verbs.get(response[0])))
+							if DBG:
+								print('<<-- n.resp:  {0}  {1} -> {2}'.format(
+									b2hex(cmd[:3]), verbs.get(cmd[1]), verbs.get(response[0])))
 							self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
 							self.neg_done.append(cmd)
 					
@@ -273,7 +272,8 @@ class TelnetClient(VT100_Client):
 							#cmd = b''.join([self.in_bytes[:12]])  # at least 9
 							cmd = self.in_bytes[:eon]
 							self.in_bytes = self.in_bytes[eon+2:]
-							print('-->> subneg:  {0}'.format(b2hex(cmd)))
+							if DBG:
+								print('-->> subneg:  {0}'.format(b2hex(cmd)))
 							
 							if cmd[2] == b'\x1f'[0]:
 								full_redraw = True
@@ -285,10 +285,14 @@ class TelnetClient(VT100_Client):
 									if ofs < 0:
 										break
 									cmd = cmd[:ofs] + cmd[ofs+1:]
-								print('           :  {0}'.format(b2hex(cmd)))
+								
+								if DBG:
+									print('           :  {0}'.format(b2hex(cmd)))
 								
 								self.w, self.h = struct.unpack('>HH', cmd[3:7])
-								print('terminal sz:  {0}x{1}'.format(self.w, self.h))
+								if DBG:
+									print('terminal sz:  {0}x{1}'.format(self.w, self.h))
+
 								if self.w >= 512:
 									print('screen width {0} reduced to 80'.format(self.w))
 									self.w = 80
@@ -309,3 +313,4 @@ class TelnetClient(VT100_Client):
 					self.in_bytes = self.in_bytes[0:0]
 			
 			self.read_cb(full_redraw)
+

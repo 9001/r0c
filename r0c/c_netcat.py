@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 if __name__ == '__main__':
-	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
-		'  this file is part of retr0chat',
-		'  run r0c.py instead'))
+	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
 import asyncore
 import sys
@@ -32,7 +30,7 @@ class NetcatClient(VT100_Client):
 		self.request_terminal_size()
 
 	def handle_read(self):
-		with self.mutex:
+		with self.world.mutex:
 			if self.dead:
 				print('XXX reading when dead')
 				return
@@ -69,3 +67,4 @@ class NetcatClient(VT100_Client):
 			self.in_text += src
 			
 			self.read_cb(False)
+

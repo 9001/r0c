@@ -1,7 +1,8 @@
-cd ..
+cd %~dp0\..
 :top
-c:\Python26\python.exe r0c.py 23 531
+c:\Python26\python.exe -m r0c.__main__ 23 531
 ping -n 2 -w 1 127.0.0.1 >NUL
-python r0c.py 23 531
+python -m r0c 23 531
 ping -n 2 -w 1 127.0.0.1 >NUL
 goto top
+

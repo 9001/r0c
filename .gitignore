@@ -8,3 +8,6 @@ __pycache__/
 
 # diagnostics
 *.stack
+
+# winmerge
+*.bak

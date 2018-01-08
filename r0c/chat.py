@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 if __name__ == '__main__':
-	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
-		'  this file is part of retr0chat',
-		'  run r0c.py instead'))
+	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
 import hashlib
 import threading
@@ -108,16 +106,16 @@ class User(object):
 	def create_channels(self):
 		if self.client.codec in ['utf-8','cp437','shift_jis']:
 			text = u"""
-	\033[1;31m╔═══════════════════╗    \033[0m
+    \033[1;31m╔═══════════════════╗    \033[0m
 \033[1;33m(o─═╣\033[22m r e t r \033[1m0\033[22m c h a t \033[1m╠═─o)\033[0m
-	\033[1;32m╚═══════════════════╝    \033[0m
+    \033[1;32m╚═══════════════════╝    \033[0m
 """
 			
 		else:
 			text = u"""
-	 \033[1;31m/=================\\   \033[0m
+     \033[1;31m/=================\\   \033[0m
 \033[1;33m(o-=]\033[22m r e t r \033[1m0\033[22m c h a t \033[1m[=-o)\033[0m
-	 \033[1;32m\\=================/   \033[0m
+     \033[1;32m\\=================/   \033[0m
 """
 		
 		text += u"""
@@ -130,7 +128,7 @@ Text formatting:
   \033[36mCTRL-B\033[0m  bold/bright text on/off
   \033[36mCTRL-K\033[0m  followed by a colour code:
        \033[36m2\033[0m  \033[32mgreen\033[0m,
-     \033[36m3,1\033[0m  \033[33;41myellow on red\033[0m --
+    \033[36m15,4\033[0m  \033[1;37;44mbold white on blue\033[0m --
           say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
@@ -143,7 +141,7 @@ Creating or joining the "general" chatroom:
   \033[36m/join #general\033[0m
 
 Leaving a chatroom:
-  \033[36m/part #some_room\033[0m
+  \033[36m/part\033[0m
 
 Changing your nickname:
   \033[36m/nick new_name\033[0m
@@ -274,7 +272,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, arg))
 				
 				# update title in DM windows
-				for nchan in self.world.privchans:
+				for nchan in self.world.priv_ch:
 					for usr in nchan.uchans:
 						if usr.alias == self.nick:
 							usr.alias = arg
@@ -293,7 +291,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 			uchan = self.active_chan
 			nchan = uchan.nchan
-			if nchan in self.world.privchans:
+			if nchan in self.world.priv_ch:
 				self.world.send_chan_msg('-err-', inf, """[error]
   cannot change the topic of private channels
 """)
@@ -447,21 +445,35 @@ class World(object):
 	def __init__(self, core):
 		self.core = core
 		self.users = []      # User instances
-		self.pubchans = []   # NChannel instances (public)
-		self.privchans = []  # NChannel instances (private)
+		self.pub_ch = []     # NChannel instances (public)
+		self.priv_ch = []    # NChannel instances (private)
+		self.dirty_ch = []   # Channels that have pending tx
 		self.mutex = threading.RLock()
+
+		threading.Thread(target=self.refresh_chans).start()
 
 	def add_user(self, user):
 		with self.mutex:
 			self.users.append(user)
 
+	def refresh_chans(self):
+		self.chan_sync_active = True
+		while not self.core.stopping:
+			time.sleep(0.05)
+			with self.mutex:
+				for chan in self.dirty_ch:
+					self.refresh_chan(chan)
+				self.dirty_ch = []
+		self.chan_sync_active = False
+	
 	def refresh_chan(self, nchan):
 		for uchan in nchan.uchans:
 			if uchan.user.active_chan == uchan:
 				if not uchan.user.client.handshake_sz or \
 					uchan.user.client.wizard_stage is not None:
 
-					print('!!! refresh_chan without handshake_sz')
+					if DBG:
+						print('!!! refresh_chan without handshake_sz')
 					continue
 				uchan.user.client.refresh(False)
 
@@ -480,24 +492,27 @@ class World(object):
 						# pull in the other user
 						utarget = None
 						target = nchan.uchans[0].alias
-						for usr in self.users:
-							if usr.nick == target:
-								utarget = usr
-								break
+						if target != from_nick:
+							for usr in self.users:
+								if usr.nick == target:
+									utarget = usr
+									break
 
-						if utarget is None:
-							self.send_chan_msg('-err-', nchan,
-								'\033[1;31mfailed to locate user "{0}"'.format(
-									nchan.uchans[0].alias))
-							return
+							if utarget is None:
+								self.send_chan_msg('-err-', nchan,
+									'\033[1;31mfailed to locate user "{0}"'.format(
+										nchan.uchans[0].alias))
+								return
 
-						self.join_chan_obj(utarget, nchan, from_nick)
-						# fallthrough to send message
+							self.join_chan_obj(utarget, nchan, from_nick)
+							# fallthrough to send message
 
 			msg = Message(from_nick, nchan, time.time(), text)
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
-			self.refresh_chan(nchan)
+			#self.refresh_chan(nchan)
+			if nchan not in self.dirty_ch:
+				self.dirty_ch.append(nchan)
 
 	def join_chan_obj(self, user, nchan, alias=None):
 		with self.mutex:
@@ -510,7 +525,7 @@ class World(object):
 			return uchan
 
 	def get_pub_chan(self, name):
-		for ch in self.pubchans:
+		for ch in self.pub_ch:
 			if ch.name == name:
 				return ch
 		return None
@@ -526,7 +541,7 @@ class World(object):
 			nchan = self.get_pub_chan(name)
 			if nchan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
-				self.pubchans.append(nchan)
+				self.pub_ch.append(nchan)
 			
 			ret = self.join_chan_obj(user, nchan)
 			user.new_active_chan = ret
@@ -537,7 +552,7 @@ class World(object):
 			uchan = self.get_priv_chan(user, alias)
 			if uchan is None:
 				nchan = NChannel(None, 'DM with [[uch_a]]')
-				self.privchans.append(nchan)
+				self.priv_ch.append(nchan)
 				uchan = self.join_chan_obj(user, nchan)
 				uchan.alias = alias
 			return uchan
@@ -546,17 +561,17 @@ class World(object):
 		with self.mutex:
 			user = uchan.user
 			nchan = uchan.nchan
-			with user.client.mutex:
-				i = None
-				if user.active_chan == uchan:
-					i = user.chans.index(uchan)
-				user.chans.remove(uchan)
-				nchan.uchans.remove(uchan)
-				if i:
-					if len(user.chans) <= i:
-						i -= 1
-					user.new_active_chan = user.chans[i]
-				del uchan
+			i = None
+			if user.active_chan == uchan:
+				i = user.chans.index(uchan)
+			user.chans.remove(uchan)
+			nchan.uchans.remove(uchan)
+			if i:
+				if len(user.chans) <= i:
+					i -= 1
+				user.new_active_chan = user.chans[i]
+			del uchan
 
 			self.send_chan_msg('--', nchan,
 				'\033[1;33m{0}\033[22m has left'.format(user.nick))
+

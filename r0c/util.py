@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 if __name__ == '__main__':
-	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
-		'  this file is part of retr0chat',
-		'  run r0c.py instead'))
+	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
 import traceback
 import threading
@@ -280,7 +278,7 @@ def whoops():
 	exc = traceback.format_exc()
 	if exc.startswith('None'):
 		exc = ''.join(traceback.format_stack()[:-1])
-	msg = '{0}\n{1}\n{2}</stack>'.format(
+	msg = '{0}\r\n{1}\r\n{2}</stack>'.format(
 		msg, exc.rstrip(), '-'*64)
 	print(msg)
 
@@ -296,12 +294,12 @@ def monitor_threads():
 	def t_a_a_bt():
 		ret = []
 		for tid, stack in sys._current_frames().items():
-			ret.append(u'\nThread {0} {1}'.format(tid, '='*64))
+			ret.append(u'\r\nThread {0} {1}'.format(tid, '='*64))
 			for fn, lno, func, line in traceback.extract_stack(stack):
 				ret.append(u'  File "{0}", line {1}, in {2}'.format(fn, lno, func))
 				if line:
 					ret.append(u'    {0}'.format(line.strip()))
-		return u'\n'.join(ret)
+		return u'\r\n'.join(ret)
 
 	def stack_collector():
 		while True:
@@ -314,3 +312,4 @@ def monitor_threads():
 	thr = threading.Thread(target=stack_collector)
 	thr.daemon = True
 	thr.start()
+

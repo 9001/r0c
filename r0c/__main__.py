@@ -16,17 +16,20 @@ import signal
 if sys.version_info[0] == 2:
 	sys.dont_write_bytecode = True
 
-from r0c.config   import *
-from r0c.util     import *
-from r0c.c_vt100  import *
-from r0c.c_netcat import *
-from r0c.c_telnet import *
-from r0c.chat     import *
-
-
+fail = False
 if __name__ != '__main__':
-	print('this is not a library')
+	fail = True
+
+if fail or not 'r0c' in sys.modules:
+	print('\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python -m r0c\r\n')
 	sys.exit(1)
+
+from .config   import *
+from .util     import *
+from .c_vt100  import *
+from .c_netcat import *
+from .c_telnet import *
+from .chat     import *
 
 
 class Core(object):
@@ -36,8 +39,11 @@ class Core(object):
 			print('  need argument 1:  Telnet port  (or 0 to disable)')
 			print('  need argument 2:  NetCat port  (or 0 to disable)')
 			print()
-			print('  example:')
-			print('    {0} 23 531'.format(sys.argv[0]))
+			print('  example 1:')
+			print('    python -m r0c 2323 1531')
+			print()
+			print('  example 2:')
+			print('    python -m r0c 23 531')
 			print()
 			sys.exit(1)
 
@@ -79,11 +85,11 @@ class Core(object):
 		while not self.stopping:
 			time.sleep(0.1)
 
-		print('  *  asyncore terminating')
+		print('\r\n  *  asyncore stopping')
 		clean_shutdown = False
 		for n in range(0, 40):  # 2sec
 			if not self.asyncore_alive:
-				print('  *  asyncore stopped cleanly')
+				print('  *  asyncore stopped')
 				clean_shutdown = True
 				break
 			time.sleep(0.05)
@@ -110,7 +116,7 @@ class Core(object):
 
 	def push_worker(self, ifaces):
 		self.pushthr_alive = True
-
+		
 		last_ts = None
 		while not self.stopping:
 			while True:
@@ -146,3 +152,4 @@ class Core(object):
 
 core = Core()
 core.run()
+

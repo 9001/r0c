@@ -23,3 +23,6 @@ notifications in status bar
 notifications in topic bar
 
 full redraw statusbar on nick change
+
+store buffer in input history when hitting CUp/CDown
+
