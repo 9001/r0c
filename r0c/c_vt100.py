@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -26,9 +27,8 @@ else:
 
 class VT100_Server(asyncore.dispatcher):
 
-	def __init__(self, p, host, port, world):
+	def __init__(self, host, port, world):
 		asyncore.dispatcher.__init__(self)
-		self.p = p
 		self.world = world
 		self.clients = []
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -41,7 +41,7 @@ class VT100_Server(asyncore.dispatcher):
 		self.listen(1)
 
 	def con(self, msg, adr, add=0):
-		self.p.p(' {0} {1}  {2}  {3} :{4}'.format(
+		print(' {0} {1}  {2}  {3} :{4}'.format(
 			msg, fmt(), len(self.clients)+add, adr[0], adr[1]))
 	
 	def gen_remote(self, socket, addr, user):
@@ -65,9 +65,9 @@ class VT100_Server(asyncore.dispatcher):
 	def part(self, remote):
 		remote.dead = True
 		with self.world.mutex:
-			print('='*72)
-			traceback.print_stack()
-			print('='*72)
+			#print('==[part]' + '='*72)
+			#traceback.print_stack()
+			#print('==[part]' + '='*71)
 			
 			remote.close()
 			self.con('  -', remote.addr, -1)
@@ -152,6 +152,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x1b\x5b\x35\x7e', 'pgup')
 		self.add_esc(u'\x1b\x5b\x36\x7e', 'pgdn')
 		self.add_esc(u'\x08', 'bs')
+		self.add_esc(u'\x09', 'tab')
 		self.add_esc(u'\x0d\x0a', 'ret')
 		self.add_esc(u'\x0d\x00', 'ret')
 
@@ -196,6 +197,9 @@ class VT100_Client(asyncore.dispatcher):
 	def say(self, message):
 		self.outbox.put(message)
 
+	def readable(self):
+		return not self.dead
+
 	def writable(self):
 		#if self.slowmo_tx:
 		#	#print('x')
@@ -211,7 +215,13 @@ class VT100_Client(asyncore.dispatcher):
 		)
 
 	def handle_close(self):
-		self.host.part(self)
+		if not self.dead:
+			self.host.part(self)
+
+	def handle_error(self):
+		whoops()
+		if not self.dead:
+			self.host.part(self)
 
 
 
@@ -484,7 +494,7 @@ class VT100_Client(asyncore.dispatcher):
 		ch = self.user.active_chan
 		nch = ch.nchan
 
-		debug_scrolling = True
+		debug_scrolling = False
 
 		#if not self.vt100:
 		#	if self.scroll_cmd is not None:
@@ -949,7 +959,7 @@ class VT100_Client(asyncore.dispatcher):
 	def conf_wizard(self):
 		if DBG:
 			if u'\x03' in self.in_text:
-				sys.exit(0)
+				self.world.core.shutdown()
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
 		ftop = u'\n'*20 + u'\033[H\033[J'
@@ -1242,7 +1252,7 @@ class VT100_Client(asyncore.dispatcher):
 		for ch in self.in_text:
 			if DBG:
 				if ch == '\x03':
-					sys.exit(0)
+					self.world.core.shutdown()
 			
 			was_esc = None
 			if aside and aside in self.esc_tab:

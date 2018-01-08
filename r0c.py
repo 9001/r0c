@@ -1,6 +1,6 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
-
+from __future__ import print_function
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
@@ -11,10 +11,8 @@ __license__   = "MIT"
 __copyright__ = 2018
 
 
-
 import sys
 import signal
-
 if sys.version_info[0] == 2:
 	sys.dont_write_bytecode = True
 
@@ -26,11 +24,9 @@ from r0c.c_telnet import *
 from r0c.chat     import *
 
 
-
 if __name__ != '__main__':
 	print('this is not a library')
 	sys.exit(1)
-
 
 
 class Core(object):
@@ -51,40 +47,55 @@ class Core(object):
 		print('  *  Telnet server on port ' + str(self.telnet_port))
 		print('  *  NetCat server on port ' + str(self.netcat_port))
 
-		self.stopped = False
 		self.stopping = False
 		self.pushthr_alive = False
 		self.asyncore_alive = False
 
-		self.p = Printer()
-
-		self.p.p('  *  Capturing ^C')
+		print('  *  Capturing ^C')
 		signal.signal(signal.SIGINT, self.signal_handler)
 
-		self.p.p('  *  Creating world')
+		print('  *  Creating world')
 		self.world = World(self)
 
-		self.p.p('  *  Starting Telnet server')
-		self.telnet_server = TelnetServer(self.p, '0.0.0.0', self.telnet_port, self.world)
+		print('  *  Starting Telnet server')
+		self.telnet_server = TelnetServer('0.0.0.0', self.telnet_port, self.world)
 
-		self.p.p('  *  Starting NetCat server')
-		self.netcat_server = NetcatServer(self.p, '0.0.0.0', self.netcat_port, self.world)
+		print('  *  Starting NetCat server')
+		self.netcat_server = NetcatServer('0.0.0.0', self.netcat_port, self.world)
 
-		self.p.p('  *  Starting push driver')
+		print('  *  Starting push driver')
 		self.push_thr = threading.Thread(target=self.push_worker, args=([self.telnet_server, self.netcat_server],))
 		#self.push_thr.daemon = True
 		self.push_thr.start()
 
-		self.p.p('  *  Handover to asyncore')
+		print('  *  Handover to asyncore')
 		self.asyncore_thr = threading.Thread(target=self.asyncore_worker)
 		self.asyncore_thr.start()
 
 
 	def run(self):
-		core.p.p('  *  r0c is up')
-		while not self.stopped:
+		print('  *  r0c is up')
+		
+		while not self.stopping:
 			time.sleep(0.1)
-		core.p.p('  *  bye')
+
+		print('  *  asyncore terminating')
+		clean_shutdown = False
+		for n in range(0, 40):  # 2sec
+			if not self.asyncore_alive:
+				print('  *  asyncore stopped cleanly')
+				clean_shutdown = True
+				break
+			time.sleep(0.05)
+		
+		if not clean_shutdown:
+			print(' -X- asyncore is stuck')
+
+		print('  *  asyncore cleanup')
+		self.netcat_server.close()
+		self.telnet_server.close()
+		
+		print('  *  r0c is down')
 
 
 	def asyncore_worker(self):
@@ -125,18 +136,8 @@ class Core(object):
 
 
 	def shutdown(self):
+		#monitor_threads()
 		self.stopping = True
-
-		self.p.p('  *  Stopping asyncore')
-		while self.asyncore_alive:
-			time.sleep(0.05)
-		
-		self.p.p('  *  Terminating asyncore')
-		self.netcat_server.close()
-		self.telnet_server.close()
-		
-		self.p.p('  *  r0c is down')
-		self.stopped = True
 
 
 	def signal_handler(self, signal, frame):

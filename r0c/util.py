@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
 		'  run r0c.py instead'))
 
+import traceback
 import threading
 import time
 import sys
@@ -11,6 +13,20 @@ import sys
 from .config import *
 
 PY2 = (sys.version_info[0] == 2)
+
+print_mutex = threading.Lock()
+if PY2:
+	import __builtin__
+	def print(*args, **kwargs):
+		with print_mutex:
+			#__builtin__.print("y")
+			__builtin__.print(*args, **kwargs)
+else:
+	import builtins
+	def print(*args, **kwargs):
+		with print_mutex:
+			#builtins.print("y")
+			builtins.print(*args, **kwargs)
 
 def fmt():
 	return time.strftime('%d/%m/%Y, %H:%M:%S')
@@ -253,14 +269,48 @@ def visualize_all_unicode_codepoints_as_utf8():
 
 
 
-class Printer(object):
-	
-	def __init__(self):
-		self.mutex = threading.Lock()
-	
-	def p(self, data):
-		with self.mutex:
-			#if len(data) < 13:
-			#	data += ' ' * 13
-			sys.stdout.write('{0}\n'.format(data))
-			#sys.stdout.flush()
+def whoops():
+	msg = """\
+             __                          
+   _      __/ /_  ____  ____  ____  _____
+  | | /| / / __ \/ __ \/ __ \/ __ \/ ___/
+  | |/ |/ / / / / /_/ / /_/ / /_/ (__  ) 
+  |__/|__/_/ /_/\____/\____/ .___/____/  
+                          /_/"""
+	exc = traceback.format_exc()
+	if exc.startswith('None'):
+		exc = ''.join(traceback.format_stack()[:-1])
+	msg = '{0}\n{1}\n{2}</stack>'.format(
+		msg, exc.rstrip(), '-'*64)
+	print(msg)
+
+
+
+thread_monitor_enabled = False
+def monitor_threads():
+	global thread_monitor_enabled
+	if thread_monitor_enabled:
+		return
+	thread_monitor_enabled = True
+
+	def t_a_a_bt():
+		ret = []
+		for tid, stack in sys._current_frames().items():
+			ret.append(u'\nThread {0} {1}'.format(tid, '='*64))
+			for fn, lno, func, line in traceback.extract_stack(stack):
+				ret.append(u'  File "{0}", line {1}, in {2}'.format(fn, lno, func))
+				if line:
+					ret.append(u'    {0}'.format(line.strip()))
+		return u'\n'.join(ret)
+
+	def stack_collector():
+		while True:
+			print('capturing stack')
+			time.sleep(5)
+			txt = t_a_a_bt()
+			with open('r0c.stack', 'wb') as f:
+				f.write(txt.encode('utf-8'))
+
+	thr = threading.Thread(target=stack_collector)
+	thr.daemon = True
+	thr.start()

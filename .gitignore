@@ -5,3 +5,6 @@ __pycache__/
 
 # sublime
 *.sublime-workspace
+
+# diagnostics
+*.stack

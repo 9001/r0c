@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -128,9 +129,9 @@ Text formatting:
   \033[36mCTRL-O\033[0m  reset text formatting
   \033[36mCTRL-B\033[0m  bold/bright text on/off
   \033[36mCTRL-K\033[0m  followed by a colour code:
-	   \033[36m2\033[0m  \033[32mgreen\033[0m,
-	 \033[36m3,1\033[0m  \033[33;41myellow on red\033[0m --
-		  say \033[1m/cmap\033[0m to see all options
+       \033[36m2\033[0m  \033[32mgreen\033[0m,
+     \033[36m3,1\033[0m  \033[33;41myellow on red\033[0m --
+          say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
   \033[36mCTRL-A\033[0m  jump to previous channel
@@ -207,6 +208,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			for n in range(1,3):
 				txt = u'  message {0}\n      mes {0}'.format(n)
 				self.world.send_chan_msg(self.nick, nchan, txt)
+
+		#self.client.refresh(False)
 
 
 

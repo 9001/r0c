@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -143,8 +144,8 @@ if not PY2:
 
 class TelnetServer(VT100_Server):
 
-	def __init__(self, p, host, port, world):
-		VT100_Server.__init__(self, p, host, port, world)
+	def __init__(self, host, port, world):
+		VT100_Server.__init__(self, host, port, world)
 
 	def gen_remote(self, socket, addr, user):
 		return TelnetClient(self, socket, addr, self.world, user)
@@ -168,9 +169,12 @@ class TelnetClient(VT100_Client):
 				print('XXX reading when dead')
 				return
 
-			data = self.recv(MSG_LEN)
-			if not data and not self.dead:
-				self.host.part(self)
+			data = self.recv(8192)
+			if not data:
+				if not self.dead:
+					# seems like handle_close or handle_error gets
+					# called willy-nilly when somebody disconnects
+					self.host.part(self)
 				return
 			
 			if HEXDUMP_IN:

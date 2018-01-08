@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\n{0}\n{1}\n{2}\n{0}\n'.format('*'*72,
 		'  this file is part of retr0chat',
@@ -16,8 +17,8 @@ PY2 = (sys.version_info[0] == 2)
 
 class NetcatServer(VT100_Server):
 
-	def __init__(self, p, host, port, world):
-		VT100_Server.__init__(self, p, host, port, world)
+	def __init__(self, host, port, world):
+		VT100_Server.__init__(self, host, port, world)
 
 	def gen_remote(self, socket, addr, user):
 		return NetcatClient(self, socket, addr, self.world, user)
@@ -36,7 +37,7 @@ class NetcatClient(VT100_Client):
 				print('XXX reading when dead')
 				return
 
-			data = self.recv(MSG_LEN)
+			data = self.recv(8192)
 			if not data and not self.dead:
 				self.host.part(self)
 				return
