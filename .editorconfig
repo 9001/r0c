@@ -3,7 +3,6 @@ root = true
 [*]
 charset = utf-8
 indent_size = 4
-indent_style = tab
 trim_trailing_whitespace = false
 insert_final_newline = true
 end_of_line = lf
@@ -11,7 +10,6 @@ end_of_line = lf
 [.*]
 charset = utf-8
 indent_size = 4
-indent_style = tab
 trim_trailing_whitespace = false
 insert_final_newline = true
 end_of_line = lf
