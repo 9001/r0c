@@ -1375,6 +1375,10 @@ class VT100_Client(asyncore.dispatcher):
 					print('unimplemented action: {0}'.format(act))
 
 				if chan_shift != 0:
+					if not self.user.chans:
+						print('!!!!!! no chans\r\n' * 5)
+						print(t_a_a_bt())
+					
 					i = self.user.chans.index(self.user.active_chan) + chan_shift
 					if i < 0:
 						i = len(self.user.chans) - 1

@@ -284,22 +284,22 @@ def whoops():
 
 
 
+def t_a_a_bt():
+	ret = []
+	for tid, stack in sys._current_frames().items():
+		ret.append(u'\r\nThread {0} {1}'.format(tid, '='*64))
+		for fn, lno, func, line in traceback.extract_stack(stack):
+			ret.append(u'  File "{0}", line {1}, in {2}'.format(fn, lno, func))
+			if line:
+				ret.append(u'    {0}'.format(line.strip()))
+	return u'\r\n'.join(ret)
+
 thread_monitor_enabled = False
 def monitor_threads():
 	global thread_monitor_enabled
 	if thread_monitor_enabled:
 		return
 	thread_monitor_enabled = True
-
-	def t_a_a_bt():
-		ret = []
-		for tid, stack in sys._current_frames().items():
-			ret.append(u'\r\nThread {0} {1}'.format(tid, '='*64))
-			for fn, lno, func, line in traceback.extract_stack(stack):
-				ret.append(u'  File "{0}", line {1}, in {2}'.format(fn, lno, func))
-				if line:
-					ret.append(u'    {0}'.format(line.strip()))
-		return u'\r\n'.join(ret)
 
 	def stack_collector():
 		while True:
