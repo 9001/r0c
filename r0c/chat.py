@@ -321,6 +321,9 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				return
 
 			nchan = self.world.join_pub_chan(self, arg[1:]).nchan
+			# this is in charge of activating the new channel,
+			# rapid part/join will crash us without this
+			self.client.refresh(False)
 
 
 
@@ -332,6 +335,9 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				return
 
 			self.world.part_chan(self.active_chan)
+			# this is in charge of activating the new channel,
+			# rapid part/join will crash us without this
+			self.client.refresh(False)
 
 
 
@@ -516,6 +522,10 @@ class World(object):
 
 	def join_chan_obj(self, user, nchan, alias=None):
 		with self.mutex:
+			for uchan in user.chans:
+				if uchan.nchan == nchan:
+					return uchan
+			
 			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
 			#print('@@@ user {0} chans {1}, {2}'.format(user.nick, len(user.chans), user.chans[-1].alias or user.chans[-1].nchan.name))

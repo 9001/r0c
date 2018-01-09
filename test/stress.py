@@ -11,6 +11,14 @@ __license__   = "MIT"
 __copyright__ = 2018
 
 
+# config
+NUM_CLIENTS = 4
+EVENT_DELAY = 0.01
+#EVENT_DELAY = 0.001
+# config end
+
+
+import multiprocessing
 import threading
 import asyncore
 import socket
@@ -39,6 +47,7 @@ class Client(asyncore.dispatcher):
 		self.backlog = None
 		self.dead = False
 		self.stage = 'start'
+		self.stopping = False
 		self.actor_active = False
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.connect(('127.0.0.1', port))
@@ -50,7 +59,7 @@ class Client(asyncore.dispatcher):
 	def actor(self):
 		self.actor_active = True
 		print('actor going up')
-		while not self.core.stopping:
+		while not self.stopping:
 			time.sleep(0.02)
 			
 			if self.stage == 'start':
@@ -93,7 +102,7 @@ class Client(asyncore.dispatcher):
 
 
 	def flood_single_channel(self):
-		while not self.core.stopping:
+		while not self.stopping:
 			time.sleep(0.02)
 			
 			if self.stage == 'ready':
@@ -127,7 +136,7 @@ class Client(asyncore.dispatcher):
 	def await_continue(self):
 		self.in_text = u''
 		t0 = time.time()
-		while not self.core.stopping and not 'zxc mkl' in self.in_text:
+		while not self.stopping and not 'zxc mkl' in self.in_text:
 			time.sleep(0.1)
 			if time.time() - t0 > 10:
 				break
@@ -149,13 +158,13 @@ class Client(asyncore.dispatcher):
 		# 19 - 36: send a message
 		
 		for n in range(100000):
-			if self.core.stopping:
+			if self.stopping:
 				break
 
 			if n % 1000 == 0:
 				self.tx(u'at event {0}\n'.format(n))
 				
-			while not self.core.stopping:
+			while not self.stopping:
 				if not member_of:
 					next_act = 13
 				else:
@@ -284,20 +293,22 @@ class Client(asyncore.dispatcher):
 		
 		self.tx(u'q\n')
 	
-		while not self.core.stopping:
+		while not self.stopping:
 			if 'fire/' in self.in_text:
 				break
 			time.sleep(0.01)
 				
+		delay = EVENT_DELAY
+
 		for n, ev in enumerate(script):
-			if self.core.stopping:
+			if self.stopping:
 				break
 			
 			if n % 100 == 0:
 				print('at event {0}\n'.format(n))
 			
 			self.outbox.put(ev)
-			time.sleep(0.001)
+			time.sleep(delay)
 		
 		self.tx(u'done')
 		print('done')
@@ -340,6 +351,31 @@ class Client(asyncore.dispatcher):
 
 
 
+class SubCore(object):
+
+	def __init__(self, port, q):
+		self.q = q
+		self.port = port
+		self.stopped = False
+		self.client = Client(self, self.port)
+
+	def run(self):
+		timeout = 0.05
+		while self.q.empty():
+			asyncore.loop(timeout, count=0.5/timeout)
+
+		clean_shutdown = False
+		for n in range(0, 40):  # 2sec
+			if not self.client.actor_active:
+				clean_shutdown = True
+				break
+			time.sleep(0.05)
+
+		self.client.close()
+		self.stopped = True
+
+
+
 class Core(object):
 
 	def __init__(self):
@@ -347,15 +383,25 @@ class Core(object):
 			print('need 1 argument:  telnet port')
 			sys.exit(1)
 
+		port = int(sys.argv[1])
+
 		self.stopping = False
 		self.asyncore_alive = False
 
 		signal.signal(signal.SIGINT, self.signal_handler)
 
-		self.client = Client(self, int(sys.argv[1]))
+		self.clients = []
+		for n in range(NUM_CLIENTS):
+			que = multiprocessing.Queue()
+			cli = multiprocessing.Process(target=self.new_subcore, args=(que,))
+			self.clients.append([cli,que])
+			que.put(port)
+			cli.start()
 
-		self.asyncore_thr = threading.Thread(target=self.asyncore_worker)
-		self.asyncore_thr.start()
+	def new_subcore(self, q):
+		subcore = SubCore(q.get(), q)
+		subcore.run()
+		q.read()
 
 	def run(self):
 		print('  *  test is running')
@@ -363,43 +409,28 @@ class Core(object):
 		while not self.stopping:
 			time.sleep(0.1)
 
-		print('\r\n  *  actor stopping')
-		clean_shutdown = False
-		for n in range(0, 40):  # 2sec
-			if not self.client.actor_active:
-				print('  *  actor stopped')
-				clean_shutdown = True
-				break
-			time.sleep(0.05)
-
-		if not clean_shutdown:
-			print(' -X- actor is stuck')
-
-		print('  *  asyncore stopping')
-		clean_shutdown = False
-		for n in range(0, 40):  # 2sec
-			if not self.asyncore_alive:
-				print('  *  asyncore stopped')
-				clean_shutdown = True
-				break
-			time.sleep(0.05)
+		print('\r\n  *  subcores stopping')
+		for subcore in self.clients:
+			subcore[1].put('x')
 		
-		if not clean_shutdown:
-			print(' -X- asyncore is stuck')
+		for n in range(0, 40):  # 2sec
+			clean_shutdown = True
+			for subcore in self.clients:
+				if not subcore[1].empty():
+					clean_shutdown = False
+					break
+			if clean_shutdown:
+				print('  *  actor stopped')
+				break
+			time.sleep(0.05)
 
-		print('  *  asyncore cleanup')
-		self.client.close()
+		if not clean_shutdown:
+			print(' -X- some subcores are stuck')
+			for subcore in self.clients:
+				if not subcore[1].empty():
+					subcore[0].terminate()
 
 		print('  *  test ended')
-
-	def asyncore_worker(self):
-		self.asyncore_alive = True
-
-		timeout = 0.05
-		while not self.stopping:
-			asyncore.loop(timeout, count=0.5/timeout)
-
-		self.asyncore_alive = False
 
 	def shutdown(self):
 		self.stopping = True
@@ -408,6 +439,7 @@ class Core(object):
 		self.shutdown()
 
 
-core = Core()
-core.run()
+if __name__ == '__main__':
+	core = Core()
+	core.run()
 
