@@ -92,6 +92,7 @@ class Client(asyncore.dispatcher):
 					self.tx(u'a')
 					
 					time.sleep(0.5)
+					self.tx(u'/join #general\n')
 					self.in_text = u''
 					
 					#return self.flood_single_channel()
@@ -159,7 +160,7 @@ class Client(asyncore.dispatcher):
 		# 15 - 18: part a channel
 		# 19 - 36: send a message
 		
-		for n in range(100000):
+		for n in range(1000000):
 			if self.stopping:
 				break
 
@@ -449,4 +450,6 @@ class Core(object):
 if __name__ == '__main__':
 	core = Core()
 	core.run()
+
+# cat log | grep -E ' adding msg ' | awk '{printf "%.3f\n", $1-v; v=$1}' | sed -r 's/\.//;s/^0*//;s/^$/0/' | awk 'BEGIN {sum=0} $1<10000 {sum=sum+$1} NR%10==0 {v=sum/32; sum=0; printf "%" v "s\n", "" }' | tr ' ' '#' 
 

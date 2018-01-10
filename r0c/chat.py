@@ -423,6 +423,10 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			self.client.need_full_redraw = True
 			self.client.refresh(False)
 
+		elif cmd == 'redraw' or cmd == 'r':
+			self.client.need_full_redraw = True
+			self.client.refresh(False)
+
 
 
 		elif cmd == 'sw':
@@ -464,18 +468,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			
 		elif cmd == 'sd':
 			msg = "\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
-			visited = {}
-			for user in self.world.users:
-				for uchan in user.chans:
-					chan = uchan.nchan
-					if chan in visited:
-						continue
-					visited[chan] = 1
-					self.world.send_chan_msg('-err-', chan, msg)
-				
-				if not user.active_chan.lock_to_bottom:
-					user.active_chan.lock_to_bottom = True
-					user.client.need_full_redraw = True
+			self.world.broadcast(msg, 2)
 			
 			def killer():
 				time.sleep(0.5)
@@ -622,6 +615,27 @@ class World(object):
 				uchan = self.join_chan_obj(user, nchan)
 				uchan.alias = alias
 			return uchan
+
+	def broadcast(self, msg, severity=1):
+		""" 1=append, 2=append+scroll, 3=fullscreen? """
+		with self.mutex:
+			visited = {}
+			for user in self.users:
+				for uchan in user.chans:
+					chan = uchan.nchan
+					if chan in visited:
+						continue
+					visited[chan] = 1
+					self.send_chan_msg('-err-', chan, msg)
+				
+				if severity > 1:
+					if user.active_chan:
+						if not user.active_chan.lock_to_bottom:
+							user.active_chan.lock_to_bottom = True
+							user.client.need_full_redraw = True
+					else:
+						user.client.say("\n [[ broadcast message ]]\n {0}\n".format(
+							msg).replace(u"\n", u"\r\n").encode('utf-8'))
 
 	def part_chan(self, uchan):
 		with self.mutex:

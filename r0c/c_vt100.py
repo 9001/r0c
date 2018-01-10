@@ -72,6 +72,8 @@ class VT100_Server(asyncore.dispatcher):
 			self.clients.remove(remote)
 			for uchan in list(remote.user.chans):
 				self.world.part_chan(uchan)
+			if remote.user and remote.user in self.world.users:
+				self.world.users.remove(remote.user)
 
 
 
@@ -158,6 +160,10 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x7f', 'bs')
 		self.add_esc(u'\x1b\x4f\x48', 'home')
 		self.add_esc(u'\x1b\x4f\x46', 'end')
+
+		# debian 9.3
+		self.add_esc(u'\x1b\x5b\x48', 'home')
+		self.add_esc(u'\x1b\x5b\x46', 'end')
 
 		# hotkeys
 		self.add_esc(u'\x12', 'redraw')
@@ -1175,6 +1181,7 @@ class VT100_Client(asyncore.dispatcher):
  
    whenever the screen turns too glitchy
    you can press CTRL-R and Enter to redraw
+   or run the command "/r" if that doesn't work
  
  press A to accept or Q to quit&lm
  """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))

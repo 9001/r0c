@@ -34,6 +34,14 @@ from .chat     import *
 
 class Core(object):
 	def __init__(self):
+		try:
+			self.start()
+		except:
+			whoops()
+			import os
+			os._exit(1)
+
+	def start(self):
 		if len(sys.argv) != 3:
 			print()
 			print('  need argument 1:  Telnet port  (or 0 to disable)')
