@@ -11,6 +11,7 @@ __license__   = "MIT"
 __copyright__ = 2018
 
 
+import os
 import sys
 import signal
 if sys.version_info[0] == 2:
@@ -34,12 +35,7 @@ from .chat     import *
 
 class Core(object):
 	def __init__(self):
-		try:
-			self.start()
-		except:
-			whoops()
-			import os
-			os._exit(1)
+		pass
 
 	def start(self):
 		if len(sys.argv) != 3:
@@ -61,7 +57,7 @@ class Core(object):
 		print('  *  Telnet server on port ' + str(self.telnet_port))
 		print('  *  NetCat server on port ' + str(self.netcat_port))
 
-		self.stopping = False
+		self.stopping = 0
 		self.pushthr_alive = False
 		self.asyncore_alive = False
 
@@ -90,8 +86,28 @@ class Core(object):
 	def run(self):
 		print('  *  r0c is up')
 		
-		while not self.stopping:
-			time.sleep(0.1)
+		if not BENCHMARK:
+			while not self.stopping:
+				time.sleep(0.1)
+		else:
+			last_joins = 0
+			last_parts = 0
+			last_messages = 0
+			while not self.stopping:
+				for n in range(20):
+					if self.stopping:
+						break
+					time.sleep(0.1)
+
+				print('{0:.3f}  j {1}  p {2}  m {3}  d {4},{5},{6}'.format(time.time(),
+					self.world.num_joins, self.world.num_parts, self.world.num_messages,
+					self.world.num_joins - last_joins,
+					self.world.num_parts - last_parts,
+					self.world.num_messages - last_messages))
+				
+				last_joins = self.world.num_joins
+				last_parts = self.world.num_parts
+				last_messages = self.world.num_messages
 
 		print('\r\n  *  asyncore stopping')
 		clean_shutdown = False
@@ -151,7 +167,9 @@ class Core(object):
 
 	def shutdown(self):
 		#monitor_threads()
-		self.stopping = True
+		self.stopping += 1
+		if self.stopping >= 3:
+			os._exit(1)
 
 
 	def signal_handler(self, signal, frame):
@@ -159,5 +177,9 @@ class Core(object):
 
 
 core = Core()
-core.run()
-
+try:
+	core.start()
+	core.run()
+except:
+	whoops()
+	os._exit(1)

@@ -53,7 +53,6 @@ class VT100_Server(asyncore.dispatcher):
 		user.post_init(remote)
 		self.world.add_user(user)
 		self.clients.append(remote)
-		remote.handshake_world = True
 		remote.conf_wizard()
 	
 	def broadcast(self, message):
@@ -1037,34 +1036,28 @@ class VT100_Client(asyncore.dispatcher):
 						b2hex(self.in_text.encode('utf-8'))))
 
 				self.wizard_stage = 'echo'
+				
+				# cheatcode: windows netcat
 				if self.in_text.startswith('wncat'):
 					self.linemode = True
 					self.echo_on = True
 					self.vt100 = False
 					self.codec = 'cp437'
 					self.wizard_stage = 'end'
-				#if self.in_text.startswith('no ansi'):
+				
+				# cheatcode: windows telnet + join
+				elif self.in_text.startswith('wtn'):
+					self.codec = 'cp437'
+					self.wizard_stage = 'end'
 
-			#print('now, last = {0}, {1}'.format(len(self.in_text), self.wizard_lastlen))
-			#if len(self.in_text) - self.wizard_lastlen > 1:
-			#	ofs = self.in_text.lower().find(u'y')
-			#	ex_len = None
-			#	if ofs >= 0:
-			#		ex_len = ofs + 3
-			#	else:
-			#		ofs = self.in_text.lower().find(u'n')
-			#		if ofs >= 0:
-			#			ex_len = ofs + 3
-			#
-			#	if self.wizard_lastlen < 2 or \
-			#		(ex_len is not None and ex_len >= self.wizard_lastlen):
-			#
-			#		print('setting linemode since d{0} and ex({1}) >= in({2}); {3}'.format(
-			#			len(self.in_text) - self.wizard_lastlen,
-			#			ex_len, len(self.in_text),
-			#			b2hex(self.in_text.encode('utf-8'))))
-			#
-			#		self.linemode = True
+					# this is just for the stress tests,
+					# i don't feel bad about this at all
+					def delayed_join(user, chan):
+						time.sleep(0.2)
+						user.world.join_pub_chan(user, chan)
+					
+					threading.Thread(target=delayed_join, args=(
+						self.user, self.in_text[3:])).start()
 
 
 		if self.wizard_stage == 'echo':

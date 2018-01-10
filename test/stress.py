@@ -12,9 +12,17 @@ __copyright__ = 2018
 
 
 # config
+#
+
 NUM_CLIENTS = 4
+
 #EVENT_DELAY = 0.01
 EVENT_DELAY = 0.001
+
+IMMEDIATE_TX = True
+#IMMEDIATE_TX = False
+
+#
 # config end
 
 
@@ -37,25 +45,33 @@ else:
 
 class Client(asyncore.dispatcher):
 	
-	def __init__(self, core, port):
+	def __init__(self, core, port, behavior):
 		asyncore.dispatcher.__init__(self)
 		self.core = core
+		self.port = port
+		self.behavior = behavior
 		self.explain = True
 		self.explain = False
+		self.dead = False
+		self.stopping = False
+		self.actor_active = False
+		self.bootup()
+
+
+	def bootup(self):
 		self.in_text = u''
 		self.outbox = Queue()
 		self.backlog = None
-		self.dead = False
 		self.stage = 'start'
-		self.stopping = False
-		self.actor_active = False
+
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-		self.connect(('127.0.0.1', port))
+		self.connect(('127.0.0.1', self.port))
 
 		thr = threading.Thread(target=self.actor)
 		thr.daemon = True  # for emergency purposes
 		thr.start()
 	
+
 	def actor(self):
 		self.actor_active = True
 		print('actor going up')
@@ -92,14 +108,22 @@ class Client(asyncore.dispatcher):
 					self.tx(u'a')
 					
 					time.sleep(0.5)
-					self.tx(u'/join #general\n')
+					self.tx(u'/join #1\n')
 					self.in_text = u''
 					
-					#return self.flood_single_channel()
-					return self.jump_channels()
-				
-		self.actor_active = False
+					if self.behavior == 'flood_single_channel':
+						return self.flood_single_channel()
+					
+					if self.behavior == 'jump_channels':
+						return self.jump_channels()
 
+					if self.behavior == 'reconnect_loop':
+						return self.reconnect_loop()
+
+					print('u wot')
+					return
+
+		self.actor_active = False
 
 
 	def flood_single_channel(self):
@@ -129,12 +153,25 @@ class Client(asyncore.dispatcher):
 		self.actor_active = False
 
 
+	def reconnect_loop(self):
+		#print('reconnect_loop here')
+		channels_avail = ['#1','#2','#3','#4']
+		for chan in channels_avail:
+			self.tx(u'/join {0}\n'.format(chan))
+		time.sleep(1)
+		#print('reconnect_loop closing')
+		self.close()
+		#print('reconnect_loop booting')
+		self.bootup()
+		#print('reconnect_loop sayonara')
+
 
 	def expl(self, msg):
 		if not self.explain:
 			return
 		print(msg)
 		self.await_continue()
+
 
 	def await_continue(self):
 		self.in_text = u''
@@ -145,11 +182,17 @@ class Client(asyncore.dispatcher):
 				break
 		self.in_text = u''
 		
+
 	def jump_channels(self):
+		immediate = IMMEDIATE_TX
+		delay = EVENT_DELAY
+		#print(immediate)
+		#sys.exit(0)
+		
 		script = []
 		active_chan = 0
-		member_of = ['#general']
-		channels_avail = ['#general','#1','#2','#3']
+		member_of = ['#1']
+		channels_avail = ['#1','#2','#3','#4']
 		
 		# maps to channels_avail
 		msg_id = [0,0,0,0]
@@ -293,6 +336,13 @@ class Client(asyncore.dispatcher):
 					self.outbox.put(b'hello\n')
 					self.await_continue()
 					script = []
+
+				if immediate:
+					for action in script:
+						self.outbox.put(action)
+						time.sleep(delay)
+					script = []
+				
 				break
 		
 		self.tx(u'q\n')
@@ -301,8 +351,6 @@ class Client(asyncore.dispatcher):
 			if 'fire/' in self.in_text:
 				break
 			time.sleep(0.01)
-				
-		delay = EVENT_DELAY
 
 		for n, ev in enumerate(script):
 			if self.stopping:
@@ -359,11 +407,12 @@ class Client(asyncore.dispatcher):
 
 class SubCore(object):
 
-	def __init__(self, port, q):
+	def __init__(self, port, behavior, q):
 		self.q = q
 		self.port = port
+		self.behavior = behavior
 		self.stopped = False
-		self.client = Client(self, self.port)
+		self.client = Client(self, self.port, self.behavior)
 
 	def run(self):
 		timeout = 0.05
@@ -398,16 +447,19 @@ class Core(object):
 
 		signal.signal(signal.SIGINT, self.signal_handler)
 
+		behaviors = ['jump_channels'] * (NUM_CLIENTS - 1)
+		behaviors.append('reconnect_loop')
 		self.clients = []
-		for n in range(NUM_CLIENTS):
+		for behavior in behaviors:
 			que = multiprocessing.Queue()
 			cli = multiprocessing.Process(target=self.new_subcore, args=(que,))
 			self.clients.append([cli,que])
 			que.put(port)
+			que.put(behavior)
 			cli.start()
 
 	def new_subcore(self, q):
-		subcore = SubCore(q.get(), q)
+		subcore = SubCore(q.get(), q.get(), q)
 		subcore.run()
 		q.get()
 

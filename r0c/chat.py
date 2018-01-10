@@ -62,8 +62,8 @@ class Message(object):
 		# set serial number based on last message in target
 		if to.msgs:
 			self.sno = to.msgs[-1].sno + 1
-			if self.sno % 256 == 0:
-				print('{0:.3f} adding msg {1} to {2}, {3}'.format(time.time(), self.sno, self.to, self.to.get_name()))
+			#if self.sno % 256 == 0:
+			#	print('{0:.3f} adding msg {1} to {2}, {3}'.format(time.time(), self.sno, self.to, self.to.get_name()))
 		else:
 			self.sno = 0
 
@@ -244,7 +244,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				txt = u'  message {0}\n      mes {0}'.format(n)
 				self.world.send_chan_msg(self.nick, nchan, txt)
 
-		#self.client.refresh(False)
+		self.client.handshake_world = True
 
 
 
@@ -505,6 +505,11 @@ class World(object):
 		self.dirty_ch = []   # Channels that have pending tx
 		self.mutex = threading.RLock()
 
+		# stats for benchmarking
+		self.num_joins = 0
+		self.num_parts = 0
+		self.num_messages = 0
+
 		threading.Thread(target=self.refresh_chans).start()
 
 	def add_user(self, user):
@@ -534,6 +539,7 @@ class World(object):
 
 	def send_chan_msg(self, from_nick, nchan, text):
 		with self.mutex:
+			self.num_messages += 1
 			if nchan.name is None and not from_nick.startswith('-'):
 				# private chan, check if we have anyone to send to
 				if len(nchan.uchans) == 1:
@@ -575,6 +581,7 @@ class World(object):
 				if uchan.nchan == nchan:
 					return uchan
 			
+			self.num_joins += 1
 			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
 			#print('@@@ user {0} chans {1}, {2}'.format(user.nick, len(user.chans), user.chans[-1].alias or user.chans[-1].nchan.name))
@@ -597,6 +604,7 @@ class World(object):
 
 	def join_pub_chan(self, user, name):
 		with self.mutex:
+			name = name.strip()
 			nchan = self.get_pub_chan(name)
 			if nchan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
@@ -639,6 +647,7 @@ class World(object):
 
 	def part_chan(self, uchan):
 		with self.mutex:
+			self.num_parts += 1
 			user = uchan.user
 			nchan = uchan.nchan
 			i = None
