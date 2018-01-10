@@ -282,6 +282,9 @@ class VT100_Client(asyncore.dispatcher):
 				full_redraw = True
 
 			if self.user.new_active_chan:
+				if self.user.active_chan:
+					self.user.active_chan.update_activity_flags()
+
 				self.user.active_chan = self.user.new_active_chan
 				self.user.new_active_chan = None
 				full_redraw = True

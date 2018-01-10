@@ -3,6 +3,7 @@ from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
+import re
 import hashlib
 import threading
 
@@ -32,13 +33,18 @@ class UChannel(object):
 		self.user = user        # the user which this object belongs to
 		self.nchan = nchan      # the NChannel object
 		self.alias = alias      # local channel name (private)
-		self.last_ts = None     # last time the user viewed this channel
-		self.last_hl = None     # last hilight
-		self.last_draw = None   # last time this channel was sent
+		self.last_read = 0      # most recent sno viewed in this channel
+		self.last_ping = 0      # most recent sno that was a hilight
 		self.hilights = False
 		self.activity = False
 		self.lock_to_bottom = True
 		self.vis = []           # visible messages
+
+	def update_activity_flags(self):
+		self.last_read = self.vis[-1].msg.sno if self.vis else 0
+		self.hilights = (self.last_read < self.last_ping)
+		self.activity = (self.last_read < self.nchan.msgs[-1].sno) \
+			if self.nchan.msgs else 0
 
 
 
@@ -62,8 +68,6 @@ class Message(object):
 		# set serial number based on last message in target
 		if to.msgs:
 			self.sno = to.msgs[-1].sno + 1
-			#if self.sno % 256 == 0:
-			#	print('{0:.3f} adding msg {1} to {2}, {3}'.format(time.time(), self.sno, self.to, self.to.get_name()))
 		else:
 			self.sno = 0
 
@@ -77,6 +81,7 @@ class User(object):
 		self.active_chan = None      # UChannel
 		self.new_active_chan = None  # set for channel change
 		self.nick = None             # str
+		self.nick_re = None          # regex object for ping assert
 		
 		plain_base = u'lammo/{0}'.format(address[0])
 
@@ -101,7 +106,7 @@ class User(object):
 						break
 
 				if ok:
-					self.nick = nv
+					self.set_nick(nv)
 					break
 				else:
 					if len(plain) > 100:
@@ -314,7 +319,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 						if usr.alias == self.nick:
 							usr.alias = arg
 
-				self.nick = arg
+				self.set_nick(arg)
 
 
 
@@ -485,6 +490,12 @@ if you are using a mac, PgUp is fn-Shift-PgUp
   if you meant to send that as a message,
   escape the leading "/" by adding another "/"
 """.format(cmd_str))
+
+	def set_nick(self, new_nick):
+		self.nick = new_nick
+		self.nick_re = re.compile(
+			'(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)'.format(
+				re.escape(self.nick)))
 
 
 

@@ -23,4 +23,5 @@
 * admin auth
 * rate limiting
 * /cmap
-
+* store state (channel messages)
+* check for queue buildups
