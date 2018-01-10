@@ -1071,10 +1071,10 @@ class VT100_Client(asyncore.dispatcher):
 			if self.linemode:
 				# echo is always enabled if linemode, skip this stage
 				self.wizard_stage = 'linemode'
-				return
-			self.wizard_stage = 'echo_answer'
-			self.in_text = u''
-			self.say((u"""
+			else:
+				self.wizard_stage = 'echo_answer'
+				self.in_text = u''
+				self.say((u"""
 
    A:  your text appeared as you typed
 
@@ -1082,7 +1082,7 @@ class VT100_Client(asyncore.dispatcher):
 
  press A or B&lm
  """).replace(u'\n', u'\r\n').replace(u'&lm', u', followed by [Enter]' if self.linemode else u':').encode('utf-8'))
-			return
+				return
 
 
 		if self.wizard_stage == 'echo_answer':
