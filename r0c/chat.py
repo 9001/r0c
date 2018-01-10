@@ -121,20 +121,40 @@ class User(object):
 		# while true; do tail -n +3 ansi | iconv -t 'cp437//IGNORE' | iconv -f cp437 | while IFS= read -r x; do printf "$x\n"; done | sed -r "s/$/$(printf '\033[K')/"; printf '\033[J'; sleep 0.2; printf '\033[H'; done
 		
 		if self.client.codec in ['utf-8','cp437','shift_jis']:
+			
+			# the simple version
 			text = u"""\
-\033[1;30m________ ___ ________
-\033[1;30m░▒▓█▀▀▀▀\033[1;37m █▀█ \033[1;30m▀▀▀▀█▓▒░   \033[0;36m┌──[\033[0mretr0chat 0.9\033[36m]──┐
-\033[1;30m ░▒▓\033[1;36m █▀█ █ █ █▀▀ \033[1;30m▓▒░    \033[0;36m│\033[0mgithub.com/9001/r0c\033[36m│
-\033[1;30m  ░▒\033[1;34m █   █▄█ █▄▄ \033[1;30m▒░     \033[0;36m╘═══════════════════╛
-                             \033[0;34m  b. 2018-01-09 \033[0m
+`1;30m________ ___ ________
+`1;30m░▒▓█▀▀▀▀`37m █▀█ `30m▀▀▀▀█▓▒░   `0;36m┌──[`0mretr0chat 0.9`36m]──┐
+`1;30m ░▒▓`36m █▀█ █ █ █▀▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
+`1;30m  ░▒`34m █   █▄█ █▄▄ `30m▒░     `0;36m╘═══════════════════╛
+                             `34m  b. build_date `0m
+"""
+			# the messy version
+			text = u"""\
+`1;30m________ `37m__`36m_ `30m________
+`1;30m░▒▓█▀▀▀▀`37m █▀`46m▓`0;1;30m ▀▀▀▀█▓▒░   `0;36m┌──[`0mretr0chat 0.9`36m]──┐
+`1;30m ░▒▓ `34;46m▒`0;1;36m▀█ `37;46m▓`0m `1;37;46m▓`0m `1;36m█▀`34m▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
+`1;30m  ░▒ `34m█   `36m█▄█ `34;46m▒`0;1;34m▄▄ `30m▒░     `0;36m╘═══════════════════╛
+                             `34m  b. build_date `0m
+"""
+			
+		else:
+			# the simple version
+			text = u"""
+  `1;37m     /^\\           `0mretr0chat 0.9 `36m-----
+  `1;36m/^^  | |  /^^      `0mgithub.com/9001/r0c
+  `1;34m|    \\_/  \\__      `0;36m------b. build_date `0m
 """
 
-		else:
-			text = u"""
-  \033[1;37m     /^\\           \033[0mretr0chat 0.9 \033[36m-----
-  \033[1;33m/^^  | |  /^^      \033[0mgithub.com/9001/r0c
-  \033[1;31m|    \\_/  \\__      \033[0;36m------b. 2018-01-09 \033[0m
+			# the messy version
+			text = u"""`1;30m______    `37m_`30m    ______
+`1;30m\\\\\\\\\\\\\\  `37m/ \\  `30m///////   `0mretr0chat 0.9 `36m-----
+ `1;30m\\\\ `36m/`37m^^  | |  `36m/^`0;36m^`1;30m //    `0mgithub.com/9001/r0c
+  `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. build_date `0m
 """
+
+		text = text.replace(u'`', u'\033[').replace('build_date', '2018-01-10')
 
 		text += u"""
 Useful commands:
@@ -204,7 +224,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		
 
 
-		if True:
+		if False:
 			uchan = self.world.join_pub_chan(self, 'general')
 			nchan = uchan.nchan
 			if len(nchan.msgs) < 100:
