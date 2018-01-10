@@ -18,6 +18,12 @@ class NChannel(object):
 		self.msgs = []         # messages
 		self.name = name
 		self.topic = topic
+	
+	def get_name(self):
+		if self.name:
+			return u'#' + self.name
+		ret = u', '.join(x.alias for x in self.uchans[:2])
+		return ret or '<abandoned private channel>'
 
 
 
@@ -52,6 +58,14 @@ class Message(object):
 		self.to   = to          # obj nchannel
 		self.ts   = ts          # int timestamp
 		self.txt  = txt         # str text
+		
+		# set serial number based on last message in target
+		if to.msgs:
+			self.sno = to.msgs[-1].sno + 1
+			if self.sno % 256 == 0:
+				print('{0:.3f} adding msg {1} to {2}, {3}'.format(time.time(), self.sno, self.to, self.to.get_name()))
+		else:
+			self.sno = 0
 
 
 
@@ -104,20 +118,24 @@ class User(object):
 		self.client = client
 
 	def create_channels(self):
+		# while true; do tail -n +3 ansi | iconv -t 'cp437//IGNORE' | iconv -f cp437 | while IFS= read -r x; do printf "$x\n"; done | sed -r "s/$/$(printf '\033[K')/"; printf '\033[J'; sleep 0.2; printf '\033[H'; done
+		
 		if self.client.codec in ['utf-8','cp437','shift_jis']:
-			text = u"""
-    \033[1;31m╔═══════════════════╗    \033[0m
-\033[1;33m(o─═╣\033[22m r e t r \033[1m0\033[22m c h a t \033[1m╠═─o)\033[0m
-    \033[1;32m╚═══════════════════╝    \033[0m
+			text = u"""\
+\033[1;30m________ ___ ________
+\033[1;30m░▒▓█▀▀▀▀\033[1;37m █▀█ \033[1;30m▀▀▀▀█▓▒░   \033[0;36m┌──[\033[0mretr0chat 0.9\033[36m]──┐
+\033[1;30m ░▒▓\033[1;36m █▀█ █ █ █▀▀ \033[1;30m▓▒░    \033[0;36m│\033[0mgithub.com/9001/r0c\033[36m│
+\033[1;30m  ░▒\033[1;34m █   █▄█ █▄▄ \033[1;30m▒░     \033[0;36m╘═══════════════════╛
+                             \033[0;34m  b. 2018-01-09 \033[0m
 """
-			
+
 		else:
 			text = u"""
-     \033[1;31m/=================\\   \033[0m
-\033[1;33m(o-=]\033[22m r e t r \033[1m0\033[22m c h a t \033[1m[=-o)\033[0m
-     \033[1;32m\\=================/   \033[0m
+  \033[1;37m     /^\\           \033[0mretr0chat 0.9 \033[36m-----
+  \033[1;33m/^^  | |  /^^      \033[0mgithub.com/9001/r0c
+  \033[1;31m|    \\_/  \\__      \033[0;36m------b. 2018-01-09 \033[0m
 """
-		
+
 		text += u"""
 Useful commands:
    \033[36m/nick\033[0m  change your nickname
@@ -179,9 +197,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		nchan = uchan.nchan
 		nchan.topic = 'r0c readme (and status info)'
 
-		for line in text.splitlines():
-			msg = Message('-info-', nchan, time.time(), line)
-			nchan.msgs.append(msg)
+		msg = Message('-nfo-', nchan, time.time(), text)
+		nchan.msgs.append(msg)
 
 		self.new_active_chan = uchan
 		
@@ -324,6 +341,14 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			# this is in charge of activating the new channel,
 			# rapid part/join will crash us without this
 			self.client.refresh(False)
+			
+			if False:
+				# measure performance on chans with too many messages
+				if len(self.active_chan.nchan.msgs) < 1048576:
+					for n in range(0,1048576):
+						if n % 16384 == 0:
+							print(n)
+						self.world.send_chan_msg('--', self.active_chan.nchan, 'large history load test {0}'.format(n))
 
 
 
@@ -410,6 +435,13 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd == 'cls':
+			msg = Message(
+				'-nfo-', self.active_chan.nchan, time.time(),
+				u'\033[1;36m{0}\033[22m wiped the chat'.format(self.nick))
+			msg.sno = 0
+			self.active_chan.nchan.msgs = [msg]
+			
 		elif cmd == 'sd':
 			msg = "\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
 			visited = {}
@@ -420,6 +452,10 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 						continue
 					visited[chan] = 1
 					self.world.send_chan_msg('-err-', chan, msg)
+				
+				if not user.active_chan.lock_to_bottom:
+					user.active_chan.lock_to_bottom = True
+					user.client.need_full_redraw = True
 			
 			def killer():
 				time.sleep(0.5)

@@ -469,7 +469,7 @@ class VT100_Client(asyncore.dispatcher):
 				c1 = ''
 				c2 = ''
 				if self.vt100:
-					if msg.user == '-info-':
+					if msg.user == '-nfo-':
 						c1 = '\033[0;32m'
 						c2 = '\033[0m'
 					elif msg.user == '-err-':
@@ -503,36 +503,40 @@ class VT100_Client(asyncore.dispatcher):
 		
 		#print('\n@@@ update chat view @@@ {0}'.format(time.time()))
 		
+		nick_w = None
+		if self.user.active_chan.alias == 'r0c-status':
+			nick_w = 6
+			
 		if self.w >= 140:
-			nick_w = 18
-			msg_w = self.w - 29
-			msg_nl = u' ' * 29
-			msg_fmt = u'{0}  {1}{2:18}{3} {4}'
+			nick_w = nick_w or 18
+			msg_w = self.w - (nick_w + 11)
+			msg_nl = u' '  * (nick_w + 11)
 			ts_fmt = '%H:%M:%S'
+			msg_fmt = u'{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 100:
-			nick_w = 14
-			msg_w = self.w - 25
-			msg_nl = u' ' * 25
-			msg_fmt = u'{0}  {1}{2:14}{3} {4}'
+			nick_w = nick_w or 14
+			msg_w = self.w - (nick_w + 11)
+			msg_nl = u' '  * (nick_w + 11)
 			ts_fmt = '%H:%M:%S'
+			msg_fmt = u'{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 80:
-			nick_w = 12
-			msg_w = self.w - 20
-			msg_nl = u' ' * 20
-			msg_fmt = u'{0} {1}{2:12}{3} {4}'
+			nick_w = nick_w or 12
+			msg_w = self.w - (nick_w + 8)
+			msg_nl = u' '  * (nick_w + 8)
 			ts_fmt = '%H%M%S'
+			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 60:
-			nick_w = 8
-			msg_w = self.w - 15
-			msg_nl = u' ' * 15
-			msg_fmt = u'{0} {1}{2:8}{3} {4}'
+			nick_w = nick_w or 8
+			msg_w = self.w - (nick_w + 7)
+			msg_nl = u' '  * (nick_w + 7)
 			ts_fmt = '%H:%M'
+			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		else:
-			nick_w = 8
-			msg_w = self.w - 9
-			msg_nl = u' ' * 9
-			msg_fmt = u'{1}{2:8}{3} {4}'
+			nick_w = nick_w or 8
+			msg_w = self.w - (nick_w + 1)
+			msg_nl = u' '  * (nick_w + 1)
 			ts_fmt = '%H%M'
+			msg_fmt = u'{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		
 		# first ensure our cache is sane
 		if not ch.vis or \
@@ -541,13 +545,24 @@ class VT100_Client(asyncore.dispatcher):
 			
 			try:
 				# some messages got pruned from the channel message list
-				for vis in ch.vis:
-					vis.im = nch.msgs.index(vis.msg)
+				im0 = nch.msgs.index(ch.vis[0].msg)
+				for n, vis in enumerate(ch.vis):
+					vis.im = n + im0
 			except:
 				# the pruned messages included the visible ones,
 				# scroll client to bottom
 				ch.lock_to_bottom = True
 				full_redraw = True
+		
+		# we get painfully slow on join/parts when the
+		# channel has more than 800 messages or so
+		#
+		# thanks stress.py
+		if (ch.lock_to_bottom and not full_redraw and \
+			nch.msgs[-1].sno - ch.vis[-1].msg.sno > self.h * 2):
+			
+			# lots of messages since last time, no point in scrolling
+			full_redraw = True
 		
 		if full_redraw:
 			lines = []

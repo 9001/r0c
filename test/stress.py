@@ -13,8 +13,8 @@ __copyright__ = 2018
 
 # config
 NUM_CLIENTS = 4
-EVENT_DELAY = 0.01
-#EVENT_DELAY = 0.001
+#EVENT_DELAY = 0.01
+EVENT_DELAY = 0.001
 # config end
 
 
@@ -124,6 +124,8 @@ class Client(asyncore.dispatcher):
 				if not self.outbox.empty():
 					continue
 				self.tx(u'{0} done\n'.format(time.time()))
+		
+		self.actor_active = False
 
 
 
@@ -230,6 +232,7 @@ class Client(asyncore.dispatcher):
 					break
 				
 				if next_act <= 18:
+					#continue
 					if not member_of:
 						self.expl('tried to leave channel but theres nothing to leave')
 						# out of channels to part, try a different act
@@ -312,6 +315,8 @@ class Client(asyncore.dispatcher):
 		
 		self.tx(u'done')
 		print('done')
+		
+		self.actor_active = False
 	
 	
 
@@ -364,6 +369,8 @@ class SubCore(object):
 		while self.q.empty():
 			asyncore.loop(timeout, count=0.5/timeout)
 
+		self.client.stopping = True
+
 		clean_shutdown = False
 		for n in range(0, 40):  # 2sec
 			if not self.client.actor_active:
@@ -401,7 +408,7 @@ class Core(object):
 	def new_subcore(self, q):
 		subcore = SubCore(q.get(), q)
 		subcore.run()
-		q.read()
+		q.get()
 
 	def run(self):
 		print('  *  test is running')
