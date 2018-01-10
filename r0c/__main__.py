@@ -27,10 +27,12 @@ if fail or not 'r0c' in sys.modules:
 
 from .config   import *
 from .util     import *
-from .c_vt100  import *
-from .c_netcat import *
-from .c_telnet import *
+from .ivt100   import *
+from .inetcat  import *
+from .itelnet  import *
 from .chat     import *
+from .user     import *
+from .world    import *
 
 
 class Core(object):

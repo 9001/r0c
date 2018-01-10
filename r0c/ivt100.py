@@ -13,6 +13,7 @@ import sys
 from .config import *
 from .util   import *
 from .chat   import *
+from .user   import *
 from .unrag  import *
 
 PY2 = (sys.version_info[0] == 2)
@@ -44,6 +45,9 @@ class VT100_Server(asyncore.dispatcher):
 	
 	def gen_remote(self, socket, addr, user):
 		raise RuntimeError('inherit me')
+
+	def handle_error(self):
+		whoops()
 
 	def handle_accept(self):
 		socket, addr = self.accept()
