@@ -279,65 +279,104 @@ class VT100_Client(asyncore.dispatcher):
 			or self.wizard_stage is not None:
 				return
 
+			if not self.user:
+				whoops('how did you get here without a user?')
+				return
+
+			if not self.user.active_chan and not self.user.new_active_chan:
+				whoops('how did you get here without a chan? {0} {1}'.format(
+					self.user.active_chan, self.user.new_active_chan))
+				return
+
+			# full redraw if requested by anything stateful
 			full_redraw = self.need_full_redraw
 			self.need_full_redraw = False
 
+			# full redraw if the screen buffer has been invalidated
 			if not self.screen or len(self.screen) != self.h:
 				full_redraw = True
 
+			# set true to force status bar update
+			status_changed = False
+
+			# switch to new channel,
+			# storing the last viewed message for notification purposes
 			if self.user.new_active_chan:
 				if self.user.active_chan:
 					self.user.active_chan.update_activity_flags(True)
 
 				self.user.active_chan = self.user.new_active_chan
+				self.user.active_chan.update_activity_flags(True)
 				self.user.new_active_chan = None
 				full_redraw = True
 
-			elif self.user.active_chan \
-			and cursor_moved or self.scroll_cmd:
-				self.user.active_chan.update_activity_flags(True)
+			# check if user input has caused any unread messages
+			# in the active channel to be considered read
+			elif cursor_moved or self.scroll_cmd:
+				status_changed = self.user.active_chan.update_activity_flags(True)
 			
+			# look for events in other chats too
+			if not cursor_moved and False:
+				for chan in self.user.chans:
+					if chan == self.user.active_chan:
+						continue
+					if chan.update_activity_flags():
+						status_changed = True
+
 			to_send = u''
 			fix_color = False
 
+			# invalidate screen buffer if full redraw 
 			if full_redraw:
 				self.screen = ['x'] * self.h
 				if not self.vt100:
 					to_send = u'\r\n' * self.h
 
-			to_send += self.update_chat_view(full_redraw)
+			mark_messages_read = status_changed \
+			and not self.user.active_chan.display_notification
+
+			# update chat view
+			to_send += self.update_chat_view(full_redraw, mark_messages_read)
 			if to_send:
 				full_redraw = True
 
+			# update top bar (if client can handle it)
 			if self.vt100:
 				to_send += self.update_top_bar(full_redraw)
 
-			to_send += self.update_status_bar(full_redraw)
+			# update status bar
+			if status_changed \
+			or not cursor_moved:
+				to_send += self.update_status_bar(full_redraw)
+
+			# anything sent so far would require an SGR reset
 			if to_send:
 				fix_color = True
 
+			# this is too much for netcat on windows
 			if self.vt100:
-				to_send += self.update_text_input(full_redraw)
 
+				# handle keyboard strokes from non-linemode clients,
+				# including those who failed the lm test due to insane ping
+				if self.linebuf or not self.linemode:
+					to_send += self.update_text_input(full_redraw)
+
+				# reset colours if necessary
 				if '\033[' in self.linebuf or fix_color:
 					to_send += '\033[0m'
-				
+			
 			#to_send += u'\033[10H' + u'qwertyuiopasdfghjklzxcvbnm'*3
 
-			if not self.vt100:
-				self.say(to_send.encode(self.codec, 'backslashreplace'))
-
-			elif to_send or cursor_moved:
+			# position cursor after CLeft/CRight/Home/End
+			if cursor_moved and self.vt100:
 				to_send += u'\033[{0};{1}H'.format(self.h - self.y_input,
 					len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
+
+			# do it
+			if to_send:
 				self.say(to_send.encode(self.codec, 'backslashreplace'))
 
 
-
-	def update_notifications(self):
-		bottom_now = self.user.active_chan.vis[-1].msg.sno
-		last_read = self.user.active_chan.last_read
-		last_ping = self.user.active_chan.last_ping
 
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
@@ -377,14 +416,11 @@ class VT100_Client(asyncore.dispatcher):
 		hilights = []
 		activity = []
 		for i, chan in enumerate(self.user.chans):
-			
-			if chan.hilights or chan.activity:
-				if chan == self.user.active_chan \
-				and chan.vis \
-				and chan.vis[-1].msg == chan.nchan.msgs[-1]:
-					# don't show notifications for 
-					# visible messages in active channel
-					continue
+			#print('testing {0} ({1}): h {2:1}, a {3:1}, dn {4:1}'.format(
+			#	chan, chan.nchan.get_name(), chan.hilights, chan.activity, chan.display_notification))
+
+			if not chan.display_notification:
+				continue
 			
 			if chan.hilights:
 				hilights.append(i)
@@ -474,7 +510,7 @@ class VT100_Client(asyncore.dispatcher):
 	
 
 
-	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
+	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, uchan):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
 		
 		#if not self.vt100:
@@ -512,6 +548,12 @@ class VT100_Client(asyncore.dispatcher):
 						c1 = '\033[36m'
 						c2 = '\033[0m'
 
+				if msg.sno <= uchan.last_read or msg.user == uchan.user.nick:
+					ts += ' '
+				else:
+					# hilight unread messages
+					ts = '\033[7m{0}\033[0m*'.format(ts)
+
 				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
 			else:
 				txt[n] = msg_nl + line
@@ -520,7 +562,17 @@ class VT100_Client(asyncore.dispatcher):
 	
 
 
-	def update_chat_view(self, full_redraw):
+	def remove_unread_message_hilight(self, text):
+		ofs = text.find(u'*')
+		if ofs <= 1 or not text.startswith(u'\033[7m'):
+			whoops('{0} // {1}'.format(ofs))
+			return text
+		
+		return '{0} {1}'.format(text[4:ofs-4], text[ofs+1])
+
+
+
+	def update_chat_view(self, full_redraw, mark_messages_read):
 		ret = u''
 		ch = self.user.active_chan
 		nch = ch.nchan
@@ -545,25 +597,25 @@ class VT100_Client(asyncore.dispatcher):
 			msg_w = self.w - (nick_w + 11)
 			msg_nl = u' '  * (nick_w + 11)
 			ts_fmt = '%H:%M:%S'
-			msg_fmt = u'{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 100:
 			nick_w = nick_w or 14
 			msg_w = self.w - (nick_w + 11)
 			msg_nl = u' '  * (nick_w + 11)
 			ts_fmt = '%H:%M:%S'
-			msg_fmt = u'{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 80:
 			nick_w = nick_w or 12
 			msg_w = self.w - (nick_w + 8)
 			msg_nl = u' '  * (nick_w + 8)
 			ts_fmt = '%H%M%S'
-			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}}{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 60:
 			nick_w = nick_w or 8
 			msg_w = self.w - (nick_w + 7)
 			msg_nl = u' '  * (nick_w + 7)
 			ts_fmt = '%H:%M'
-			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}}{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		else:
 			nick_w = nick_w or 8
 			msg_w = self.w - (nick_w + 1)
@@ -608,7 +660,7 @@ class VT100_Client(asyncore.dispatcher):
 				ch.vis = []
 				for n, msg in enumerate(reversed(nch.msgs)):
 					imsg = len(nch.msgs) - n
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, ch)
 					
 					n_vis = len(txt)
 					car = 0
@@ -618,7 +670,7 @@ class VT100_Client(asyncore.dispatcher):
 						car = cdr - n_vis
 					
 					ch.vis.append(
-						VisMessage(msg, txt, imsg, car, cdr))
+						VisMessage(msg, txt, imsg, car, cdr, ch))
 					
 					for ln in reversed(txt[car:]):
 						lines.append(ln)
@@ -638,7 +690,7 @@ class VT100_Client(asyncore.dispatcher):
 				imsg = top_msg.im
 				ch.vis = []
 				for n, msg in enumerate(nch.msgs[ imsg : imsg + self.h-3 ]):
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, ch)
 					
 					#if top_msg is not None:
 						# we can keep the exact scroll position
@@ -677,7 +729,7 @@ class VT100_Client(asyncore.dispatcher):
 							cdr = n_vis
 					
 					ch.vis.append(
-						VisMessage(msg, txt, imsg, car, cdr))
+						VisMessage(msg, txt, imsg, car, cdr, ch))
 					
 					for ln in txt[car:cdr]:
 						lines.append(ln)
@@ -727,7 +779,7 @@ class VT100_Client(asyncore.dispatcher):
 					#print('@@@ not lock to bottom')
 					return ret
 				
-				if nch.msgs[-1] == ch.vis[-1].msg:
+				if nch.msgs[-1] == ch.vis[-1].msg and not mark_messages_read:
 					# no new messages
 					#print('@@@ no new messages: {0}'.format(ch.vis[-1].txt[0][:40]))
 					return ret
@@ -765,7 +817,7 @@ class VT100_Client(asyncore.dispatcher):
 					partial_org = ref
 					partial_old = VisMessage(
 						ref.msg, ref.txt[ref.car:ref.cdr],
-						ref.im, 0, ref.cdr-ref.car)
+						ref.im, 0, ref.cdr-ref.car, ch)
 					ch.vis[0] = partial_old
 
 					if debug_scrolling:
@@ -791,7 +843,7 @@ class VT100_Client(asyncore.dispatcher):
 					partial_org = ref
 					partial_old = VisMessage(
 						ref.msg, ref.txt[ref.car:ref.cdr],
-						ref.im, 0, ref.cdr-ref.car)
+						ref.im, 0, ref.cdr-ref.car, ch)
 					ch.vis[-1] = partial_old
 
 					if debug_scrolling:
@@ -834,7 +886,7 @@ class VT100_Client(asyncore.dispatcher):
 							break
 					
 					msg = nch.msgs[imsg]
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, ch)
 					
 				if t_steps < 0:
 					txt_order = reversed(txt)
@@ -881,7 +933,7 @@ class VT100_Client(asyncore.dispatcher):
 					new_car = 0
 					new_cdr = n_vis
 
-				vmsg = VisMessage(msg, txt, imsg, new_car, new_cdr)
+				vmsg = VisMessage(msg, txt, imsg, new_car, new_cdr, ch)
 				#print('@@@ vismsg len({0}) car,cdr({1},{2}) -- {3}'.format(len(txt), new_car, new_cdr, txt[0][-30:]))
 
 				if t_steps < 0:
@@ -965,13 +1017,30 @@ class VT100_Client(asyncore.dispatcher):
 				if debug_scrolling:
 					print('@@@ car,cdr ({0},{1})'.format(partial_new.car, partial_new.cdr))
 
+			# update message read state on both sides
+			if self.vt100:
+				y_pos = 2
+				for i, vmsg in enumerate(ch.vis):
+					if vmsg.car > 0:
+						y_pos += vmsg.cdr - vmsg.car
+						continue
+					
+					if not vmsg.read and vmsg.msg.sno <= ch.last_read:
+						#print('switching message unread -> read for {0}: this({1}) last_read({2})'.format(
+						#	ch.user.nick, vmsg.msg.sno, ch.last_read))
+						vmsg.read = True
+						modified = self.remove_unread_message_hilight(vmsg.txt[0])
+						if modified:
+							vmsg.txt[0] = modified
+							ret += '\033[{0}H{1} '.format(y_pos, modified[:modified.find(' ')])
+					
+					y_pos += vmsg.cdr - vmsg.car
+
 			# update the server-side screen buffer
 			new_screen = [self.screen[0]]
 			for i, vmsg in enumerate(ch.vis):
 				for ln in vmsg.txt[vmsg.car:vmsg.cdr]:
 					new_screen.append(ln)
-
-					#print('@@@ 2 {0}'.format(ln))
 			
 			while len(new_screen) < self.h - 2:
 				new_screen.append('--')

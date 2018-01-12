@@ -408,7 +408,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			msg = Message(
 				'-nfo-', self.active_chan.nchan, time.time(),
 				u'\033[1;36m{0}\033[22m wiped the chat'.format(self.nick))
-			msg.sno = 0
+			#msg.sno = 0  # what was i thinking
 			self.active_chan.nchan.msgs = [msg]
 			
 		elif cmd == 'sd':

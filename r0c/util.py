@@ -267,7 +267,7 @@ def visualize_all_unicode_codepoints_as_utf8():
 
 
 
-def whoops():
+def whoops(extra=None):
 	msg = """\
              __                          
    _      __/ /_  ____  ____  ____  _____
@@ -281,6 +281,8 @@ def whoops():
 	msg = '{0}\r\n{1}\r\n{2}</stack>'.format(
 		msg, exc.rstrip(), '-'*64)
 	print(msg)
+	if extra:
+		print('{0}\n'.format(msg))
 
 
 

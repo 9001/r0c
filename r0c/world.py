@@ -51,10 +51,9 @@ class World(object):
 			if uchan.user.active_chan == uchan:
 				if not uchan.user.client.handshake_sz \
 				or uchan.user.client.wizard_stage is not None:
-
-					if DBG:
-						print('!!! refresh_chan without handshake_sz')
 					continue
+
+				#print('refreshing {0} for {1}'.format(nchan.get_name(), uchan.user.nick))
 				uchan.user.client.refresh(False)
 
 	def send_chan_msg(self, from_nick, nchan, text):
@@ -108,6 +107,7 @@ class World(object):
 			nchan.uchans.append(uchan)
 			self.send_chan_msg('--', nchan,
 				'\033[1;32m{0}\033[22m has joined'.format(user.nick))
+			uchan.last_read = nchan.msgs[-1].sno
 			return uchan
 
 	def get_pub_chan(self, name):

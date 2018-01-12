@@ -33,6 +33,7 @@ class UChannel(object):
 		self.last_ping = 0      # most recent sno that was a hilight
 		self.hilights = False
 		self.activity = False
+		self.display_notification = False
 		self.lock_to_bottom = True
 		self.vis = []           # visible messages
 
@@ -46,17 +47,41 @@ class UChannel(object):
 		if not last_nchan_msg and self.nchan.msgs:
 			last_nchan_msg = self.nchan.msgs[-1].sno
 
-		self.hilights = (self.last_read < self.last_ping)
-		self.activity = (self.last_read < last_nchan_msg)
+		hilights = self.last_read < self.last_ping
+		activity = self.last_read < last_nchan_msg
+
+		self.display_notification = hilights or activity
+		
+		if self.display_notification \
+		and self == self.user.active_chan \
+		and self.lock_to_bottom:
+			# don't display notifications in the status bar
+			# when chan is active and bottom messages are visible
+			self.display_notification = False
+	
+		if self.hilights != hilights \
+		or self.activity != activity :
+			self.hilights = hilights
+			self.activity = activity
+			return True
+		
+		return False
 
 
 class VisMessage(object):
-	def __init__(self, msg, txt, im, car, cdr):
+	def __init__(self, msg, txt, im, car, cdr, ch):
 		self.msg = msg          # the message object
 		self.txt = txt          # the formatted text
 		self.im  = im           # offset into the channel's message list
 		self.car = car          # first visible line
 		self.cdr = cdr          # last visible line PLUS ONE
+		
+		if not msg or not msg.user: whoops('msg bad')
+		if not ch or not ch.user: whoops('user bad')
+		
+		self.read = \
+			msg.user == ch.user.nick \
+			or msg.sno <= ch.last_read
 
 
 class Message(object):
