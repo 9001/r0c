@@ -41,10 +41,16 @@ class World(object):
 		self.chan_sync_active = False
 	
 	def refresh_chan(self, nchan):
+		last_msg = nchan.msgs[-1].sno if nchan.msgs else 0
+		if nchan.uchans[0].alias == 'r0c-status':
+			# consider every status message a ping
+			nchan.uchans[0].last_ping = last_msg
+		
 		for uchan in nchan.uchans:
+			uchan.update_activity_flags(False, last_msg)
 			if uchan.user.active_chan == uchan:
-				if not uchan.user.client.handshake_sz or \
-					uchan.user.client.wizard_stage is not None:
+				if not uchan.user.client.handshake_sz \
+				or uchan.user.client.wizard_stage is not None:
 
 					if DBG:
 						print('!!! refresh_chan without handshake_sz')

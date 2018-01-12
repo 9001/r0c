@@ -273,10 +273,10 @@ class VT100_Client(asyncore.dispatcher):
 	def refresh(self, cursor_moved):
 		""" compose necessary ansi text and send to client """
 		with self.world.mutex:
-			if  self.too_small or \
-				not self.handshake_sz or \
-				not self.handshake_world or \
-				self.wizard_stage is not None:
+			if self.too_small \
+			or not self.handshake_sz \
+			or not self.handshake_world \
+			or self.wizard_stage is not None:
 				return
 
 			full_redraw = self.need_full_redraw
@@ -287,11 +287,15 @@ class VT100_Client(asyncore.dispatcher):
 
 			if self.user.new_active_chan:
 				if self.user.active_chan:
-					self.user.active_chan.update_activity_flags()
+					self.user.active_chan.update_activity_flags(True)
 
 				self.user.active_chan = self.user.new_active_chan
 				self.user.new_active_chan = None
 				full_redraw = True
+
+			elif self.user.active_chan \
+			and cursor_moved or self.scroll_cmd:
+				self.user.active_chan.update_activity_flags(True)
 			
 			to_send = u''
 			fix_color = False
@@ -329,6 +333,11 @@ class VT100_Client(asyncore.dispatcher):
 				self.say(to_send.encode(self.codec, 'backslashreplace'))
 
 
+
+	def update_notifications(self):
+		bottom_now = self.user.active_chan.vis[-1].msg.sno
+		last_read = self.user.active_chan.last_read
+		last_ping = self.user.active_chan.last_ping
 
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
@@ -368,16 +377,28 @@ class VT100_Client(asyncore.dispatcher):
 		hilights = []
 		activity = []
 		for i, chan in enumerate(self.user.chans):
+			
+			if chan.hilights or chan.activity:
+				if chan == self.user.active_chan \
+				and chan.vis \
+				and chan.vis[-1].msg == chan.nchan.msgs[-1]:
+					# don't show notifications for 
+					# visible messages in active channel
+					continue
+			
 			if chan.hilights:
 				hilights.append(i)
+
 			if chan.activity:
 				activity.append(i)
 		
 		if hilights:
-			hilights = u'   \033[1;33mh {0}\033[22;39m'.format(','.join(hilights))
+			hilights = u'   \033[1;33mh {0}\033[22;39m'.format(
+				','.join(str(x) for x in hilights))
 		
 		if activity:
-			activity = u'   \033[1;32ma {0}\033[22;39m'.format(','.join(activity))
+			activity = u'   \033[1;32ma {0}\033[22;39m'.format(
+				','.join(str(x) for x in activity))
 		
 		offscreen = None
 		if not uchan.lock_to_bottom and uchan.vis[-1].im < len(nchan.msgs):
@@ -551,9 +572,9 @@ class VT100_Client(asyncore.dispatcher):
 			msg_fmt = u'{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		
 		# first ensure our cache is sane
-		if not ch.vis or \
-			len(nch.msgs) <= ch.vis[0].im or \
-			nch.msgs[ch.vis[0].im] != ch.vis[0].msg:
+		if not ch.vis \
+		or len(nch.msgs) <= ch.vis[0].im \
+		or nch.msgs[ch.vis[0].im] != ch.vis[0].msg:
 			
 			try:
 				# some messages got pruned from the channel message list
@@ -570,8 +591,9 @@ class VT100_Client(asyncore.dispatcher):
 		# channel has more than 800 messages or so
 		#
 		# thanks stress.py
-		if (ch.lock_to_bottom and not full_redraw and \
-			nch.msgs[-1].sno - ch.vis[-1].msg.sno > self.h * 2):
+		if ch.lock_to_bottom \
+		and not full_redraw \
+		and nch.msgs[-1].sno - ch.vis[-1].msg.sno > self.h * 2:
 			
 			# lots of messages since last time, no point in scrolling
 			full_redraw = True

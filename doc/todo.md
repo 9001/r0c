@@ -25,3 +25,4 @@
 * /cmap
 * store state (channel messages)
 * check for queue buildups
+* nick colours

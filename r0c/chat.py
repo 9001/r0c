@@ -10,7 +10,6 @@ from .util import *
 PY2 = (sys.version_info[0] == 2)
 
 
-
 class NChannel(object):
 	def __init__(self, name, topic):
 		self.uchans = []       # UChannel instances
@@ -25,7 +24,6 @@ class NChannel(object):
 		return ret or '<abandoned private channel>'
 
 
-
 class UChannel(object):
 	def __init__(self, user, nchan, alias=None):
 		self.user = user        # the user which this object belongs to
@@ -38,12 +36,18 @@ class UChannel(object):
 		self.lock_to_bottom = True
 		self.vis = []           # visible messages
 
-	def update_activity_flags(self):
-		self.last_read = self.vis[-1].msg.sno if self.vis else 0
-		self.hilights = (self.last_read < self.last_ping)
-		self.activity = (self.last_read < self.nchan.msgs[-1].sno) \
-			if self.nchan.msgs else 0
+	def update_activity_flags(self, set_last_read=False, last_nchan_msg=0):
+		if set_last_read:
+			if self.vis:
+				self.last_read = max(self.last_read, self.vis[-1].msg.sno)
+			else:
+				self.last_read = 0
+		
+		if not last_nchan_msg and self.nchan.msgs:
+			last_nchan_msg = self.nchan.msgs[-1].sno
 
+		self.hilights = (self.last_read < self.last_ping)
+		self.activity = (self.last_read < last_nchan_msg)
 
 
 class VisMessage(object):
@@ -53,7 +57,6 @@ class VisMessage(object):
 		self.im  = im           # offset into the channel's message list
 		self.car = car          # first visible line
 		self.cdr = cdr          # last visible line PLUS ONE
-
 
 
 class Message(object):

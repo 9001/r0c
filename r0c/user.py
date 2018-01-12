@@ -35,7 +35,7 @@ class User(object):
 					nv = int(nv.encode('hex'), 16)
 				else:
 					nv = int.from_bytes(nv, 'big')
-				#nv = base64.b64encode(nv).decode('utf-8')
+				
 				nv = b35enc(nv)
 				nv = nv.replace('+','').replace('/','')[:6]
 
