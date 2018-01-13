@@ -76,6 +76,10 @@ class VisMessage(object):
 		self.car = car          # first visible line
 		self.cdr = cdr          # last visible line PLUS ONE
 		
+		if not msg:
+			self.read = True
+			return
+		
 		if not msg or not msg.user: whoops('msg bad')
 		if not ch or not ch.user: whoops('user bad')
 		

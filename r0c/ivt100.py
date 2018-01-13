@@ -296,8 +296,8 @@ class VT100_Client(asyncore.dispatcher):
 			if not self.screen or len(self.screen) != self.h:
 				full_redraw = True
 
-			# set true to force status bar update
-			status_changed = False
+			status_changed = False    # set true to force status bar update
+			scroll_performed = False  # scroll events might affect status bar
 
 			# switch to new channel,
 			# storing the last viewed message for notification purposes
@@ -314,6 +314,11 @@ class VT100_Client(asyncore.dispatcher):
 			# in the active channel to be considered read
 			elif cursor_moved or self.scroll_cmd:
 				status_changed = self.user.active_chan.update_activity_flags(True)
+				
+				if self.scroll_cmd:
+					# we don't know which messages will be displayed yet,
+					# schedule a recheck after message processing
+					scroll_performed = True
 			
 			# look for events in other chats too
 			if not cursor_moved and False:
@@ -339,6 +344,12 @@ class VT100_Client(asyncore.dispatcher):
 			to_send += self.update_chat_view(full_redraw, mark_messages_read)
 			if to_send:
 				full_redraw = True
+
+			# update_chat_view computes which messages are visible
+			# once a scroll has completed, so we have to redo this
+			if scroll_performed:
+				if self.user.active_chan.update_activity_flags(True):
+					status_changed = True
 
 			# update top bar (if client can handle it)
 			if self.vt100:
@@ -874,7 +885,7 @@ class VT100_Client(asyncore.dispatcher):
 			while n_steps < abs_steps:
 				if partial:
 					txt = partial
-					msg = None
+					msg = nch.msgs[imsg]
 				else:
 					if t_steps < 0:
 						imsg -= 1
