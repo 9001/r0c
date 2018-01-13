@@ -41,6 +41,10 @@ class World(object):
 		self.chan_sync_active = False
 	
 	def refresh_chan(self, nchan):
+		if not nchan.uchans:
+			# all users left since this channel got scheduled for refresh
+			return
+
 		last_msg = nchan.msgs[-1].sno if nchan.msgs else 0
 		if nchan.uchans[0].alias == 'r0c-status':
 			# consider every status message a ping

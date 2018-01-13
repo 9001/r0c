@@ -1,4 +1,5 @@
 python -m r0c.__main__ 23 531
 
-REM usually just "r0c" is enough,
-REM but python 2.6 needs the full "r0c.__main__"
+@REM the full name is required by python 2.6;
+@REM all other python versions are happy with:
+@REM   python -m r0c 23 531

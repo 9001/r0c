@@ -372,9 +372,8 @@ class VT100_Client(asyncore.dispatcher):
 
 				# handle keyboard strokes from non-linemode clients,
 				# but redraw text input field for linemode clients
-				if to_send or self.linebuf:
-					to_send += self.update_text_input(
-						full_redraw or self.echo_on)
+				to_send += self.update_text_input(
+					full_redraw or self.echo_on)
 
 				# reset colours if necessary
 				if '\033[' in self.linebuf or fix_color:
@@ -504,6 +503,8 @@ class VT100_Client(asyncore.dispatcher):
 
 
 	def update_text_input(self, full_redraw):
+		if not full_redraw and not self.linebuf and self.linemode:
+			return u''
 		msg_len = len(self.linebuf)
 		vis_text = self.linebuf
 		free_space = self.w - (len(self.user.nick) + 2 + 1)  # nick chrome + final char on screen

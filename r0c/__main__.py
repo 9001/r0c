@@ -178,10 +178,24 @@ class Core(object):
 		self.shutdown()
 
 
-core = Core()
-try:
-	core.start()
-	core.run()
-except:
-	whoops()
-	os._exit(1)
+def run():
+	core = Core()
+	try:
+		core.start()
+		core.run()
+	except:
+		whoops()
+		os._exit(1)
+
+
+if True:
+	run()
+else:
+	import cProfile, pstats, os.path
+	statfile = 'profiling.pstat'
+	if os.path.isfile(statfile):
+		p = pstats.Stats(statfile)
+		p.strip_dirs().sort_stats('cumulative').print_stats()
+	else:
+		print('  *  PROFILER ENABLED')
+		cProfile.run('run()', statfile)
