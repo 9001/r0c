@@ -160,13 +160,16 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x0d\x00', 'ret')
 
 		# inetutils-1.9.4
-		self.add_esc(u'\x7f', 'bs')
+		self.add_esc(u'\x7f', 'bs')  # this is DEL on windows-telnet
 		self.add_esc(u'\x1b\x4f\x48', 'home')
 		self.add_esc(u'\x1b\x4f\x46', 'end')
 
 		# debian 9.3
 		self.add_esc(u'\x1b\x5b\x48', 'home')
 		self.add_esc(u'\x1b\x5b\x46', 'end')
+
+		# putty
+		self.add_esc(u'\x1b\x5b\x33\x7e', 'del')
 
 		# hotkeys
 		self.add_esc(u'\x12', 'redraw')
@@ -368,18 +371,17 @@ class VT100_Client(asyncore.dispatcher):
 			if self.vt100:
 
 				# handle keyboard strokes from non-linemode clients,
-				# including those who failed the lm test due to insane ping
-				if self.linebuf or not self.linemode:
-					to_send += self.update_text_input(full_redraw)
+				# but redraw text input field for linemode clients
+				if to_send or self.linebuf:
+					to_send += self.update_text_input(
+						full_redraw or self.echo_on)
 
 				# reset colours if necessary
 				if '\033[' in self.linebuf or fix_color:
 					to_send += '\033[0m'
 			
-			#to_send += u'\033[10H' + u'qwertyuiopasdfghjklzxcvbnm'*3
-
 			# position cursor after CLeft/CRight/Home/End
-			if cursor_moved and self.vt100:
+			if self.vt100 and (to_send or cursor_moved):
 				to_send += u'\033[{0};{1}H'.format(self.h - self.y_input,
 					len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
 
@@ -514,7 +516,7 @@ class VT100_Client(asyncore.dispatcher):
 				self.lineview = self.linepos - free_space
 			vis_text = vis_text[self.lineview:self.lineview+free_space]
 		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.user.nick, vis_text)
-		if self.screen[  self.h - (self.y_input + 1) ] != line:
+		if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
 			self.screen[ self.h - (self.y_input + 1) ] = line
 			return u'\033[{0}H{1}\033[K'.format(self.h - self.y_input, line)
 		return u''
@@ -561,9 +563,11 @@ class VT100_Client(asyncore.dispatcher):
 
 				if msg.sno <= uchan.last_read or msg.user == uchan.user.nick:
 					ts += ' '
-				else:
+				elif self.vt100:
 					# hilight unread messages
 					ts = '\033[7m{0}\033[0m*'.format(ts)
+				else:
+					ts += '*'
 
 				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
 			else:
@@ -1077,7 +1081,7 @@ class VT100_Client(asyncore.dispatcher):
 				if t_steps < 0:
 					# rely on vt100 code to determine the new display
 					# then retransmit the full display  (good enough)
-					return u'\r\n'*self.h + self.update_chat_view(True)
+					return u'\r\n'*self.h + self.update_chat_view(True, True)
 
 		return ret
 
@@ -1138,7 +1142,7 @@ class VT100_Client(asyncore.dispatcher):
 					print('qwer newline = {0}'.format(b2hex(nl)))
 
 				if self.wizard_maxdelta >= nl_a / 2:
-					self.echo = True
+					self.echo_on = True
 					self.linemode = True
 					print('setting linemode+echo since d{0} and {1}ch; {2}'.format(
 						self.wizard_maxdelta, len(self.in_text),

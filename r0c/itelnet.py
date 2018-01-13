@@ -96,6 +96,7 @@ if not FORCE_LINEMODE:
 else:
 	# debug / negative test;
 	# have client linebuffer
+	# (reminder that windows telnet refuses to linemode)
 	
 	neg_will = [
 		b'\x1f'   # negotiate window size
