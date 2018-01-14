@@ -99,7 +99,7 @@ class User(object):
   `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. build_date `0m
 """
 
-		text = text.replace(u'`', u'\033[').replace('build_date', '2018-01-10')
+		text = text.replace(u'`', u'\033[').replace('build_date', '2018-01-14')
 
 		text += u"""
 Useful commands:
@@ -422,6 +422,9 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			thr = threading.Thread(target=killer)
 			thr.daemon = True
 			thr.start()
+
+		elif cmd == 'quit' or cmd == 'q':
+			self.client.host.part(self.client)
 
 
 

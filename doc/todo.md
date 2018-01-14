@@ -23,6 +23,7 @@
 * admin auth
 * rate limiting
 * /cmap
+* /d
 * store state (channel messages)
 * check for queue buildups
 * nick colours

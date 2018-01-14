@@ -95,6 +95,10 @@ class World(object):
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
 			#self.refresh_chan(nchan)
+			for uchan in nchan.uchans:
+				if nchan.name is None or uchan.user.nick_re.search(text):
+					uchan.last_ping = msg.sno
+			
 			if nchan not in self.dirty_ch:
 				self.dirty_ch.append(nchan)
 

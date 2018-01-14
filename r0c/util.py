@@ -282,7 +282,7 @@ def whoops(extra=None):
 		msg, exc.rstrip(), '-'*64)
 	print(msg)
 	if extra:
-		print('{0}\n'.format(msg))
+		print('  {0}\n{1}\n'.format(extra, '-'*64))
 
 
 

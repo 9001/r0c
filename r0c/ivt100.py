@@ -73,6 +73,11 @@ class VT100_Server(asyncore.dispatcher):
 			remote.close()
 			self.con('  -', remote.addr, -1)
 			self.clients.remove(remote)
+			try:
+				remote.user.active_chan = None
+				remote.user.new_active_chan = None
+			except:
+				pass
 			for uchan in list(remote.user.chans):
 				self.world.part_chan(uchan)
 			if remote.user and remote.user in self.world.users:
@@ -441,11 +446,11 @@ class VT100_Client(asyncore.dispatcher):
 				activity.append(i)
 		
 		if hilights:
-			hilights = u'   \033[1;33mh {0}\033[22;39m'.format(
+			hilights = u'   \033[33mh:\033[1m{0}\033[22;39m'.format(
 				','.join(str(x) for x in hilights))
 		
 		if activity:
-			activity = u'   \033[1;32ma {0}\033[22;39m'.format(
+			activity = u'   \033[32ma:\033[1m{0}\033[22;39m'.format(
 				','.join(str(x) for x in activity))
 		
 		offscreen = None
@@ -524,7 +529,7 @@ class VT100_Client(asyncore.dispatcher):
 	
 
 
-	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, uchan):
+	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
 		
 		#if not self.vt100:
@@ -562,30 +567,12 @@ class VT100_Client(asyncore.dispatcher):
 						c1 = '\033[36m'
 						c2 = '\033[0m'
 
-				if msg.sno <= uchan.last_read or msg.user == uchan.user.nick:
-					ts += ' '
-				elif self.vt100:
-					# hilight unread messages
-					ts = '\033[7m{0}\033[0m*'.format(ts)
-				else:
-					ts += '*'
-
 				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
 			else:
 				txt[n] = msg_nl + line
 		
 		return txt
 	
-
-
-	def remove_unread_message_hilight(self, text):
-		ofs = text.find(u'*')
-		if ofs <= 1 or not text.startswith(u'\033[7m'):
-			whoops('{0} // {1}'.format(ofs))
-			return text
-		
-		return '{0} {1}'.format(text[4:ofs-4], text[ofs+1])
-
 
 
 	def update_chat_view(self, full_redraw, mark_messages_read):
@@ -613,25 +600,25 @@ class VT100_Client(asyncore.dispatcher):
 			msg_w = self.w - (nick_w + 11)
 			msg_nl = u' '  * (nick_w + 11)
 			ts_fmt = '%H:%M:%S'
-			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 100:
 			nick_w = nick_w or 14
 			msg_w = self.w - (nick_w + 11)
 			msg_nl = u' '  * (nick_w + 11)
 			ts_fmt = '%H:%M:%S'
-			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 80:
 			nick_w = nick_w or 12
 			msg_w = self.w - (nick_w + 8)
 			msg_nl = u' '  * (nick_w + 8)
 			ts_fmt = '%H%M%S'
-			msg_fmt = u'{{0}}{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		elif self.w >= 60:
 			nick_w = nick_w or 8
 			msg_w = self.w - (nick_w + 7)
 			msg_nl = u' '  * (nick_w + 7)
 			ts_fmt = '%H:%M'
-			msg_fmt = u'{{0}}{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
+			msg_fmt = u'{{0}} {{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		else:
 			nick_w = nick_w or 8
 			msg_w = self.w - (nick_w + 1)
@@ -676,7 +663,7 @@ class VT100_Client(asyncore.dispatcher):
 				ch.vis = []
 				for n, msg in enumerate(reversed(nch.msgs)):
 					imsg = len(nch.msgs) - n
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, ch)
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
 					n_vis = len(txt)
 					car = 0
@@ -685,10 +672,10 @@ class VT100_Client(asyncore.dispatcher):
 						n_vis = lines_left
 						car = cdr - n_vis
 					
-					ch.vis.append(
-						VisMessage(msg, txt, imsg, car, cdr, ch))
+					vmsg = VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
+					ch.vis.append(vmsg)
 					
-					for ln in reversed(txt[car:]):
+					for ln in reversed(vmsg.txt[car:]):
 						lines.append(ln)
 					
 					imsg -= 1
@@ -706,7 +693,7 @@ class VT100_Client(asyncore.dispatcher):
 				imsg = top_msg.im
 				ch.vis = []
 				for n, msg in enumerate(nch.msgs[ imsg : imsg + self.h-3 ]):
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, ch)
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
 					#if top_msg is not None:
 						# we can keep the exact scroll position
@@ -744,10 +731,10 @@ class VT100_Client(asyncore.dispatcher):
 							n_vis = lines_left
 							cdr = n_vis
 					
-					ch.vis.append(
-						VisMessage(msg, txt, imsg, car, cdr, ch))
+					vmsg = VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
+					ch.vis.append(vmsg)
 					
-					for ln in txt[car:cdr]:
+					for ln in vmsg.txt[car:cdr]:
 						lines.append(ln)
 					
 					imsg += 1
@@ -829,19 +816,18 @@ class VT100_Client(asyncore.dispatcher):
 				ref = ch.vis[0]
 				if ref.car != 0:
 
-					partial = ref.txt[:ref.car]
+					partial = VisMessage().c_segm(ref, 0, ref.car, 0, ref.car)
 					partial_org = ref
-					partial_old = VisMessage(
-						ref.msg, ref.txt[ref.car:ref.cdr],
-						ref.im, 0, ref.cdr-ref.car, ch)
+					partial_old = VisMessage().c_segm(ref, ref.car, ref.cdr, 0, ref.cdr-ref.car)
+					
 					ch.vis[0] = partial_old
 
 					if debug_scrolling:
 						print('@@@ slicing len({0}) car,cdr({1},{2}) into nlen({3})+olen({4}), ncar,ncdr({5},{6})? ocar,ocdr({7},{8})'.format(
 							len(partial_org.txt), partial_org.car, partial_org.cdr,
-							len(partial), len(partial_old.txt),
-							0, len(partial), partial_old.car, partial_old.cdr))
-						for ln in partial:
+							len(partial.txt), len(partial_old.txt),
+							0, len(partial.txt), partial_old.car, partial_old.cdr))
+						for ln in partial.txt:
 							print(ln, '+new')
 						for ln in partial_old.txt:
 							print(ln, '---old')
@@ -855,21 +841,20 @@ class VT100_Client(asyncore.dispatcher):
 								'== car' if n == ref.car else \
 								'== cdr' if n == ref.cdr - 1 else ''))
 
-					partial = ref.txt[ref.cdr:]
+					partial = VisMessage().c_segm(ref, ref.cdr, len(ref.txt), 0, len(ref.txt)-ref.cdr)
 					partial_org = ref
-					partial_old = VisMessage(
-						ref.msg, ref.txt[ref.car:ref.cdr],
-						ref.im, 0, ref.cdr-ref.car, ch)
+					partial_old = VisMessage().c_segm(ref, ref.car, ref.cdr, 0, ref.cdr-ref.car)
+
 					ch.vis[-1] = partial_old
 
 					if debug_scrolling:
 						print('@@@ slicing len({0}) car,cdr({1},{2}) into olen({3})+nlen({4}), ocar,ocdr({5},{6}) ncar,ncdr({7},{8})?'.format(
 							len(partial_org.txt), partial_org.car, partial_org.cdr,
-							len(partial_old.txt), len(partial),
-							partial_old.car, partial_old.cdr, 0, len(partial)))
+							len(partial_old.txt), len(partial.txt),
+							partial_old.car, partial_old.cdr, 0, len(partial.txt)))
 						for ln in partial_old.txt:
 							print(ln, '---old')
-						for ln in partial:
+						for ln in partial.txt:
 							print(ln, '+new')
 			
 			# get message offset to start from
@@ -888,9 +873,9 @@ class VT100_Client(asyncore.dispatcher):
 			
 			# scroll until n_steps reaches abs_steps
 			while n_steps < abs_steps:
+				vmsg = None
 				if partial:
-					txt = partial
-					msg = nch.msgs[imsg]
+					vmsg = partial
 				else:
 					if t_steps < 0:
 						imsg -= 1
@@ -902,8 +887,13 @@ class VT100_Client(asyncore.dispatcher):
 							break
 					
 					msg = nch.msgs[imsg]
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w, ch)
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
+					vmsg = VisMessage().c_new(msg, txt, imsg, 0, len(txt), ch)
+				
+				txt = vmsg.txt
+				msg = vmsg.msg
+				
 				if t_steps < 0:
 					txt_order = reversed(txt)
 				else:
@@ -949,7 +939,8 @@ class VT100_Client(asyncore.dispatcher):
 					new_car = 0
 					new_cdr = n_vis
 
-				vmsg = VisMessage(msg, txt, imsg, new_car, new_cdr, ch)
+				vmsg.car = new_car
+				vmsg.cdr = new_cdr
 				#print('@@@ vismsg len({0}) car,cdr({1},{2}) -- {3}'.format(len(txt), new_car, new_cdr, txt[0][-30:]))
 
 				if t_steps < 0:
@@ -1041,14 +1032,14 @@ class VT100_Client(asyncore.dispatcher):
 						y_pos += vmsg.cdr - vmsg.car
 						continue
 					
-					if not vmsg.read and vmsg.msg.sno <= ch.last_read:
+					if vmsg.unread and vmsg.msg.sno <= ch.last_read:
 						#print('switching message unread -> read for {0}: this({1}) last_read({2})'.format(
 						#	ch.user.nick, vmsg.msg.sno, ch.last_read))
-						vmsg.read = True
-						modified = self.remove_unread_message_hilight(vmsg.txt[0])
-						if modified:
-							vmsg.txt[0] = modified
-							ret += '\033[{0}H{1} '.format(y_pos, modified[:modified.find(' ')])
+						vmsg.unread = False
+						vmsg.apply_markup()
+						v = vmsg.txt[0]
+						if v and not v.startswith(' '):
+							ret += '\033[{0}H{1} '.format(y_pos, v[:v.find(' ')])
 					
 					y_pos += vmsg.cdr - vmsg.car
 
@@ -1555,13 +1546,14 @@ class VT100_Client(asyncore.dispatcher):
 			return
 		self.too_small = False
 
-		with self.world.mutex:
-			if full_redraw or self.need_full_redraw:
-				self.need_full_redraw = True
-			
-			if not self.handshake_sz:
-				if DBG:
-					print('!!! read_cb without handshake_sz')
-			else:
-				self.refresh(old_cursor != self.linepos)
+		if not self.dead:
+			with self.world.mutex:
+				if full_redraw or self.need_full_redraw:
+					self.need_full_redraw = True
+				
+				if not self.handshake_sz:
+					if DBG:
+						print('!!! read_cb without handshake_sz')
+				else:
+					self.refresh(old_cursor != self.linepos)
 

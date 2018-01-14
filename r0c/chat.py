@@ -69,19 +69,68 @@ class UChannel(object):
 
 
 class VisMessage(object):
-	def __init__(self, msg, txt, im, car, cdr, ch):
+	def __init__(self):
+		pass
+
+	def c_new(self, msg, txt, im, car, cdr, ch):
 		self.msg = msg          # the message object
 		self.txt = txt          # the formatted text
 		self.im  = im           # offset into the channel's message list
 		self.car = car          # first visible line
 		self.cdr = cdr          # last visible line PLUS ONE
-		
+
 		if not msg or not msg.user: whoops('msg bad')
 		if not ch or not ch.user: whoops('user bad')
 		
-		self.read = \
-			msg.user == ch.user.nick \
-			or msg.sno <= ch.last_read
+		self.unformatted = txt[0]
+		self.hilight = bool(ch.user.nick_re.search(msg.txt))
+		self.unread = \
+			msg.user != ch.user.nick \
+			and msg.sno > ch.last_read
+
+		#print('add msg for {0} which is unread {1}, hilight {2}'.format(
+		#	ch.user.nick, self.unread, self.hilight))
+
+		self.apply_markup()
+		return self
+
+	def c_segm(self, other, src_car, src_cdr, new_car, new_cdr):
+		self.msg = other.msg
+		self.txt = other.txt[src_car:src_cdr]
+		self.im  = other.im
+		self.car = new_car
+		self.cdr = new_cdr
+
+		self.hilight = other.hilight
+		self.unread = other.unread
+		if src_car == 0:
+			self.unformatted = other.unformatted
+		else:
+			self.unformatted = self.txt[0]
+
+		return self
+
+	def plaintext():
+		return [self.unformatted] + self.txt[1:]
+
+	def apply_markup(self):
+		if self.hilight and self.unread:
+			prefix = u'\033[1;35;7m'
+		elif self.hilight:
+			prefix = u'\033[1;35m'
+		elif self.unread:
+			prefix = u'\033[7m'
+		else:
+			prefix = u''
+
+		if prefix and not self.unformatted.startswith(' '):
+			#print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
+			ofs = self.unformatted.find(' ')
+			self.txt[0] = '{0}{1}{2}{3}'.format(
+				prefix, self.unformatted[:ofs], \
+				u'\033[0m', self.unformatted[ofs:])
+		else:
+			self.txt[0] = self.unformatted
 
 
 class Message(object):
