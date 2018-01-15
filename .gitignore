@@ -8,7 +8,7 @@ __pycache__/
 
 # diagnostics
 *.stack
-*.pstat
+profiler-results.*
 
 # winmerge
 *.bak

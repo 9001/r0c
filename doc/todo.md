@@ -6,12 +6,10 @@
 * ├┐ ┌┬┐ ┌ 
 
 * redraw time every 5 seconds
-
 * strip colors for non-vt100
-
 * handle local echo  (good enough)
-
 * fix far right column
+* fix wordwrap for massive lines
 
 # ^ done | remains v
 

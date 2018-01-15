@@ -24,7 +24,7 @@ class World(object):
 		self.num_parts = 0
 		self.num_messages = 0
 
-		threading.Thread(target=self.refresh_chans).start()
+		threading.Thread(target=self.refresh_chans, name='tx_chan').start()
 
 	def add_user(self, user):
 		with self.mutex:

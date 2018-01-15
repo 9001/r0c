@@ -82,7 +82,7 @@ def trunc(txt, maxlen):
 	clen = 0
 	pend = None
 	counting = True
-	for ch in txt:
+	for input_ofs, ch in enumerate(txt):
 		
 		# escape sequences can never contain ESC;
 		# treat pend as regular text if so
@@ -112,9 +112,11 @@ def trunc(txt, maxlen):
 				else:
 					ret += ch
 					clen += 1
+		
 		if clen >= maxlen:
-			return ret
-	return ret
+			return [ret, txt[input_ofs:]]
+	
+	return [ret, u'']
 
 
 
@@ -267,6 +269,22 @@ def visualize_all_unicode_codepoints_as_utf8():
 
 
 
+def prewrap(txt, maxlen):
+	words = txt.split()
+	ret = []
+	for word in words:
+		if len(word) < maxlen or visual_length(word) < maxlen:
+			ret.append(word)
+		else:
+			while visual_length(word) >= maxlen:
+				ret.append(word[:maxlen-1] + u'-')
+				word = word[maxlen-1:]
+			if word:
+				ret.append(word)
+	return ret
+
+
+
 def whoops(extra=None):
 	msg = """\
              __                          
@@ -311,7 +329,7 @@ def monitor_threads():
 			with open('r0c.stack', 'wb') as f:
 				f.write(txt.encode('utf-8'))
 
-	thr = threading.Thread(target=stack_collector)
+	thr = threading.Thread(target=stack_collector, name='stk_col')
 	thr.daemon = True
 	thr.start()
 

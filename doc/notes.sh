@@ -23,3 +23,8 @@ grep -RE "$(printf ' \t|\t ')" . 2>/dev/null | sed -r "$(printf 's/\\t/\033[1;34
 # kill stress tests
 ps ax | grep -E 'python[23]? .{0,2}stress\.py' | awk '{print $1}' | xargs kill
 
+
+# irc log line length graph
+cat radio.log | awk '{print length($0)}' | sort -n | uniq -c | awk '{print $2, $1}' | sort -n | awk '{ printf "%s: %" ($2/512) "s#\n", $1, "" }'
+cat radio.log | awk 'length($0) > 30 && length($0) < 200 {print $0}' > radio.long
+

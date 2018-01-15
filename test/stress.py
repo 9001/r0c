@@ -14,7 +14,7 @@ __copyright__ = 2018
 # config
 #
 
-NUM_CLIENTS = 4
+NUM_CLIENTS = 6
 
 #EVENT_DELAY = 0.01
 EVENT_DELAY = 0.001
@@ -197,11 +197,20 @@ class Client(asyncore.dispatcher):
 		# maps to channels_avail
 		msg_id = [0,0,0,0]
 		
-		# -------- acts ---------
-		#  0 -  9: next channel
-		# 10 - 14: join a channel
-		# 15 - 18: part a channel
-		# 19 - 36: send a message
+		# ---- acts ----
+		# next channel
+		# join a channel
+		# part a channel
+		# send a message
+		chance = [ 10, 5, 4, 18 ]
+		chance = [ 10, 3, 2, 30 ]
+
+		for n in range(len(chance)-1):
+			chance[n+1] += chance[n]
+		print(chance)
+		#sys.exit(1)
+
+		odds_next, odds_join, odds_part, odds_send = chance
 		
 		for n in range(1000000):
 			if self.stopping:
@@ -214,14 +223,14 @@ class Client(asyncore.dispatcher):
 				if not member_of:
 					next_act = 13
 				else:
-					next_act = random.randrange(37)
+					next_act = random.randrange(sum(chance))
 
 				if self.explain:
 					print('in [{0}], active [{1}:{2}], msgid [{3}], next [{4}]'.format(
 						','.join(member_of), active_chan, channels_avail[active_chan],
 						','.join(str(x) for x in msg_id), next_act))
 				
-				if next_act <= 9:
+				if next_act <= odds_next:
 					if not member_of:
 						self.expl('tried to jump channel but we are all alone ;_;')
 						continue
@@ -250,7 +259,7 @@ class Client(asyncore.dispatcher):
 						script = []
 					break
 				
-				if next_act <= 14:
+				if next_act <= odds_join:
 					if len(member_of) == len(channels_avail):
 						self.expl('tried to join channel but filled {0} of {1} possible'.format(
 							len(member_of), len(channels_avail)))
@@ -275,7 +284,7 @@ class Client(asyncore.dispatcher):
 						script = []
 					break
 				
-				if next_act <= 18:
+				if next_act <= odds_part:
 					#continue
 					if not member_of:
 						self.expl('tried to leave channel but theres nothing to leave')

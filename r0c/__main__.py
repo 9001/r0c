@@ -76,12 +76,12 @@ class Core(object):
 		self.netcat_server = NetcatServer('0.0.0.0', self.netcat_port, self.world)
 
 		print('  *  Starting push driver')
-		self.push_thr = threading.Thread(target=self.push_worker, args=([self.telnet_server, self.netcat_server],))
+		self.push_thr = threading.Thread(target=self.push_worker, args=([self.telnet_server, self.netcat_server],), name='push')
 		#self.push_thr.daemon = True
 		self.push_thr.start()
 
 		print('  *  Handover to asyncore')
-		self.asyncore_thr = threading.Thread(target=self.asyncore_worker)
+		self.asyncore_thr = threading.Thread(target=self.asyncore_worker, name='ac_mgr')
 		self.asyncore_thr.start()
 
 
@@ -188,14 +188,51 @@ def run():
 		os._exit(1)
 
 
-if True:
+mode = 'normal'
+#mode = 'profiler'
+#mode = 'unrag-speedtest'
+#mode = 'unrag-layout-test-v1'
+#mode = 'unrag-layout-test-interactive'
+
+
+if mode == 'normal':
 	run()
-else:
-	import cProfile, pstats, os.path
-	statfile = 'profiling.pstat'
-	if os.path.isfile(statfile):
-		p = pstats.Stats(statfile)
-		p.strip_dirs().sort_stats('cumulative').print_stats()
-	else:
-		print('  *  PROFILER ENABLED')
-		cProfile.run('run()', statfile)
+
+if mode == 'profiler':
+	print('  *  PROFILER ENABLED')
+	statfile = 'profiler-results'
+	import yappi
+	yappi.start()
+	run()
+	yappi.stop()
+	
+	fn_stats = yappi.get_func_stats()
+	thr_stats = yappi.get_thread_stats()
+
+	print()
+	for ext in ['pstat','callgrind','ystat']:
+		print('writing {0}.{1}'.format(statfile, ext))
+		fn_stats.save('{0}.{1}'.format(statfile, ext), type=ext)
+
+	with open('{0}.func'.format(statfile), 'w') as f:
+		fn_stats.print_all(out=f)
+
+	with open('{0}.thr'.format(statfile), 'w') as f:
+		thr_stats.print_all(out=f)
+
+	print('\n\n{0}\n  func stats\n{0}\n'.format('-'*72))
+	fn_stats.print_all()
+	
+	print('\n\n{0}\n  thread stats\n{0}\n'.format('-'*72))
+	thr_stats.print_all()
+
+
+if mode == 'unrag-speedtest':
+	bench_unrag('../radio.long')
+
+if mode == 'unrag-layout-test-v1':
+	unrag_layout_test_dump()
+
+if mode == 'unrag-layout-test-interactive':
+	unrag_layout_test_interactive()
+

@@ -151,19 +151,22 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 # c3 a6 c3 b8 c3 a5 utf-8 to putty, works
 # c3 a6 c3 b8 c3 a5 utf-8 from putty, fucked
 
-		if False:
-			lipsum1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-			lipsum2 = "Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
-			for n in range(10):
-				text += lipsum1 + "\n"
-				text += lipsum2 + "\n"
-
 		uchan = self.world.join_priv_chan(self, 'r0c-status')
 		nchan = uchan.nchan
 		nchan.topic = 'r0c readme (and status info)'
 
 		msg = Message('-nfo-', nchan, time.time(), text)
 		nchan.msgs.append(msg)
+
+		if False:
+			text = []
+			lipsum1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+			lipsum2 = "Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
+			for n in range(10):
+				text.append(lipsum1)
+				text.append(lipsum2)
+			for ln in text:
+				nchan.msgs.append(Message('-nfo-', nchan, time.time(), ln))
 
 		self.new_active_chan = uchan
 		
@@ -419,7 +422,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				time.sleep(0.5)
 				self.world.core.shutdown()
 			
-			thr = threading.Thread(target=killer)
+			thr = threading.Thread(target=killer, name='shutd')
 			thr.daemon = True
 			thr.start()
 

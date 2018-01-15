@@ -181,7 +181,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x01', 'prev-chan')
 		self.add_esc(u'\x18', 'next-chan')
 
-		thr = threading.Thread(target=self.handshake_timeout)
+		thr = threading.Thread(target=self.handshake_timeout, name='hs_to')
 		thr.daemon = True
 		thr.start()
 
@@ -407,7 +407,7 @@ class VT100_Client(asyncore.dispatcher):
 		
 		if self.screen[0] != top_bar:
 			self.screen[0] = top_bar
-			return trunc(top_bar, self.w)
+			return trunc(top_bar, self.w)[0]
 		return u''
 
 
@@ -464,7 +464,7 @@ class VT100_Client(asyncore.dispatcher):
 			offscreen or '',
 			hilights or '',
 			activity or '',
-			len(nchan.uchans)), self.w)
+			len(nchan.uchans)), self.w)[0]
 		
 		if not self.vt100:
 			now = int(time.time())
@@ -480,14 +480,14 @@ class VT100_Client(asyncore.dispatcher):
 		elif full_redraw:
 			if self.screen[  self.h - (self.y_status + 1) ] != line:
 				self.screen[ self.h - (self.y_status + 1) ] = line
-				return trunc(line, self.w)
+				return trunc(line, self.w)[0]
 
 		else:
 			old = self.screen[ self.h - (self.y_status + 1) ]
 			self.screen[       self.h - (self.y_status + 1) ] = line
 			
 			if len(old) != len(line):
-				return trunc(line, self.w)
+				return trunc(line, self.w)[0]
 
 			cutoff = len(preface) + len(hhmmss)
 			changed_part1 = old[:cutoff] != line[:cutoff]
@@ -495,7 +495,7 @@ class VT100_Client(asyncore.dispatcher):
 			
 			if changed_part2:
 				# send all of it
-				return trunc(line, self.w)
+				return trunc(line, self.w)[0]
 
 			if changed_part1:
 				if int(time.time()) % 5 == 0:
@@ -542,7 +542,12 @@ class VT100_Client(asyncore.dispatcher):
 		if msg.txt.startswith(u'  ') or u'\n' in msg.txt:
 			txt = msg.txt.split('\n')  # splitlines removes trailing newline
 			for n in range(len(txt)):
-				txt[n] = trunc(txt[n], msg_w)
+				txt[n] = trunc(txt[n], msg_w)[0]
+		
+		elif len(msg.txt) < msg_w \
+		or visual_length(msg.txt) < msg_w:
+			txt = [msg.txt]
+		
 		else:
 			txt = unrag(msg.txt, msg_w) or [' ']
 		
@@ -1142,6 +1147,8 @@ class VT100_Client(asyncore.dispatcher):
 
 				self.wizard_stage = 'echo'
 				
+				join_ch = None
+
 				# cheatcode: windows netcat
 				if self.in_text.startswith('wncat'):
 					self.linemode = True
@@ -1154,16 +1161,23 @@ class VT100_Client(asyncore.dispatcher):
 				elif self.in_text.startswith('wtn'):
 					self.codec = 'cp437'
 					self.wizard_stage = 'end'
+					join_ch = self.in_text[3:]
 
-					# this is just for the stress tests,
-					# i don't feel bad about this at all
+				# cheatcode: linux telnet + join
+				elif self.in_text.startswith('ltn'):
+					self.codec = 'utf-8'
+					self.wizard_stage = 'end'
+					join_ch = self.in_text[3:]
+
+				# this is just for the stress tests,
+				# i don't feel bad about this at all
+				if join_ch:
 					def delayed_join(user, chan):
 						time.sleep(0.2)
 						user.world.join_pub_chan(user, chan)
 					
-					threading.Thread(target=delayed_join, args=(
-						self.user, self.in_text[3:])).start()
-
+					threading.Thread(target=delayed_join, name='d_join',
+						args=(self.user, self.in_text[3:])).start()
 
 		if self.wizard_stage == 'echo':
 			if self.linemode:
