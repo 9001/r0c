@@ -407,6 +407,28 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd == 'cmap':
+			msg = "All foreground colours (0 to f) on default background,\n"
+			msg += "each code wrapped in [brackets] for readability:\n  "
+			for n in range(0, 16):
+				if n == 8:
+					msg += '\n  \033[1;3{0}m[{1:x}], '.format(n%8, n)
+				else:
+					msg += '\033[3{0}m[{1:x}], '.format(n%8, n)
+			msg += "\033[0m\n\nEach background with black text:\n  \033[30m"
+			for n in range(0, 8):
+				msg += '\033[4{0}m 0,{0} '.format(n)
+			msg += "\033[0m\n\nEach background with gray text:\n  \033[37m"
+			for n in range(0, 8):
+				msg += '\033[4{0}m 7,{0} '.format(n)
+			msg += "\033[0m\n\nEach background with white text:\n  \033[1;37m"
+			for n in range(0, 8):
+				msg += '\033[4{0}m f,{0} '.format(n)
+			msg += "\033[0m\n"
+			self.world.send_chan_msg('-inf-', inf, msg)
+
+
+
 		elif cmd == 'cls':
 			msg = Message(
 				'-nfo-', self.active_chan.nchan, time.time(),
