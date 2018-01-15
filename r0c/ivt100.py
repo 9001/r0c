@@ -549,7 +549,8 @@ class VT100_Client(asyncore.dispatcher):
 			txt = [msg.txt]
 		
 		else:
-			txt = unrag(msg.txt, msg_w) or [' ']
+			txt = ' '.join(prewrap(msg.txt, msg_w))
+			txt = unrag(txt, msg_w) or [' ']
 		
 		for n, line in enumerate(txt):
 			if u'\033' in line:
