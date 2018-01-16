@@ -4,6 +4,8 @@
 * MIT-Licensed, 2018-01-07, ed @ irc.rizon.net
 * https://github.com/9001/r0c
 
+![screenshot of telnet connected to a r0c server](doc/r0c.png)
+
 ## features
 
 * tries to be irssi

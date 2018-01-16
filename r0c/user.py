@@ -99,7 +99,7 @@ class User(object):
   `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. build_date `0m
 """
 
-		text = text.replace(u'`', u'\033[').replace('build_date', '2018-01-15')
+		text = text.replace(u'`', u'\033[').replace('build_date', BUILD_DATE)
 
 		text += u"""
 Useful commands:
