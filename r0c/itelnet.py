@@ -184,37 +184,47 @@ class TelnetClient(VT100_Client):
 			while self.in_bytes:
 				
 				len_at_start = len(self.in_bytes)
-				
+				decode_until = len_at_start
+
+				# if the codec allows \xff as the 1st byte of a rune,
+				# make sure it doesn't consume it
+				if not self.inband_will_fail_decode:
+					ofs = self.in_bytes.find(b'\xff')
+					if ofs >= 0:
+						decode_until = ofs
+
 				try:
-					src = u'{0}'.format(self.in_bytes.decode(self.codec))
+					src = u'{0}'.format(self.in_bytes[:decode_until].decode(self.codec))
 					#print('got {0} no prob'.format(src))
 					#print('got {0} runes: {1}'.format(len(src),
 					#	b2hex(src.encode('utf-8'))))
-					self.in_bytes = self.in_bytes[0:0]
+					self.in_bytes = self.in_bytes[decode_until:]
 				
 				except UnicodeDecodeError as uee:
 					
 					# first check whether the offending byte is an inband signal
-					if len(self.in_bytes) > uee.start and self.in_bytes[uee.start] == xff:
+					if decode_until > uee.start and self.in_bytes[uee.start] == xff:
 						
 						# it is, keep the text before it
 						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec))
 						self.in_bytes = self.in_bytes[uee.start:]
 
-					elif len(self.in_bytes) < uee.start + 6 and self.codec != 'ascii':
+					elif decode_until < uee.start + 6 and not self.multibyte_codec:
 						
 						print('need more data to parse unicode codepoint at {0} in {1} ...probably'.format(
-							uee.start, len(self.in_bytes)))
-						hexdump(self.in_bytes[-8:], 'XXX ')
+							uee.start, decode_until))
+						hexdump(self.in_bytes[decode_until-8:], 'XXX ')
 						return
 					
 					else:
 						
 						# it can't be helped
-						print('warning: unparseable data:')
+						print('warning: unparseable data before {0} in {1} total:'.format(
+							decode_until, len(self.in_bytes)))
+						
 						hexdump(self.in_bytes, 'XXX ')
-						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec, 'backslashreplace'))
-						self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
+						src = u'{0}'.format(self.in_bytes[:decode_until].decode(self.codec, 'backslashreplace'))
+						self.in_bytes = self.in_bytes[decode_until:]
 				
 				#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]
 				#self.linepos += len(src)

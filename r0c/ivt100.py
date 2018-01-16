@@ -103,7 +103,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.echo_on = False   # set true by buffy clients
 		self.vt100 = True      # set nope by butty clients
 		self.slowmo_tx = SLOW_MOTION_TX
-		self.codec = 'utf-8'
+		self.set_codec('utf-8')
 
 		# outgoing data
 		self.outbox = Queue()
@@ -186,6 +186,13 @@ class VT100_Client(asyncore.dispatcher):
 		thr.start()
 
 
+
+	def set_codec(self, codec_name):
+		multibyte  = ['utf-8','shift_jis']
+		ff_illegal = ['utf-8','shift_jis']
+		self.codec = codec_name
+		self.multibyte_codec = self.codec in multibyte
+		self.inband_will_fail_decode = self.codec in ff_illegal
 
 	def handshake_timeout(self):
 		time.sleep(1)
@@ -1155,18 +1162,18 @@ class VT100_Client(asyncore.dispatcher):
 					self.linemode = True
 					self.echo_on = True
 					self.vt100 = False
-					self.codec = 'cp437'
+					self.set_codec('cp437')
 					self.wizard_stage = 'end'
 				
 				# cheatcode: windows telnet + join
 				elif self.in_text.startswith('wtn'):
-					self.codec = 'cp437'
+					self.set_codec('cp437')
 					self.wizard_stage = 'end'
 					join_ch = self.in_text[3:]
 
 				# cheatcode: linux telnet + join
 				elif self.in_text.startswith('ltn'):
-					self.codec = 'utf-8'
+					self.set_codec('utf-8')
 					self.wizard_stage = 'end'
 					join_ch = self.in_text[3:]
 
@@ -1352,7 +1359,7 @@ class VT100_Client(asyncore.dispatcher):
 			for n, letter in enumerate(AZ[:int(2+len(encs)/2)].lower()):
 				if letter in text:
 					self.wizard_stage = 'end'
-					self.codec = encs[n*2]
+					self.set_codec(encs[n*2])
 					break
 
 
