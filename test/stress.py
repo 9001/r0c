@@ -46,11 +46,12 @@ else:
 
 class Client(asyncore.dispatcher):
 	
-	def __init__(self, core, port, behavior):
+	def __init__(self, core, port, behavior, status_q):
 		asyncore.dispatcher.__init__(self)
 		self.core = core
 		self.port = port
 		self.behavior = behavior
+		self.status_q = status_q
 		self.explain = True
 		self.explain = False
 		self.dead = False
@@ -68,6 +69,7 @@ class Client(asyncore.dispatcher):
 		self.num_sent = 0
 		self.pkt_sent = 0
 		self.stage = 'start'
+		self.nick = 'x'
 
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.connect(('127.0.0.1', self.port))
@@ -77,6 +79,12 @@ class Client(asyncore.dispatcher):
 		thr.start()
 	
 
+	def send_status(self, txt):
+		if False:
+			print(txt)
+		self.status_q.put(txt)
+
+
 	def actor(self):
 		print_stages = False
 		self.actor_active = True
@@ -85,32 +93,38 @@ class Client(asyncore.dispatcher):
 			time.sleep(0.02)
 			
 			if self.stage == 'start':
-				if print_stages:
-					print('stage 1 start')
-
+				self.send_status('start')
 				if 'type the text below, then hit [Enter]:' in self.in_text:
 					self.stage = 'qwer'
 					self.in_text = u''
 					for ch in u'qwer asdf\n':
 						self.tx(ch)
-						time.sleep(0.02)
+						time.sleep(0.1)
 				continue
 
 			if self.stage == 'qwer':
-				if print_stages:
-					print('  stage 2 qwer')
+				self.send_status('qwer')
+				test_pass = False
+
+				if 'your client is stuck in line-buffered mode' in self.in_text:
+					print('WARNING: r0c thinks we are linemode')
+					test_pass = True
+					self.tx(u'a')
 
 				if 'text appeared as you typed' in self.in_text:
-					self.stage = 'color'
-					self.in_text = u''
+					test_pass = True
 					self.tx(u'b')
+
+				if test_pass:
+					self.in_text = u''
+					self.stage = 'color'
 					self.txb(b'\xff\xfa\x1f\x00\x80\x00\x24\xff\xf0')  # 128x36
+				
 				continue
 
-			if self.stage == 'color':
-				if print_stages:
-					print('    stage 3 color')
 
+			if self.stage == 'color':
+				self.send_status('color')
 				if 'does colours work?' in self.in_text:
 					self.stage = 'codec'
 					self.in_text = u''
@@ -118,18 +132,23 @@ class Client(asyncore.dispatcher):
 				continue
 
 			if self.stage == 'codec':
-				if print_stages:
-					print('      stage 4 codec')
-					
+				self.send_status('codec')
 				if 'which line looks like' in self.in_text:
-					self.stage = 'ready'
+					self.stage = 'getnick'
 					self.tx(u'a')
-					
-					time.sleep(0.5)
-					self.tx(u'/join #1\n')
+				continue
+
+			if self.stage == 'getnick':
+				self.send_status('getnick')
+				ofs1 = self.in_text.find(u'H\033[0;36m')
+				ofs2 = self.in_text.find(u'>\033[0m ')
+				if ofs1 >= 0 and ofs2 == ofs1 + 8 + 6:
+					self.nick = self.in_text[ofs2-6:ofs2]
 					self.in_text = u''
-					
-					print('        stage 5 behavior')
+					self.tx(u'/join #1\n')
+					self.stage = 'ready'
+
+					self.send_status('{0}:start'.format(self.nick))
 
 					if self.behavior == 'flood_single_channel':
 						return self.flood_single_channel()
@@ -240,8 +259,9 @@ class Client(asyncore.dispatcher):
 				break
 
 			if n % 1000 == 0:
-				self.tx(u'at event {0}\n'.format(n))
-				
+				self.send_status('{0}:ev.{1}'.format(self.nick, n))
+				#self.tx(u'at event {0}\n'.format(n))
+			
 			while not self.stopping:
 				if not member_of:
 					next_act = 13
@@ -430,7 +450,9 @@ class Client(asyncore.dispatcher):
 		self.num_sent += sent
 		self.pkt_sent += 1
 		if self.pkt_sent % 8192 == 8191:
-			print('outbox {0} sent {1} queue {2}'.format(self.num_outbox, self.num_sent, self.num_outbox - self.num_sent))
+			#print('outbox {0} sent {1} queue {2}'.format(self.num_outbox, self.num_sent, self.num_outbox - self.num_sent))
+			self.send_status('{0}:s{1},q{2}'.format(self.nick, self.num_sent, self.num_outbox - self.num_sent))
+
 
 	def handle_read(self):
 		if self.dead:
@@ -452,16 +474,17 @@ class Client(asyncore.dispatcher):
 
 class SubCore(object):
 
-	def __init__(self, port, behavior, q):
-		self.q = q
+	def __init__(self, port, behavior, cmd_q, stat_q):
+		self.cmd_q = cmd_q
+		self.stat_q = stat_q
 		self.port = port
 		self.behavior = behavior
 		self.stopped = False
-		self.client = Client(self, self.port, self.behavior)
+		self.client = Client(self, self.port, self.behavior, stat_q)
 
 	def run(self):
 		timeout = 0.2
-		while self.q.empty():
+		while self.cmd_q.empty():
 			asyncore.loop(timeout, count=2)
 
 		self.client.stopping = True
@@ -475,6 +498,19 @@ class SubCore(object):
 
 		self.client.close()
 		self.stopped = True
+
+
+
+class ClientAPI(object):
+	def __init__(self, mproc, cmd_q, stat_q):
+		self.mproc = mproc
+		self.cmd_q = cmd_q
+		self.stat_q = stat_q
+		self.status = 'not.init'
+
+	def recv_status(self):
+		while not self.stat_q.empty():
+			self.status = self.stat_q.get()
 
 
 
@@ -496,23 +532,36 @@ class Core(object):
 		behaviors.append('reconnect_loop')
 		self.clients = []
 		for behavior in behaviors:
-			que = multiprocessing.Queue()
-			cli = multiprocessing.Process(target=self.new_subcore, args=(que,))
-			self.clients.append([cli,que])
-			que.put(port)
-			que.put(behavior)
-			cli.start()
+			cmd_q = multiprocessing.Queue()
+			stat_q = multiprocessing.Queue()
+			mproc = multiprocessing.Process(target=self.new_subcore, args=(cmd_q, stat_q))
+			self.clients.append(ClientAPI(mproc, cmd_q, stat_q))
+			cmd_q.put(port)
+			cmd_q.put(behavior)
+			mproc.start()
 
-	def new_subcore(self, q):
-		subcore = SubCore(q.get(), q.get(), q)
+	def new_subcore(self, cmd_q, stat_q):
+		subcore = SubCore(cmd_q.get(), cmd_q.get(), cmd_q, stat_q)
 		subcore.run()
-		q.get()
+		cmd_q.get()
+
+	def print_status(self):
+		msg = u''
+		for cli in self.clients:
+			msg += u'{0}, '.format(cli.status)
+		print(msg)
 
 	def run(self):
 		print('  *  test is running')
 		
 		while not self.stopping:
-			time.sleep(0.1)
+			for n in range(0,5):
+				time.sleep(0.1)
+				for cli in self.clients:
+					cli.recv_status()
+				if self.stopping:
+					break
+			self.print_status()
 
 		print('\r\n  *  subcores stopping')
 		for subcore in self.clients:
