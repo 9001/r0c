@@ -10,19 +10,18 @@
 * handle local echo  (good enough)
 * fix far right column
 * fix wordwrap for massive lines
+* notifications in status bar
+* full redraw statusbar on nick change
+* /cmap
+* /d
+* 1f 00 00 doesnt get filtered from resize
 
 # ^ done | remains v
 
-* notifications in status bar
-  * notifications in topic bar
-
-* full redraw statusbar on nick change
+* notifications in topic bar
 * store buffer in input history when hitting CUp/CDown
 * admin auth
 * rate limiting
-* /cmap
-* /d
 * store state (channel messages)
 * check for queue buildups
 * nick colours
-* 1f 00 00 doesnt get filtered from resize

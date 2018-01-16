@@ -829,9 +829,9 @@ class VT100_Client(asyncore.dispatcher):
 				ref = ch.vis[0]
 				if ref.car != 0:
 
-					partial = VisMessage().c_segm(ref, 0, ref.car, 0, ref.car)
+					partial = VisMessage().c_segm(ref, 0, ref.car, 0, ref.car, ch)
 					partial_org = ref
-					partial_old = VisMessage().c_segm(ref, ref.car, ref.cdr, 0, ref.cdr-ref.car)
+					partial_old = VisMessage().c_segm(ref, ref.car, ref.cdr, 0, ref.cdr-ref.car, ch)
 					
 					ch.vis[0] = partial_old
 
@@ -854,9 +854,9 @@ class VT100_Client(asyncore.dispatcher):
 								'== car' if n == ref.car else \
 								'== cdr' if n == ref.cdr - 1 else ''))
 
-					partial = VisMessage().c_segm(ref, ref.cdr, len(ref.txt), 0, len(ref.txt)-ref.cdr)
+					partial = VisMessage().c_segm(ref, ref.cdr, len(ref.txt), 0, len(ref.txt)-ref.cdr, ch)
 					partial_org = ref
-					partial_old = VisMessage().c_segm(ref, ref.car, ref.cdr, 0, ref.cdr-ref.car)
+					partial_old = VisMessage().c_segm(ref, ref.car, ref.cdr, 0, ref.cdr-ref.car, ch)
 
 					ch.vis[-1] = partial_old
 
@@ -1185,7 +1185,7 @@ class VT100_Client(asyncore.dispatcher):
 						user.world.join_pub_chan(user, chan)
 					
 					threading.Thread(target=delayed_join, name='d_join',
-						args=(self.user, self.in_text[3:])).start()
+						args=(self.user, join_ch)).start()
 
 		if self.wizard_stage == 'echo':
 			if self.linemode:

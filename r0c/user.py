@@ -334,6 +334,19 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd.isdigit():
+			nch = int(cmd)
+			if nch >= len(self.chans):
+				self.world.send_chan_msg('-err-', inf, """[error]
+  you only have {0} channels my dude
+""".format(len(self.chans)))
+				return
+
+			self.new_active_chan = self.chans[nch]
+			self.client.refresh(False)
+
+
+
 		elif cmd == 'msg' or cmd == 'm':
 			if not arg1 or not arg2:
 				self.world.send_chan_msg('-err-', inf, """[invalid arguments]

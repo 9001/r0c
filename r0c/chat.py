@@ -78,9 +78,10 @@ class VisMessage(object):
 		self.im  = im           # offset into the channel's message list
 		self.car = car          # first visible line
 		self.cdr = cdr          # last visible line PLUS ONE
+		self.vt100 = ch.user.client.vt100
 
 		if not msg or not msg.user: whoops('msg bad')
-		if not ch or not ch.user: whoops('user bad')
+		if not ch  or not ch.user:  whoops('user bad')
 		
 		self.unformatted = txt[0]
 		self.hilight = bool(ch.user.nick_re.search(msg.txt))
@@ -94,12 +95,13 @@ class VisMessage(object):
 		self.apply_markup()
 		return self
 
-	def c_segm(self, other, src_car, src_cdr, new_car, new_cdr):
+	def c_segm(self, other, src_car, src_cdr, new_car, new_cdr, ch):
 		self.msg = other.msg
 		self.txt = other.txt[src_car:src_cdr]
 		self.im  = other.im
 		self.car = new_car
 		self.cdr = new_cdr
+		self.vt100 = ch.user.client.vt100
 
 		self.hilight = other.hilight
 		self.unread = other.unread
@@ -114,21 +116,30 @@ class VisMessage(object):
 		return [self.unformatted] + self.txt[1:]
 
 	def apply_markup(self):
-		if self.hilight and self.unread:
-			prefix = u'\033[1;35;7m'
-		elif self.hilight:
-			prefix = u'\033[1;35m'
-		elif self.unread:
-			prefix = u'\033[7m'
+		if self.vt100:
+			postfix = u'\033[0m '
+			if self.hilight and self.unread:
+				prefix = u'\033[1;35;7m'
+			elif self.hilight:
+				prefix = u'\033[1;35m'
+			elif self.unread:
+				prefix = u'\033[7m'
+			else:
+				prefix = u''
+				postfix = None
 		else:
 			prefix = u''
+			if self.hilight:
+				postfix = u'='
+			else:
+				postfix = None
 
-		if prefix and not self.unformatted.startswith(' '):
+		if postfix and not self.unformatted.startswith(' '):
 			#print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
 			ofs = self.unformatted.find(' ')
 			self.txt[0] = '{0}{1}{2}{3}'.format(
 				prefix, self.unformatted[:ofs], \
-				u'\033[0m', self.unformatted[ofs:])
+				postfix, self.unformatted[ofs+1:])
 		else:
 			self.txt[0] = self.unformatted
 
