@@ -104,6 +104,9 @@ class World(object):
 
 	def join_chan_obj(self, user, nchan, alias=None):
 		with self.mutex:
+			#print('{0} users in {1}, {2} messages; {3} is in {4} channels'.format(
+			#	len(nchan.uchans), nchan.get_name(), len(nchan.msgs), user.nick, len(user.chans)))
+
 			for uchan in user.chans:
 				if uchan.nchan == nchan:
 					return uchan
@@ -111,7 +114,6 @@ class World(object):
 			self.num_joins += 1
 			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
-			#print('@@@ user {0} chans {1}, {2}'.format(user.nick, len(user.chans), user.chans[-1].alias or user.chans[-1].nchan.name))
 			nchan.uchans.append(uchan)
 			self.send_chan_msg('--', nchan,
 				'\033[1;32m{0}\033[22m has joined'.format(user.nick))

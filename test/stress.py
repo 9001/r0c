@@ -14,10 +14,11 @@ __copyright__ = 2018
 # config
 #
 
-NUM_CLIENTS = 6
+NUM_CLIENTS = 4
 
-#EVENT_DELAY = 0.01
+EVENT_DELAY = 0.01
 EVENT_DELAY = 0.001
+EVENT_DELAY = None
 
 IMMEDIATE_TX = True
 #IMMEDIATE_TX = False
@@ -60,8 +61,12 @@ class Client(asyncore.dispatcher):
 
 	def bootup(self):
 		self.in_text = u''
-		self.outbox = Queue()
+		self.tx_only = False
+		self.outbox = Queue(1000)
 		self.backlog = None
+		self.num_outbox = 0
+		self.num_sent = 0
+		self.pkt_sent = 0
 		self.stage = 'start'
 
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -73,12 +78,16 @@ class Client(asyncore.dispatcher):
 	
 
 	def actor(self):
+		print_stages = False
 		self.actor_active = True
 		print('actor going up')
 		while not self.stopping:
 			time.sleep(0.02)
 			
 			if self.stage == 'start':
+				if print_stages:
+					print('stage 1 start')
+
 				if 'type the text below, then hit [Enter]:' in self.in_text:
 					self.stage = 'qwer'
 					self.in_text = u''
@@ -88,14 +97,20 @@ class Client(asyncore.dispatcher):
 				continue
 
 			if self.stage == 'qwer':
+				if print_stages:
+					print('  stage 2 qwer')
+
 				if 'text appeared as you typed' in self.in_text:
 					self.stage = 'color'
 					self.in_text = u''
 					self.tx(u'b')
-					self.outbox.put(b'\xff\xfa\x1f\x00\x80\x00\x24\xff\xf0')  # 128x36
+					self.txb(b'\xff\xfa\x1f\x00\x80\x00\x24\xff\xf0')  # 128x36
 				continue
 
 			if self.stage == 'color':
+				if print_stages:
+					print('    stage 3 color')
+
 				if 'does colours work?' in self.in_text:
 					self.stage = 'codec'
 					self.in_text = u''
@@ -103,6 +118,9 @@ class Client(asyncore.dispatcher):
 				continue
 
 			if self.stage == 'codec':
+				if print_stages:
+					print('      stage 4 codec')
+					
 				if 'which line looks like' in self.in_text:
 					self.stage = 'ready'
 					self.tx(u'a')
@@ -111,6 +129,8 @@ class Client(asyncore.dispatcher):
 					self.tx(u'/join #1\n')
 					self.in_text = u''
 					
+					print('        stage 5 behavior')
+
 					if self.behavior == 'flood_single_channel':
 						return self.flood_single_channel()
 					
@@ -189,6 +209,8 @@ class Client(asyncore.dispatcher):
 		#print(immediate)
 		#sys.exit(0)
 		
+		self.tx_only = immediate
+		
 		script = []
 		active_chan = 0
 		member_of = ['#1']
@@ -204,6 +226,7 @@ class Client(asyncore.dispatcher):
 		# send a message
 		chance = [ 10, 5, 4, 18 ]
 		chance = [ 10, 3, 2, 30 ]
+		chance = [ 10, 30, 2, 130 ]
 
 		for n in range(len(chance)-1):
 			chance[n+1] += chance[n]
@@ -253,8 +276,8 @@ class Client(asyncore.dispatcher):
 							changed_from_i, changed_to_i,
 							changed_from_t, changed_to_t))
 						for act in script:
-							self.outbox.put(act)
-						self.outbox.put(b'hello\n')
+							self.txb(act)
+						self.txb(b'hello\n')
 						self.await_continue()
 						script = []
 					break
@@ -278,8 +301,8 @@ class Client(asyncore.dispatcher):
 
 					if self.explain:
 						for act in script:
-							self.outbox.put(act)
-						self.outbox.put(b'hello\n')
+							self.txb(act)
+						self.txb(b'hello\n')
 						self.await_continue()
 						script = []
 					break
@@ -321,8 +344,8 @@ class Client(asyncore.dispatcher):
 
 					if self.explain:
 						for act in script:
-							self.outbox.put(act)
-						self.outbox.put(b'hello\n')
+							self.txb(act)
+						self.txb(b'hello\n')
 						self.await_continue()
 						script = []
 					break
@@ -341,15 +364,16 @@ class Client(asyncore.dispatcher):
 
 				if self.explain:
 					for act in script:
-						self.outbox.put(act)
-					self.outbox.put(b'hello\n')
+						self.txb(act)
+					self.txb(b'hello\n')
 					self.await_continue()
 					script = []
 
 				if immediate:
 					for action in script:
-						self.outbox.put(action)
-						time.sleep(delay)
+						self.txb(action)
+						if delay:
+							time.sleep(delay)
 					script = []
 				
 				break
@@ -361,6 +385,8 @@ class Client(asyncore.dispatcher):
 				break
 			time.sleep(0.01)
 
+		self.tx_only = True
+
 		for n, ev in enumerate(script):
 			if self.stopping:
 				break
@@ -368,8 +394,9 @@ class Client(asyncore.dispatcher):
 			if n % 100 == 0:
 				print('at event {0}\n'.format(n))
 			
-			self.outbox.put(ev)
-			time.sleep(delay)
+			self.txb(ev)
+			if delay:
+				time.sleep(delay)
 		
 		self.tx(u'done')
 		print('done')
@@ -382,8 +409,12 @@ class Client(asyncore.dispatcher):
 		self.dead = True
 
 	def tx(self, bv):
-		self.outbox.put(bv.encode('utf-8'))
+		self.txb(bv.encode('utf-8'))
 	
+	def txb(self, bv):
+		self.num_outbox += len(bv)
+		self.outbox.put(bv)
+
 	def readable(self):
 		return not self.dead
 
@@ -396,6 +427,10 @@ class Client(asyncore.dispatcher):
 			msg = self.outbox.get()
 		sent = self.send(msg)
 		self.backlog = msg[sent:]
+		self.num_sent += sent
+		self.pkt_sent += 1
+		if self.pkt_sent % 8192 == 8191:
+			print('outbox {0} sent {1} queue {2}'.format(self.num_outbox, self.num_sent, self.num_outbox - self.num_sent))
 
 	def handle_read(self):
 		if self.dead:
@@ -407,7 +442,8 @@ class Client(asyncore.dispatcher):
 			self.dead = True
 			return
 		
-		self.in_text += data.decode('utf-8', 'ignore')
+		if not self.tx_only:
+			self.in_text += data.decode('utf-8', 'ignore')
 		
 		#if self.explain:
 		#	print(self.in_text)
@@ -424,9 +460,9 @@ class SubCore(object):
 		self.client = Client(self, self.port, self.behavior)
 
 	def run(self):
-		timeout = 0.05
+		timeout = 0.2
 		while self.q.empty():
-			asyncore.loop(timeout, count=0.5/timeout)
+			asyncore.loop(timeout, count=2)
 
 		self.client.stopping = True
 

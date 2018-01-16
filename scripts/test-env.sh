@@ -17,3 +17,8 @@ for n in {1..4}; do
 	sleep 0.1; k a 
 	sleep 0.1; k slash j o i n space numbersign $n Return 
 done
+
+
+
+# set terminal title:
+function wt() { printf '\033]0;%s\007' "$*"; }

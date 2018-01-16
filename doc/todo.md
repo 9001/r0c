@@ -25,3 +25,4 @@
 * store state (channel messages)
 * check for queue buildups
 * nick colours
+* 1f 00 00 doesnt get filtered from resize
