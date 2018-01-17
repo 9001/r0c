@@ -24,6 +24,9 @@ class World(object):
 		self.num_parts = 0
 		self.num_messages = 0
 
+		try: os.makedirs('log')
+		except: pass
+
 		threading.Thread(target=self.refresh_chans, name='tx_chan').start()
 
 	def add_user(self, user):

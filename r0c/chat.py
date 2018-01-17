@@ -147,12 +147,11 @@ class VisMessage(object):
 class Message(object):
 	def __init__(self, user, to, ts, txt):
 		self.user = user        # str username
-		self.to   = to          # obj nchannel
 		self.ts   = ts          # int timestamp
 		self.txt  = txt         # str text
 		
 		# set serial number based on last message in target
-		if to.msgs:
+		if to and to.msgs:
 			self.sno = to.msgs[-1].sno + 1
 		else:
 			self.sno = 0

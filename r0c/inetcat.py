@@ -6,7 +6,7 @@ if __name__ == '__main__':
 import asyncore
 import sys
 
-from .util    import *
+from .util   import *
 from .ivt100 import *
 
 PY2 = (sys.version_info[0] == 2)

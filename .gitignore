@@ -9,6 +9,7 @@ __pycache__/
 # diagnostics
 *.stack
 profiler-results.*
+tmp.*
 
 # winmerge
 *.bak

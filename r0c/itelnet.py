@@ -7,7 +7,7 @@ import asyncore
 import struct
 import sys
 
-from .util    import *
+from .util   import *
 from .ivt100 import *
 
 PY2 = (sys.version_info[0] == 2)
@@ -221,7 +221,7 @@ class TelnetClient(VT100_Client):
 						# it can't be helped
 						print('warning: unparseable data before {0} in {1} total:'.format(
 							decode_until, len(self.in_bytes)))
-						
+
 						hexdump(self.in_bytes, 'XXX ')
 						src = u'{0}'.format(self.in_bytes[:decode_until].decode(self.codec, 'backslashreplace'))
 						self.in_bytes = self.in_bytes[decode_until:]
