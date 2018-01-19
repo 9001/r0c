@@ -11,5 +11,8 @@ __pycache__/
 profiler-results.*
 tmp.*
 
+# chatlogs
+log
+
 # winmerge
 *.bak

@@ -155,7 +155,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		nchan = uchan.nchan
 		nchan.topic = 'r0c readme (and status info)'
 
-		msg = Message('-nfo-', nchan, time.time(), text)
+		msg = Message(nchan, time.time(), '-nfo-', text)
 		nchan.msgs.append(msg)
 
 		if False:
@@ -166,7 +166,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				text.append(lipsum1)
 				text.append(lipsum2)
 			for ln in text:
-				nchan.msgs.append(Message('-nfo-', nchan, time.time(), ln))
+				nchan.msgs.append(Message(nchan, time.time(), '-nfo-', ln))
 
 		self.new_active_chan = uchan
 		
@@ -444,14 +444,14 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 		elif cmd == 'cls':
 			msg = Message(
-				'-nfo-', self.active_chan.nchan, time.time(),
+				self.active_chan.nchan, time.time(), '-nfo-',
 				u'\033[1;36m{0}\033[22m wiped the chat'.format(self.nick))
 			#msg.sno = 0  # what was i thinking
 			self.active_chan.nchan.msgs = [msg]
 			
 		elif cmd == 'sd':
 			msg = "\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
-			self.world.broadcast(msg, 2)
+			self.world.broadcast_message(msg, 2)
 			
 			def killer():
 				time.sleep(0.5)

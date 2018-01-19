@@ -33,7 +33,11 @@ FORCE_LINEMODE = False
 
 # dump statistics every 2 seconds
 BENCHMARK = True
-#BENCHMARK = False
+BENCHMARK = False
+
+# logrotate
+MESSAGES_PER_LOG_FILE = 16
+MESSAGES_PER_LOG_FILE = 131072
 
 # width of the hexdump, in bytes per line
 HEX_WIDTH = 16

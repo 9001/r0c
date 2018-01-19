@@ -16,12 +16,16 @@ class NChannel(object):
 		self.msgs = []         # messages
 		self.name = name
 		self.topic = topic
+
+		self.log_fh = None     # active log file
+		self.log_ctr = 0       # number of messages in file
 	
 	def get_name(self):
 		if self.name:
 			return u'#' + self.name
 		ret = u', '.join(x.alias for x in self.uchans[:2])
 		return ret or '<abandoned private channel>'
+
 
 
 class UChannel(object):
@@ -145,9 +149,9 @@ class VisMessage(object):
 
 
 class Message(object):
-	def __init__(self, user, to, ts, txt):
-		self.user = user        # str username
+	def __init__(self, to, ts, user, txt):
 		self.ts   = ts          # int timestamp
+		self.user = user        # str username
 		self.txt  = txt         # str text
 		
 		# set serial number based on last message in target
