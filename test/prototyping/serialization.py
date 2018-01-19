@@ -16,6 +16,10 @@ except:
 	import pickle  # py3
 
 
+ITERATIONS = 2
+#ITERATIONS = 1
+
+
 class Message(object):
 	def __init__(self, ts, user, txt):
 		self.ts   = ts          # int timestamp
@@ -30,7 +34,7 @@ def result(desc, sec, sec2, mul, comp_t, base_t, fn=None):
 
 
 """ run a test function, compare time against comp_t after subtracting base_t """
-def run(func, write_to, comp_t=None, base_t=None):
+def run(func, write_to, comp_t=None, base_t=None, iterations=ITERATIONS):
 	mtd = 99999999
 	desc = func.__name__[2:]
 	is_windows = platform.system() == 'Windows'
@@ -38,7 +42,7 @@ def run(func, write_to, comp_t=None, base_t=None):
 		print()
 
 	best = []
-	for iteration in range(2):
+	for iteration in range(iterations):
 		t0 = time.time()
 		func(write_to)
 		td = time.time() - t0
@@ -60,12 +64,19 @@ def run(func, write_to, comp_t=None, base_t=None):
 	return [ desc, write_to, mtd ]
 
 
+import struct
+all_chars = b''
+for n in range(1,128):
+	all_chars += struct.pack('B', n)
+all_chars = all_chars.decode('utf-8').replace('\r', '\\r').replace('\n', '\\n') + u'宇多田ヒカル桜流し'
+some_chars = letters = u'宇多田ヒカル桜流しABCDEFGHIJKLMNOPQRSTUVWXYZ\\\'\'\'"/abcdefghijklmnopqrstuvwxyz        '
+
 def gen_sentence():
-	letters = u'宇多田ヒカル桜流しABCDEFGHIJKLMNOPQRSTUVWXYZ\\\'\'\'"/abcdefghijklmnopqrstuvwxyz        '
+	charset = some_chars
 	ret = u''
 	retlen = random.randint(4, 64)
 	for n in range(retlen):
-		ret += random.choice(letters)
+		ret += random.choice(charset)
 	if not ret:
 		ret = u'a'
 	return ret.strip()
@@ -86,7 +97,18 @@ def stream_txt():
 			yield ln.decode('utf-8').rstrip()
 
 
-def stream_msgs(dontcare=None):
+def stream_msgs_plain(dontcare=None):
+	iuser = 0
+	with open('txt', 'rb') as f:
+		for n, ln in enumerate(f):
+			txt = ln.decode('utf-8').rstrip()
+			yield Message(n, users[iuser], txt)
+			iuser += 1
+			if iuser >= len(users):
+				iuser = 0
+
+
+def stream_msg_newlines(dontcare=None):
 	iuser = 0
 	with open('txt', 'rb') as f:
 		for n, ln in enumerate(f):
@@ -103,6 +125,9 @@ def stream_msgs(dontcare=None):
 			iuser += 1
 			if iuser >= len(users):
 				iuser = 0
+
+
+stream_msgs = stream_msgs_plain
 
 
 def t_gen_txt_file(dontcare):
@@ -190,7 +215,7 @@ if os.path.isfile('lst_repr_f'):
 	def t_dser_dummy(fn):
 		verify_deserialization(stream_msgs, 'x')
 
-	td_dser_dummy = run(t_dser_dummy, 'txt', base_t, comp_t)[2]
+	td_dser_dummy = run(t_dser_dummy, 'txt', comp_t, base_t)[2]
 	base_t = td_dser_dummy
 	comp_t = td_dser_dummy
 	
@@ -219,7 +244,7 @@ if os.path.isfile('lst_repr_f'):
 						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
 						yield Message(int(ts), user, eval(txt))
 			verify_deserialization(subroutine, fn)
-		run(t_d_split_eval, 's_esc3c', base_t, comp_t)[2]
+		run(t_d_split_eval, 's_esc3c', comp_t, base_t)[2]
 
 
 
@@ -229,7 +254,7 @@ if os.path.isfile('lst_repr_f'):
 					for ln in f:
 						yield Message(*eval(ln.decode('utf-8').rstrip()))
 			verify_deserialization(subroutine, fn)
-		run(t_d_lst_eval, 'lst_repr_f', base_t, comp_t)[2]
+		run(t_d_lst_eval, 'lst_repr_f', comp_t, base_t)[2]
 
 
 
@@ -240,7 +265,7 @@ if os.path.isfile('lst_repr_f'):
 					for ln in f:
 						yield Message(*ast.literal_eval(ln.decode('utf-8').rstrip()))
 			verify_deserialization(subroutine, fn)
-		run(t_d_lst_ast_eval, 'lst_repr_f', base_t, comp_t)[2]
+		run(t_d_lst_ast_eval, 'lst_repr_f', comp_t, base_t)[2]
 
 
 
@@ -252,7 +277,7 @@ if os.path.isfile('lst_repr_f'):
 						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
 						yield Message(int(ts), user, ast.literal_eval(txt))
 			verify_deserialization(subroutine, fn)
-		run(t_d_split_repr_ast_e, 'txt_repr', None, comp_t)[2]
+		run(t_d_split_repr_ast_e, 'txt_repr', comp_t, base_t)[2]
 
 
 
@@ -263,7 +288,7 @@ if os.path.isfile('lst_repr_f'):
 						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
 						yield Message(int(ts), user, eval(txt))
 			verify_deserialization(subroutine, fn)
-		run(t_d_split_repr_eval, 'txt_repr', None, comp_t)[2]
+		run(t_d_split_repr_eval, 'txt_repr', comp_t, base_t)[2]
 
 
 
@@ -311,6 +336,78 @@ comp_t = td_chain - base_t
 
 
 
+def t_chain_replace_hex(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write(u'{0:x} {1} u\'{2}\'\n'.format(
+				msg.ts, msg.user, msg.txt.\
+				replace(u'\\', u'\\\\').\
+				replace(u'\'', u'\\\'').\
+				replace(u'\r', u'\\r').\
+				replace(u'\n', u'\\n')).\
+				encode('utf-8'))
+
+run(t_chain_replace_hex, 's_esc1_hex', comp_t, base_t)[2]
+
+
+
+def t_chain_replace_hexjoin(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write((u' '.join([hex(msg.ts)[2:], msg.user, msg.txt.\
+				replace(u'\\', u'\\\\').\
+				replace(u'\'', u'\\\'').\
+				replace(u'\r', u'\\r').\
+				replace(u'\n', u'\\n')])).\
+				encode('utf-8'))
+
+run(t_chain_replace_hexjoin, 's_esc1_hexj', comp_t, base_t)[2]
+
+
+
+def t_plain_fmt(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write(u'{0} {1} {2}\n'.format(
+				msg.ts, msg.user, msg.txt).\
+				encode('utf-8'))
+
+run(t_plain_fmt, 's_plain_fmt', comp_t, base_t)[2]
+
+
+
+def t_plain_hex(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write(u'{0:x} {1} {2}\n'.format(
+				msg.ts, msg.user, msg.txt).\
+				encode('utf-8'))
+
+run(t_plain_hex, 's_plain_hex', comp_t, base_t)[2]
+
+
+
+def t_plain_hexjoin(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write((u' '.join(
+				[hex(msg.ts)[2:], msg.user, msg.txt]\
+				) + u'\n').encode('utf-8'))
+
+run(t_plain_hexjoin, 's_plain_hexj', comp_t, base_t)[2]
+
+
+def t_plain_join(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write((u' '.join(
+				[str(msg.ts)[2:], msg.user, msg.txt]\
+				) + u'\n').encode('utf-8'))
+
+run(t_plain_join, 's_plain_join', comp_t, base_t)[2]
+
+
+
 # py[23] identical:  1.49  1.40
 #
 def t_enumerate_replace(fn):
@@ -323,7 +420,7 @@ def t_enumerate_replace(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_enumerate_replace, 's_esc2a', base_t, comp_t)
+run(t_enumerate_replace, 's_esc2a', comp_t, base_t)
 
 
 
@@ -339,7 +436,7 @@ def t_foreach_dict_replace(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_foreach_dict_replace, 's_esc2b', base_t, comp_t)
+run(t_foreach_dict_replace, 's_esc2b', comp_t, base_t)
 
 
 
@@ -355,7 +452,7 @@ def t_foreach_idx_replace(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_foreach_idx_replace, 's_esc2c', base_t, comp_t)
+run(t_foreach_idx_replace, 's_esc2c', comp_t, base_t)
 
 
 
@@ -372,7 +469,7 @@ def t_enumerate_replaceif(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_enumerate_replaceif, 's_esc3', base_t, comp_t)
+run(t_enumerate_replaceif, 's_esc3', comp_t, base_t)
 
 
 
@@ -389,7 +486,7 @@ def t_replaceif_dict(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_replaceif_dict, 's_esc3b', base_t, comp_t)
+run(t_replaceif_dict, 's_esc3b', comp_t, base_t)
 
 
 
@@ -408,7 +505,7 @@ def t_replaceif_dict_loc(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_replaceif_dict_loc, 's_esc3c', base_t, comp_t)
+run(t_replaceif_dict_loc, 's_esc3c', comp_t, base_t)
 
 
 
@@ -427,7 +524,7 @@ def t_condwrite_always_dict(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_condwrite_always_dict, 's_esc4', base_t, comp_t)
+run(t_condwrite_always_dict, 's_esc4', comp_t, base_t)
 
 
 
@@ -450,7 +547,7 @@ def t_condwrite_ifneed_list(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_condwrite_ifneed_list, 's_esc5', base_t, comp_t)
+run(t_condwrite_ifneed_list, 's_esc5', comp_t, base_t)
 
 
 
@@ -473,7 +570,7 @@ def t_condwrite_ifneed_dict(fn):
 				msg.ts, msg.user, txt).\
 				encode('utf-8'))
 
-run(t_condwrite_ifneed_dict, 's_esc5b', base_t, comp_t)
+run(t_condwrite_ifneed_dict, 's_esc5b', comp_t, base_t)
 
 
 
@@ -486,7 +583,20 @@ def t_msgtxt_repr(fn):
 				msg.ts, msg.user, repr(msg.txt)).\
 				encode('utf-8'))
 
-run(t_msgtxt_repr, 'txt_repr', base_t, comp_t)
+run(t_msgtxt_repr, 'txt_repr', comp_t, base_t)
+
+
+
+# Differ:  0.92  0.57
+#
+def t_msgtxt_repr_u(fn):
+	with open(fn, 'wb') as f:
+		for msg in stream_msgs():
+			f.write(u'{0} {1} u{2}\n'.format(
+				msg.ts, msg.user, repr(msg.txt).lstrip('u')).\
+				encode('utf-8'))
+
+run(t_msgtxt_repr_u, 'txt_repr', comp_t, base_t)
 
 
 
@@ -499,7 +609,7 @@ def t_fakelist_repr(fn):
 				msg.ts, msg.user, repr(msg.txt)).\
 				encode('utf-8'))
 
-run(t_fakelist_repr, 'lst_repr_f', base_t, comp_t)
+run(t_fakelist_repr, 'lst_repr_f', comp_t, base_t)
 
 
 
@@ -512,7 +622,7 @@ def t_list_repr(fn):
 				repr([msg.ts, msg.user, msg.txt])).\
 				encode('utf-8'))
 
-run(t_list_repr, 'lst_repr', base_t, comp_t)
+run(t_list_repr, 'lst_repr', comp_t, base_t)
 
 
 
@@ -527,7 +637,7 @@ def t_uesc(fn):
 					encode('unicode_escape')).\
 				encode('utf-8'))
 
-run(t_uesc, 'uesc', base_t, comp_t)
+run(t_uesc, 'uesc', comp_t, base_t)
 
 
 
@@ -538,7 +648,7 @@ def t_pickle2(fn):
 		for msg in stream_msgs():
 			pickle.dump(msg, f, 2)
 
-run(t_pickle2, 'p2', base_t, comp_t)
+run(t_pickle2, 'p2', comp_t, base_t)
 
 
 
@@ -549,7 +659,7 @@ def t_json_str(fn):
 		for msg in stream_msgs():
 			f.write(u'{0}\n'.format(json.dumps([msg.ts, msg.user, msg.txt])).encode('utf-8'))
 
-run(t_json_str, 'json1', base_t, comp_t)
+run(t_json_str, 'json1', comp_t, base_t)
 
 
 
@@ -560,7 +670,7 @@ def t_json_fh(fn):
 		for msg in stream_msgs():
 			json.dump([msg.ts, msg.user, msg.txt], f)
 
-run(t_json_fh, 'json2', base_t, comp_t)
+run(t_json_fh, 'json2', comp_t, base_t)
 
 
 
