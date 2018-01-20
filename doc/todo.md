@@ -16,6 +16,7 @@
 * /d
 * 1f 00 00 doesnt get filtered from resize
 * store state (channel messages)
+* scrolling is wonky when loading small chatlogs
 
 # ^ done | remains v
 
@@ -27,4 +28,3 @@
 * nick colours
 * deserialize takes 4gb ram
 * py2 deadlocks on quit with threadcapture running
-* scrolling is wonky when loading small chatlogs

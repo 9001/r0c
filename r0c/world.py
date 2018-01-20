@@ -177,6 +177,9 @@ class World(object):
 			nchan = self.get_pub_chan(name)
 			if nchan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
+				nchan.msgs.append(Message(nchan, time.time(), '--', \
+					'\033[1;36mchannel created at {0}'.format(
+						datetime.datetime.utcnow().strftime('%Y-%m-%d, %H:%M:%SZ'))))
 				self.task_queue.put([self.load_chat_log, [nchan], {}])
 				self.pub_ch.append(nchan)
 			
@@ -307,6 +310,12 @@ class World(object):
 						nchan.msgs.append(msg)
 						msg.sno = msg_n
 						msg_n += 1
+				
+				msg = Message(nchan, int(ts, 16), '--', \
+					'\033[36mend of log file "{0}"'.format(fn))
+				nchan.msgs.append(msg)
+				msg.sno = msg_n
+				msg_n += 1
 		except:
 			whoops(ln)
 
@@ -341,6 +350,14 @@ class World(object):
 					) + u'\n').encode('utf-8'))
 				
 				if nchan.msgs:
+					# not particularly happy with this
 					msg.sno = nchan.msgs[-1].sno + 1
 				
 				nchan.msgs.append(msg)
+
+			# potential chance that a render goes through
+			# before the async job processor kicks in
+			self.dirty_ch[nchan] = 1
+			for uchan in nchan.uchans:
+				uchan.user.client.need_full_redraw = True
+
