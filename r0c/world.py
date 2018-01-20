@@ -270,6 +270,16 @@ class World(object):
 			self.send_chan_msg('--', nchan,
 				'\033[1;33m{0}\033[22m has left'.format(user.nick))
 
+			if not nchan.uchans:
+				print('destroying dead channel \"{0}\"'.format(nchan.get_name()))
+				
+				ch_list = self.pub_ch
+				if not nchan.name:
+					ch_list = self.priv_ch
+				
+				ch_list.remove(nchan)
+				del nchan
+
 
 	def load_chat_log(self, nchan):
 		if not nchan:
