@@ -11,6 +11,10 @@ BUILD_DATE = '2018-01-16'  # felt like a good idea at the time
 DBG = True
 DBG = False
 
+# start monitoring threads on ctrl-c
+THREADMON = True
+THREADMON = False
+
 # show all traffic from clients
 HEXDUMP_IN = True
 HEXDUMP_IN = False

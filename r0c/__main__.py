@@ -60,6 +60,7 @@ class Core(object):
 		print('  *  NetCat server on port ' + str(self.netcat_port))
 
 		self.stopping = 0
+		self.threadmon = False
 		self.pushthr_alive = False
 		self.asyncore_alive = False
 
@@ -175,7 +176,11 @@ class Core(object):
 
 
 	def signal_handler(self, signal, frame):
-		self.shutdown()
+		if THREADMON and not self.threadmon:
+			self.threadmon = True
+			monitor_threads()
+		else:
+			self.shutdown()
 
 
 def run():

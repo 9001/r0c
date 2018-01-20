@@ -15,6 +15,7 @@
 * /cmap
 * /d
 * 1f 00 00 doesnt get filtered from resize
+* store state (channel messages)
 
 # ^ done | remains v
 
@@ -22,6 +23,8 @@
 * store buffer in input history when hitting CUp/CDown
 * admin auth
 * rate limiting
-* store state (channel messages)
 * check for queue buildups
 * nick colours
+* deserialize takes 4gb ram
+* py2 deadlocks on quit with threadcapture running
+* scrolling is wonky when loading small chatlogs

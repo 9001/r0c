@@ -11,15 +11,21 @@ from .chat import *
 
 PY2 = (sys.version_info[0] == 2)
 
+if PY2:
+	from Queue import Queue
+else:
+	from queue import Queue
+
 
 
 class World(object):
 	def __init__(self, core):
 		self.core = core
-		self.users = []      # User instances
-		self.pub_ch = []     # NChannel instances (public)
-		self.priv_ch = []    # NChannel instances (private)
-		self.dirty_ch = {}   # Channels that have pending tx
+		self.users = []            # User instances
+		self.pub_ch = []           # NChannel instances (public)
+		self.priv_ch = []          # NChannel instances (private)
+		self.dirty_ch = {}         # Channels that have pending tx
+		self.task_queue = Queue()  # Delayed processing of expensive tasks
 		self.mutex = threading.RLock()
 
 		# config
@@ -35,20 +41,29 @@ class World(object):
 
 		threading.Thread(target=self.refresh_chans, name='tx_chan').start()
 
+
 	def add_user(self, user):
 		with self.mutex:
 			self.users.append(user)
+
 
 	def refresh_chans(self):
 		self.chan_sync_active = True
 		while not self.core.stopping:
 			time.sleep(0.05)
 			with self.mutex:
+				while not self.task_queue.empty():
+					task = self.task_queue.get()
+					task[0](*task[1],**task[2])
+
 				for chan in self.dirty_ch:
 					self.refresh_chan(chan)
+				
 				self.dirty_ch = {}
+
 		self.chan_sync_active = False
 	
+
 	def refresh_chan(self, nchan):
 		if not nchan.uchans:
 			# all users left since this channel got scheduled for refresh
@@ -68,6 +83,7 @@ class World(object):
 
 				#print('refreshing {0} for {1}'.format(nchan.get_name(), uchan.user.nick))
 				uchan.user.client.refresh(False)
+
 
 	def send_chan_msg(self, from_nick, nchan, text):
 		with self.mutex:
@@ -121,6 +137,7 @@ class World(object):
 					[hex(int(msg.ts))[2:], msg.user, msg.txt]\
 					) + u'\n').encode('utf-8'))
 
+
 	def join_chan_obj(self, user, nchan, alias=None):
 		with self.mutex:
 			#print('{0} users in {1}, {2} messages; {3} is in {4} channels'.format(
@@ -139,11 +156,13 @@ class World(object):
 			uchan.last_read = nchan.msgs[-1].sno
 			return uchan
 
+
 	def get_pub_chan(self, name):
 		for ch in self.pub_ch:
 			if ch.name == name:
 				return ch
 		return None
+
 
 	def get_priv_chan(self, user, alias):
 		for ch in user.chans:
@@ -151,19 +170,20 @@ class World(object):
 				return ch
 		return None
 
+
 	def join_pub_chan(self, user, name):
 		with self.mutex:
 			name = name.strip()
 			nchan = self.get_pub_chan(name)
 			if nchan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
-				self.load_chat_log(nchan)
-				self.start_logging(nchan)
+				self.task_queue.put([self.load_chat_log, [nchan], {}])
 				self.pub_ch.append(nchan)
 			
 			ret = self.join_chan_obj(user, nchan)
 			user.new_active_chan = ret
 			return ret
+
 
 	def join_priv_chan(self, user, alias):
 		with self.mutex:
@@ -175,27 +195,38 @@ class World(object):
 				uchan.alias = alias
 			return uchan
 
+
 	def broadcast_banner(self, msg):
 		with self.mutex:
 			chans = {}
 			for user in self.users:
 				if user.active_chan \
-				and user.active_chan not in chans:
-					chans[nchan] = 1
+				and user.active_chan.nchan not in chans:
+					chans[user.active_chan.nchan] = 1
 			
 			if not msg:
 				for nchan in chans:
 					if hasattr(nchan, 'topic_bak'):
 						nchan.topic = nchan.topic_bak
 						del nchan.topic_bak
+				for user in self.users:
+					if user.active_chan:
+						user.client.refresh(False)
 			else:
 				for nchan in chans:
 					if not hasattr(nchan, 'topic_bak'):
 						nchan.topic_bak = nchan.topic
+					nchan.topic = msg
 
-			for user in self.users:
-				if user.active_chan:
-					user.client.refresh(False)
+				print('broadcast: {0}'.format(msg))
+				for user in self.users:
+					if user.active_chan:
+						print('         : {0} ->'.format(user))
+						to_send = '\033[H{0}\033[K'.format(msg)
+						user.client.screen[0] = to_send
+						user.client.say(to_send.encode(
+							user.client.codec, 'backslashreplace'))
+
 
 	def broadcast_message(self, msg, severity=1):
 		""" 1=append, 2=append+scroll """
@@ -216,6 +247,7 @@ class World(object):
 					user.client.say("\n [[ broadcast message ]]\n {0}\n".format(
 						msg).replace(u"\n", u"\r\n").encode('utf-8'))
 
+
 	def part_chan(self, uchan):
 		with self.mutex:
 			self.num_parts += 1
@@ -235,7 +267,14 @@ class World(object):
 			self.send_chan_msg('--', nchan,
 				'\033[1;33m{0}\033[22m has left'.format(user.nick))
 
+
 	def load_chat_log(self, nchan):
+		if not nchan:
+			return
+
+		backlog = nchan.msgs
+		nchan.msgs = []
+
 		log_dir = 'log/{0}'.format(nchan.name)
 		try: os.makedirs(log_dir)
 		except: pass
@@ -252,8 +291,10 @@ class World(object):
 
 		do_broadcast = (total_size > 1024*1024)
 		if do_broadcast:
-			self.broadcast_banner('\033[0;7m[!]\033[0;1m Loading chatlog ...')
+			self.broadcast_banner('\033[1;37;45m [ LOADING CHATLOG ] \033[0;42m')
+			# daily dose
 
+		t0 = time.time()
 		msg_n = 0
 		try:
 			for fn in sorted(files):
@@ -269,12 +310,16 @@ class World(object):
 		except:
 			whoops(ln)
 
-		print('loaded {0} messages for #{1}'.format(msg_n, nchan.name))
+		print('loaded {0} messages, {1} bytes, in {2:.3f} seconds, for #{3}'.format(
+			msg_n, total_size, time.time() - t0, nchan.name))
 		
 		if do_broadcast:
 			self.broadcast_banner(None)
 
-	def start_logging(self, nchan):
+		self.start_logging(nchan, backlog)
+
+
+	def start_logging(self, nchan, chat_backlog=None):
 		log_dir = 'log/{0}'.format(nchan.name)
 
 		if nchan.log_fh:
@@ -288,3 +333,14 @@ class World(object):
 
 		print('opened log file {0}'.format(log_fn))
 
+		if chat_backlog:
+			for msg in chat_backlog:
+				nchan.log_ctr += 1
+				nchan.log_fh.write((u' '.join(
+					[hex(int(msg.ts))[2:], msg.user, msg.txt]\
+					) + u'\n').encode('utf-8'))
+				
+				if nchan.msgs:
+					msg.sno = nchan.msgs[-1].sno + 1
+				
+				nchan.msgs.append(msg)

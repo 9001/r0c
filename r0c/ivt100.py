@@ -223,6 +223,12 @@ class VT100_Client(asyncore.dispatcher):
 		return not self.dead
 
 	def writable(self):
+		#if not self.replies.empty() or self.backlog:
+		#	print('REPLY!!')
+		#else:
+		#	print('@' if self.backlog or not self.replies.empty() or not self.outbox.empty() else '.', end='')
+		#	sys.stdout.flush()
+
 		#if self.slowmo_tx:
 		#	#print('x')
 		#	now = time.time()
