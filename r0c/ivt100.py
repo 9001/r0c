@@ -123,6 +123,8 @@ class VT100_Client(asyncore.dispatcher):
 		self.lineview = 0
 		self.msg_hist = []
 		self.msg_hist_n = None
+		self.msg_hist_scratch = False
+		self.msg_not_from_hist = False
 
 		# state registers
 		self.wizard_stage = 'start'
@@ -1477,6 +1479,7 @@ class VT100_Client(asyncore.dispatcher):
 				
 				self.linebuf = self.linebuf[:self.linepos] + plain + self.linebuf[self.linepos:]
 				self.linepos += len(plain)
+				self.msg_not_from_hist = True
 				self.msg_hist_n = None
 				
 				if was_esc:
@@ -1521,7 +1524,13 @@ class VT100_Client(asyncore.dispatcher):
 					if self.linebuf:
 						# add this to the message/command ("input") history
 						if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
-							self.msg_hist.append(self.linebuf)
+							if self.msg_hist_scratch:
+								self.msg_hist[-1] = self.linebuf
+							else:
+								self.msg_hist.append(self.linebuf)
+
+						self.msg_hist_scratch = False
+						self.msg_not_from_hist = False
 						
 						single = self.linebuf.startswith('/')
 						double = self.linebuf.startswith('//')
@@ -1577,6 +1586,13 @@ class VT100_Client(asyncore.dispatcher):
 					if self.msg_hist_n is not None:
 						if self.msg_hist_n < 0 or self.msg_hist_n >= len(self.msg_hist):
 							self.msg_hist_n = None
+
+					# capture unfinished entries so they can be resumed
+					if self.linebuf and self.msg_not_from_hist:
+						self.msg_hist.append(self.linebuf)
+						self.msg_hist_scratch = True
+
+					self.msg_not_from_hist = False
 
 					if self.msg_hist_n is None:
 						self.linebuf = u''

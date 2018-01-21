@@ -6,7 +6,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* store buffer in input history when hitting CUp/CDown
 * notifications in topic bar
 
 # features: whatever
@@ -48,3 +47,4 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * deserialize takes 4gb ram
 * color codes
 * broadcast "day changed"
+* store buffer in input history when hitting CUp/CDown
