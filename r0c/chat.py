@@ -164,7 +164,7 @@ class VisMessage(object):
 		if postfix and not self.unformatted.startswith(' '):
 			#print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
 			ofs = self.unformatted.find(' ')
-			self.txt[0] = '{0}{1}{2}{3}'.format(
+			self.txt[0] = u'{0}{1}{2}{3}'.format(
 				prefix, self.unformatted[:ofs], \
 				postfix, self.unformatted[ofs+1:])
 		else:
