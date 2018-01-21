@@ -1,3 +1,9 @@
+done section is appended to every time something that was actually planned got finished
+
+the other lists are roughly sorted by importance (and additionally split in two at the *why tho* point)
+
+# done
+
 * config wizard
   * cp437
   * colors
@@ -17,14 +23,26 @@
 * 1f 00 00 doesnt get filtered from resize
 * store state (channel messages)
 * scrolling is wonky when loading small chatlogs
+* deserialize takes 4gb ram
 
-# ^ done | remains v
+# features: important
 
-* notifications in topic bar
 * store buffer in input history when hitting CUp/CDown
+* notifications in topic bar
+* color codes
+
+# features: whatever
+
+* truncate chan hist when it gets 2big
 * admin auth
 * rate limiting
-* check for queue buildups
 * nick colours
-* deserialize takes 4gb ram
+* broadcast "day changed"
+
+# bugs: important
+
+# bugs: whatever
+
 * py2 deadlocks on quit with threadcapture running
+* channel cleanup doesn't happen unless user joins another channel after parting
+* check for queue buildups in general

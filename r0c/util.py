@@ -5,8 +5,10 @@ if __name__ == '__main__':
 
 import traceback
 import threading
+import struct
 import time
 import sys
+import platform
 
 from .config import *
 
@@ -18,13 +20,17 @@ if PY2:
 	def print(*args, **kwargs):
 		with print_mutex:
 			#__builtin__.print("y")
-			__builtin__.print(*args, **kwargs)
+			t = time.strftime('%H%M%S ')
+			__builtin__.print(t + (args[0] if args else ''
+				).replace('\n', '\n'+t), *args[1:], **kwargs)
 else:
 	import builtins
 	def print(*args, **kwargs):
 		with print_mutex:
 			#builtins.print("y")
-			builtins.print(*args, **kwargs)
+			t = time.strftime('%H%M%S ')
+			builtins.print(t + (args[0] if args else ''
+				).replace('\n', '\n'+t), *args[1:], **kwargs)
 
 def fmt():
 	return time.strftime('%d/%m/%Y, %H:%M:%S')
@@ -287,11 +293,11 @@ def prewrap(txt, maxlen):
 
 def whoops(extra=None):
 	msg = """\
-             __                          
+             __
    _      __/ /_  ____  ____  ____  _____
   | | /| / / __ \/ __ \/ __ \/ __ \/ ___/
-  | |/ |/ / / / / /_/ / /_/ / /_/ (__  ) 
-  |__/|__/_/ /_/\____/\____/ .___/____/  
+  | |/ |/ / / / / /_/ / /_/ / /_/ (__  )
+  |__/|__/_/ /_/\____/\____/ .___/____/
                           /_/"""
 	exc = traceback.format_exc()
 	if exc.startswith('None'):
@@ -333,3 +339,14 @@ def monitor_threads():
 	thr.daemon = True
 	thr.start()
 
+
+
+def host_os():
+	py_ver = '.'.join([str(x) for x in sys.version_info])
+	ofs = py_ver.find('.final.')
+	if ofs > 0:
+		py_ver = py_ver[:ofs]
+
+	bitness = struct.calcsize('P') * 8
+	host_os = platform.system()
+	return '{0} on {1}{2}'.format(py_ver, host_os, bitness)

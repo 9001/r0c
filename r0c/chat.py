@@ -4,6 +4,7 @@ if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
 import threading
+import datetime
 
 from .util import *
 
@@ -159,4 +160,17 @@ class Message(object):
 			self.sno = to.msgs[-1].sno + 1
 		else:
 			self.sno = 0
+
+	def __unicode__(self):
+		hhmmss = datetime.datetime.utcfromtimestamp(self.ts).strftime('%Y-%m%d-%H%M%S')
+		return u'Message {0:x} time({1},{2}) from({3}) body({4})'.format(
+			id(self), self.ts, hhmmss, self.user, self.txt)
+
+	def __str__(self):
+		hhmmss = datetime.datetime.utcfromtimestamp(self.ts).strftime('%Y-%m%d-%H%M%S')
+		return 'Message {0:x} time({1},{2}) from({3}) body({4})'.format(
+			id(self), self.ts, hhmmss, self.user, self.txt)
+
+	def __repr__(self):
+		return 'Message({0}, \'{1}\', {2})'.format(self.ts, self.user, repr(self.txt))
 

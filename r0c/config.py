@@ -41,7 +41,12 @@ BENCHMARK = False
 
 # logrotate
 MESSAGES_PER_LOG_FILE = 16
+MESSAGES_PER_LOG_FILE = 512
 MESSAGES_PER_LOG_FILE = 131072
+
+# max number of messages to load from disk when joining a channel
+MAX_HIST_LOAD = 64
+MAX_HIST_LOAD = 131072
 
 # width of the hexdump, in bytes per line
 HEX_WIDTH = 16

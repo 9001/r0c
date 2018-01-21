@@ -34,6 +34,9 @@ from .chat     import *
 from .user     import *
 from .world    import *
 
+if not PY2:
+	from .diag import *
+
 
 class Core(object):
 	def __init__(self):
@@ -52,6 +55,8 @@ class Core(object):
 			print('    python -m r0c 23 531')
 			print()
 			sys.exit(1)
+
+		print('  *  py {0}'.format(host_os()))
 
 		self.telnet_port = int(sys.argv[1])
 		self.netcat_port = int(sys.argv[2])
@@ -240,4 +245,3 @@ if mode == 'unrag-layout-test-v1':
 
 if mode == 'unrag-layout-test-interactive':
 	unrag_layout_test_interactive()
-

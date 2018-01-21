@@ -14,7 +14,11 @@ __copyright__ = 2018
 # config
 #
 
-NUM_CLIENTS = 4
+NUM_CLIENTS = 2
+#NUM_CLIENTS = 4
+
+CHANNELS = ['#2']
+#CHANNELS = ['#1','#2','#3','#4']
 
 EVENT_DELAY = 0.01
 EVENT_DELAY = 0.001
@@ -145,7 +149,7 @@ class Client(asyncore.dispatcher):
 				if ofs1 >= 0 and ofs2 == ofs1 + 8 + 6:
 					self.nick = self.in_text[ofs2-6:ofs2]
 					self.in_text = u''
-					self.tx(u'/join #1\n')
+					self.tx(u'/join {0}\n'.format(CHANNELS[0]))
 					self.stage = 'ready'
 
 					self.send_status('{0}:start'.format(self.nick))
@@ -194,7 +198,7 @@ class Client(asyncore.dispatcher):
 
 	def reconnect_loop(self):
 		#print('reconnect_loop here')
-		channels_avail = ['#1','#2','#3','#4']
+		channels_avail = CHANNELS
 		for chan in channels_avail:
 			self.tx(u'/join {0}\n'.format(chan))
 		time.sleep(1)
@@ -232,11 +236,11 @@ class Client(asyncore.dispatcher):
 		
 		script = []
 		active_chan = 0
-		member_of = ['#1']
-		channels_avail = ['#1','#2','#3','#4']
+		member_of = [CHANNELS[0]]
+		channels_avail = CHANNELS
 		
 		# maps to channels_avail
-		msg_id = [0,0,0,0]
+		msg_id = [0]*len(channels_avail)
 		
 		# ---- acts ----
 		# next channel

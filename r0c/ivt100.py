@@ -8,6 +8,7 @@ import threading
 import asyncore
 import socket
 import datetime
+import platform
 import sys
 
 from .config import *
@@ -17,6 +18,7 @@ from .user   import *
 from .unrag  import *
 
 PY2 = (sys.version_info[0] == 2)
+WINDOWS = platform.system() == 'Windows'
 
 if PY2:
 	from Queue import Queue
@@ -1101,9 +1103,9 @@ class VT100_Client(asyncore.dispatcher):
 
 
 	def conf_wizard(self):
-		if DBG:
-			if u'\x03' in self.in_text:
-				self.world.core.shutdown()
+		#if DBG:
+		#	if u'\x03' in self.in_text:
+		#		self.world.core.shutdown()
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
 		ftop = u'\n'*20 + u'\033[H\033[J'
@@ -1131,7 +1133,7 @@ class VT100_Client(asyncore.dispatcher):
 			if delta > 1:
 				# acceptable if delta is exactly 2
 				# and the final characters are newline-ish
-				print('qwer delta = {0}'.format(delta))
+				print('client burst  {0}'.format(delta))
 				if delta > 2 or btext[-1] not in nline:
 					if self.wizard_maxdelta < delta:
 						self.wizard_maxdelta = delta
@@ -1150,7 +1152,7 @@ class VT100_Client(asyncore.dispatcher):
 					for key in drop:
 						del self.esc_tab[key]
 					self.esc_tab[nl.decode('utf-8')] = 'ret'
-					print('qwer newline = {0}'.format(b2hex(nl)))
+					print('client crlf:  {0}'.format(b2hex(nl)))
 
 				if self.wizard_maxdelta >= nl_a / 2:
 					self.echo_on = True
@@ -1187,8 +1189,11 @@ class VT100_Client(asyncore.dispatcher):
 				# i don't feel bad about this at all
 				if join_ch:
 					def delayed_join(user, chan):
+						chan = chan.rstrip('\r\n\0 ')  # \0 ??
 						time.sleep(0.2)
-						user.world.join_pub_chan(user, chan)
+						if chan:
+							print(' delay join:  [{0}]'.format(chan))
+							user.world.join_pub_chan(user, chan)
 					
 					threading.Thread(target=delayed_join, name='d_join',
 						args=(self.user, join_ch)).start()
@@ -1375,8 +1380,18 @@ class VT100_Client(asyncore.dispatcher):
 			if self.echo_on:
 				self.y_input, self.y_status = self.y_status, self.y_input
 
-			print('client conf:  linemode({0})  vt100({1})  echo_on({2})  codec({3})'.format(
-				self.linemode, self.vt100, self.echo_on, self.codec))
+			if WINDOWS:
+				print('client conf:  stream={0}  vt100={1}  no_echo={2}  enc={3}'.format(
+					'n' if self.linemode else 'Y',
+					'Y' if self.vt100    else 'n',
+					'n' if self.echo_on  else 'Y',
+					self.codec))
+			else:
+				print('client conf:  {0}stream  {1}vt100  {2}no_echo  \033[0m{3}'.format(
+					'\033[1;31m' if self.linemode else '\033[1;32m',
+					'\033[32m'   if self.vt100    else '\033[31m',
+					'\033[31m'   if self.echo_on  else '\033[32m',
+					self.codec))
 
 			self.wizard_stage = None
 			self.in_text = u''
@@ -1407,10 +1422,6 @@ class VT100_Client(asyncore.dispatcher):
 		aside = u''
 		old_cursor = self.linepos
 		for ch in self.in_text:
-			if DBG:
-				if ch == '\x03':
-					self.world.core.shutdown()
-			
 			was_esc = None
 			if aside and aside in self.esc_tab:
 				# text until now is an incomplete escape sequence;

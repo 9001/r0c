@@ -3,6 +3,7 @@ from __future__ import print_function
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
+import re
 import os
 import datetime
 
@@ -52,9 +53,9 @@ class World(object):
 		while not self.core.stopping:
 			time.sleep(0.05)
 			with self.mutex:
-				while not self.task_queue.empty():
-					task = self.task_queue.get()
-					task[0](*task[1],**task[2])
+				#while not self.task_queue.empty():
+				#	task = self.task_queue.get()
+				#	task[0](*task[1],**task[2])
 
 				for chan in self.dirty_ch:
 					self.refresh_chan(chan)
@@ -180,7 +181,9 @@ class World(object):
 				nchan.msgs.append(Message(nchan, time.time(), '--', \
 					'\033[1;36mchannel created at {0}'.format(
 						datetime.datetime.utcnow().strftime('%Y-%m-%d, %H:%M:%SZ'))))
-				self.task_queue.put([self.load_chat_log, [nchan], {}])
+				#if nchan.name != 'xld':
+				self.load_chat_log(nchan)
+				#self.task_queue.put([self.load_chat_log, [nchan], {}])
 				self.pub_ch.append(nchan)
 			
 			ret = self.join_chan_obj(user, nchan)
@@ -221,10 +224,10 @@ class World(object):
 						nchan.topic_bak = nchan.topic
 					nchan.topic = msg
 
-				print('broadcast: {0}'.format(msg))
+				#print('broadcast: {0}'.format(msg))
 				for user in self.users:
 					if user.active_chan:
-						print('         : {0} ->'.format(user))
+						#print('         : {0} ->'.format(user))
 						to_send = '\033[H{0}\033[K'.format(msg)
 						user.client.screen[0] = to_send
 						user.client.say(to_send.encode(
@@ -265,77 +268,112 @@ class World(object):
 				if len(user.chans) <= i:
 					i -= 1
 				user.new_active_chan = user.chans[i]
-			del uchan
-
+			
 			self.send_chan_msg('--', nchan,
 				'\033[1;33m{0}\033[22m has left'.format(user.nick))
 
 			if not nchan.uchans:
-				print('destroying dead channel \"{0}\"'.format(nchan.get_name()))
+				print(' close chan:  [{0}]'.format(nchan.get_name()))
+
+				if nchan.log_fh:
+					nchan.log_fh.close()
 				
 				ch_list = self.pub_ch
 				if not nchan.name:
 					ch_list = self.priv_ch
 				
 				ch_list.remove(nchan)
-				del nchan
 
 
 	def load_chat_log(self, nchan):
 		if not nchan:
 			return
 
-		backlog = nchan.msgs
-		nchan.msgs = []
+		#print('  chan hist:  scanning files')
+		t1 = time.time()
 
-		log_dir = 'log/{0}'.format(nchan.name)
+		log_dir = u'log/{0}'.format(nchan.name)
 		try: os.makedirs(log_dir)
 		except: pass
 
-		files = []
-		for (dirpath, dirnames, filenames) in os.walk(log_dir):
-			files.extend(filenames)
-			break
+		if PY2:
+			# os.walk stats all files (bad over nfs)
+			files = os.listdir(log_dir.encode('utf-8'))
+		else:
+			files = []
+			for (dirpath, dirnames, filenames) in os.walk(log_dir):
+				files.extend(filenames)
+				break
+		
+		re_chk = re.compile('^[0-9]{4}-[0-9]{4}-[0-9]{6}-*$')
 
-		total_size = 0
-		for fn in sorted(files):
-			total_size += os.path.getsize(
-				'{0}/{1}'.format(log_dir, fn))
+		#total_size = 0
+		#for fn in sorted(files):
+		#	total_size += os.path.getsize(
+		#		'{0}/{1}'.format(log_dir, fn))
+		#
+		#do_broadcast = (total_size > 1024*1024)
+		#if do_broadcast:
+		#	self.broadcast_banner('\033[1;37;45m [ LOADING CHATLOG ] \033[0;42m')
+		#	# daily dose
 
-		do_broadcast = (total_size > 1024*1024)
-		if do_broadcast:
-			self.broadcast_banner('\033[1;37;45m [ LOADING CHATLOG ] \033[0;42m')
-			# daily dose
-
-		t0 = time.time()
-		msg_n = 0
+		#print('  chan hist:  reading files')
+		ln = '???'
+		t2 = time.time()
+		chunks = [nchan.msgs]
+		n_left = MAX_HIST_LOAD - len(nchan.msgs)
+		bytes_loaded = 0
 		try:
-			for fn in sorted(files):
+			for fn in reversed(sorted(files)):
+				if not re_chk.match(fn):
+					# unexpected file in log folder, skip it
+					continue
+
+				chunk = []
 				with open('{0}/{1}'.format(log_dir, fn), 'rb') as f:
+					f.readline()  # discard version info
 					for ln in f:
 						ts, user, txt = \
 							ln.decode('utf-8').rstrip('\n').split(' ', 2)
 
-						msg = Message(None, int(ts, 16), user, txt)
-						nchan.msgs.append(msg)
-						msg.sno = msg_n
-						msg_n += 1
+						chunk.append(Message(None, int(ts, 16), user, txt))
+						
+					bytes_loaded += f.tell()
+
+				if chunk:
+					chunk.append(Message(None, int(ts, 16), '--', \
+						'\033[36mend of log file "{0}"'.format(fn)))
 				
-				msg = Message(nchan, int(ts, 16), '--', \
-					'\033[36mend of log file "{0}"'.format(fn))
-				nchan.msgs.append(msg)
-				msg.sno = msg_n
-				msg_n += 1
+				if len(chunk) > n_left:
+					chunk = chunk[-n_left:]
+				
+				chunks.append(chunk)
+				n_left -= len(chunk)
+				if n_left <= 0:
+					break
 		except:
 			whoops(ln)
 
-		print('loaded {0} messages, {1} bytes, in {2:.3f} seconds, for #{3}'.format(
-			msg_n, total_size, time.time() - t0, nchan.name))
-		
-		if do_broadcast:
-			self.broadcast_banner(None)
+		#print('  chan hist:  merging {0} chunks'.format(len(chunks)))
+		nchan.msgs = []
+		for chunk in reversed(chunks):
+			#print('\nadding {0} messages:\n  {1}'.format(
+			#	len(chunk), '\n  '.join(str(x) for x in chunk)))
+			nchan.msgs.extend(chunk)
 
-		self.start_logging(nchan, backlog)
+		#print('  chan hist:  setting {0} serials'.format(len(nchan.msgs)))
+		for n, msg in enumerate(nchan.msgs):
+			msg.sno = n
+
+		t3 = time.time()
+		print('  chan hist:  {0} msgs, {1:.0f} kB, {2:.2f} + {3:.2f} sec, #{5}'.format(
+			MAX_HIST_LOAD - n_left, bytes_loaded/1024.0, t2-t1, t3-t2, t3-t1, nchan.name))
+		
+		#if do_broadcast:
+		#	self.broadcast_banner(None)
+
+		#if nchan.name != 'xst':
+		self.start_logging(nchan, chunks[0])
 
 
 	def start_logging(self, nchan, chat_backlog=None):
@@ -347,24 +385,24 @@ class World(object):
 		ts = datetime.datetime.utcnow().strftime('%Y-%m%d-%H%M%S')
 		log_fn = 'log/{0}/{1}'.format(nchan.name, ts)
 
+		while os.path.isfile(log_fn):
+			log_fn += '-'
+
 		nchan.log_ctr = 0
 		nchan.log_fh = open(log_fn, 'wb')
+		nchan.log_fh.write('1 {0:x}\n'.format(
+			int(time.time())).encode('utf-8'))
 
-		print('opened log file {0}'.format(log_fn))
+		#print('opened log file {0}'.format(log_fn))
 
 		if chat_backlog:
+			#print('appending backlog ({0} messages)'.format(len(chat_backlog)))
 			for msg in chat_backlog:
 				nchan.log_ctr += 1
 				nchan.log_fh.write((u' '.join(
 					[hex(int(msg.ts))[2:], msg.user, msg.txt]\
 					) + u'\n').encode('utf-8'))
 				
-				if nchan.msgs:
-					# not particularly happy with this
-					msg.sno = nchan.msgs[-1].sno + 1
-				
-				nchan.msgs.append(msg)
-
 			# potential chance that a render goes through
 			# before the async job processor kicks in
 			self.dirty_ch[nchan] = 1

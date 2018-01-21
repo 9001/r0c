@@ -5,6 +5,9 @@ if __name__ == '__main__':
 
 import re
 import hashlib
+# debug imports
+import code
+import gc
 
 from .util import *
 from .chat import *
@@ -16,6 +19,7 @@ PY2 = (sys.version_info[0] == 2)
 class User(object):
 	def __init__(self, world, address):
 		self.world = world
+		self.admin = False           # set true after challenge success
 		self.client = None           # the client which this object belongs to
 		self.chans = []              # UChannel instances
 		self.active_chan = None      # UChannel
@@ -61,6 +65,7 @@ class User(object):
 
 	def post_init(self, client):
 		self.client = client
+		self.admin = (self.client.addr[0] == '127.0.0.1')  # TODO
 
 	def create_channels(self):
 		# while true; do tail -n +3 ansi | iconv -t 'cp437//IGNORE' | iconv -f cp437 | while IFS= read -r x; do printf "$x\n"; done | sed -r "s/$/$(printf '\033[K')/"; printf '\033[J'; sleep 0.2; printf '\033[H'; done
@@ -194,6 +199,22 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 		self.client.handshake_world = True
 
+
+
+	def admin_test(self, cmd, arg):
+		if self.admin:
+			return True
+
+		print('denied exec:  /{0} {1} from {2} ({3})'.format(
+			cmd, arg, self.nick, self.client.addr))
+
+		inf = self.world.get_priv_chan(self, 'r0c-status').nchan
+		
+		self.world.send_chan_msg('-err-', inf, """\033[1;31m[denied]\033[0m
+  don't move, the police are on the way
+""")
+
+		return False
 
 
 	def exec_cmd(self, cmd_str):
@@ -450,6 +471,9 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			self.active_chan.nchan.msgs = [msg]
 			
 		elif cmd == 'sd':
+			if not self.admin_test(cmd, arg):
+				return
+			
 			msg = "\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
 			self.world.broadcast_message(msg, 2)
 			
@@ -460,6 +484,35 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			thr = threading.Thread(target=killer, name='shutd')
 			thr.daemon = True
 			thr.start()
+
+		elif cmd == 'mem':
+			if not self.admin_test(cmd, arg):
+				return
+			
+			print('memdump started')
+			memory_dump()
+			print('memdump done')
+
+		elif cmd == 'repl':
+			if not self.admin_test(cmd, arg):
+				return
+			
+			print('entering repl')
+			#code.interact(locals=locals())
+			code.InteractiveConsole(locals=globals()).interact()
+			print('left repl')
+
+		elif cmd == 'ev':
+			if not self.admin_test(cmd, arg):
+				return
+			
+			eval(arg)
+
+		elif cmd == 'gc':
+			if not self.admin_test(cmd, arg):
+				return
+			
+			gc.collect()
 
 		elif cmd == 'quit' or cmd == 'q':
 			self.client.host.part(self.client)
