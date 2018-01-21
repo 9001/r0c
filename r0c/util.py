@@ -13,6 +13,7 @@ import platform
 from .config import *
 
 PY2 = (sys.version_info[0] == 2)
+WINDOWS = platform.system() == 'Windows'
 
 print_mutex = threading.Lock()
 if PY2:
@@ -21,6 +22,9 @@ if PY2:
 		with print_mutex:
 			#__builtin__.print("y")
 			t = time.strftime('%H%M%S ')
+			args = list(args)
+			if WINDOWS and args:
+				args[0] = strip_ansi(args[0])
 			__builtin__.print(t + (args[0] if args else ''
 				).replace('\n', '\n'+t), *args[1:], **kwargs)
 else:
@@ -29,11 +33,11 @@ else:
 		with print_mutex:
 			#builtins.print("y")
 			t = time.strftime('%H%M%S ')
+			args = list(args)
+			if WINDOWS and args:
+				args[0] = strip_ansi(args[0])
 			builtins.print(t + (args[0] if args else ''
 				).replace('\n', '\n'+t), *args[1:], **kwargs)
-
-def fmt():
-	return time.strftime('%d/%m/%Y, %H:%M:%S')
 
 def num(c):
 	try:

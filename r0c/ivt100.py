@@ -644,20 +644,35 @@ class VT100_Client(asyncore.dispatcher):
 			msg_fmt = u'{{1}}{{2:{0}}}{{3}} {{4}}'.format(nick_w)
 		
 		# first ensure our cache is sane
-		if not ch.vis \
-		or len(nch.msgs) <= ch.vis[0].im \
-		or nch.msgs[ch.vis[0].im] != ch.vis[0].msg:
-			
-			try:
-				# some messages got pruned from the channel message list
-				im0 = nch.msgs.index(ch.vis[0].msg)
-				for n, vis in enumerate(ch.vis):
-					vis.im = n + im0
-			except:
-				# the pruned messages included the visible ones,
-				# scroll client to bottom
-				ch.lock_to_bottom = True
-				full_redraw = True
+		if not ch.vis:
+			ch.lock_to_bottom = True
+			full_redraw = True
+		else:
+			if len(nch.msgs) <= ch.vis[0].im \
+			or nch.msgs[ch.vis[0].im] != ch.vis[0].msg:
+				
+				try:
+					# some messages got pruned from the channel message list
+					if len(nch.msgs) <= ch.vis[0].im:
+						print('\033[1;33mcache inval:  [{0}] in [{1}], |{2}| <= {3}\033[0m'.format(
+							ch.user.nick, nch.get_name(),
+							len(nch.msgs), ch.vis[0].im))
+					else:
+						print('\033[1;33mcache inval:  [{0}] in [{1}], #{2} <= #{3}\033[0m'.format(
+							ch.user.nick, nch.get_name(),
+							nch.msgs[ch.vis[0].im].sno, ch.vis[0].msg.sno))
+
+					im0 = nch.msgs.index(ch.vis[0].msg)
+					for n, vis in enumerate(ch.vis):
+						vis.im = n + im0
+				except:
+					# the pruned messages included the visible ones,
+					# scroll client to bottom
+					print('\033[1;33mviewport NG:  [{0}] in [{1}]\033[0m'.format(
+						ch.user.nick, nch.get_name()))
+
+					ch.lock_to_bottom = True
+					full_redraw = True
 		
 		# we get painfully slow on join/parts when the
 		# channel has more than 800 messages or so
@@ -679,7 +694,7 @@ class VT100_Client(asyncore.dispatcher):
 				# newest/bottom message will be added first
 				ch.vis = []
 				for n, msg in enumerate(reversed(nch.msgs)):
-					imsg = len(nch.msgs) - n
+					imsg = (len(nch.msgs) - 1) - n
 					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
 					n_vis = len(txt)
@@ -695,7 +710,6 @@ class VT100_Client(asyncore.dispatcher):
 					for ln in reversed(vmsg.txt[car:]):
 						lines.append(ln)
 					
-					imsg -= 1
 					lines_left -= n_vis
 					if lines_left <= 0:
 						break
@@ -1091,6 +1105,16 @@ class VT100_Client(asyncore.dispatcher):
 					# rely on vt100 code to determine the new display
 					# then retransmit the full display  (good enough)
 					return u'\r\n'*self.h + self.update_chat_view(True, True)
+
+		if len(nch.msgs) <= ch.vis[0].im \
+		or nch.msgs[ch.vis[0].im] != ch.vis[0].msg:
+			print()
+			print('\033[1;31mcache inval:  bug in update_chat_view ;_;\033[0m')
+			if len(nch.msgs) < 10:
+				print('vis.im:   ' + ', '.join([str(x.im)      for x in ch.vis]))
+				print('vis.sno:  ' + ', '.join([str(x.msg.sno) for x in ch.vis]))
+				print('nch.msgs: ' + ', '.join([str(x.sno)     for x in nch.msgs]))
+			print()
 
 		return ret
 
