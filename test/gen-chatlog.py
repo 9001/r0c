@@ -38,10 +38,10 @@ with open('../log/g/0000-0000-000000', 'wb') as f:
 				mts = calendar.timegm(mts.timetuple())
 				print(mts)
 				f.write(u'{0} -- [36mday changed to [1m{1}\n'.format(
-					hex(int(mts))[2:], date).encode('utf-8'))
+					hex(int(mts*8.0))[2:].rstrip('L'), date).encode('utf-8'))
 			last_date = date
 		
 		f.write(u'{0} gcpy {1}\n'.format(
-			hex(int(ts))[2:], ht).encode('utf-8'))
+			hex(int(ts*8.0))[2:].rstrip('L'), ht).encode('utf-8'))
 
 		ts += 60 * 32 + 7

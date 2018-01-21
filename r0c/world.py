@@ -147,8 +147,8 @@ class World(object):
 				
 				nchan.log_ctr += 1
 				nchan.log_fh.write((u' '.join(
-					[hex(int(msg.ts))[2:], msg.user, msg.txt]\
-					) + u'\n').encode('utf-8'))
+					[hex(int(msg.ts*8.0))[2:].rstrip('L'),
+					msg.user, msg.txt]) + u'\n').encode('utf-8'))
 
 
 	def join_chan_obj(self, user, nchan, alias=None):
@@ -348,12 +348,12 @@ class World(object):
 						ts, user, txt = \
 							ln.decode('utf-8').rstrip('\n').split(' ', 2)
 
-						chunk.append(Message(None, int(ts, 16), user, txt))
+						chunk.append(Message(None, int(ts, 16)/8.0, user, txt))
 						
 					bytes_loaded += f.tell()
 
 				#if chunk:
-				#	chunk.append(Message(None, int(ts, 16), '--', \
+				#	chunk.append(Message(None, int(ts, 16)/8.0, '--', \
 				#		'\033[36mend of log file "{0}"'.format(fn)))
 				
 				if len(chunk) > n_left:
@@ -412,9 +412,9 @@ class World(object):
 			for msg in chat_backlog:
 				nchan.log_ctr += 1
 				nchan.log_fh.write((u' '.join(
-					[hex(int(msg.ts))[2:], msg.user, msg.txt]\
-					) + u'\n').encode('utf-8'))
-				
+					[hex(int(msg.ts*8.0))[2:].rstrip('L'),
+					msg.user, msg.txt]) + u'\n').encode('utf-8'))
+			
 			# potential chance that a render goes through
 			# before the async job processor kicks in
 			self.dirty_ch[nchan] = 1
