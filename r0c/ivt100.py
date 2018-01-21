@@ -526,7 +526,7 @@ class VT100_Client(asyncore.dispatcher):
 		if not full_redraw and not self.linebuf and self.linemode:
 			return u''
 		msg_len = len(self.linebuf)
-		vis_text = self.linebuf
+		vis_text = self.linebuf.replace(u'\x0b', u'\033[7mK\033[0m')
 		free_space = self.w - (len(self.user.nick) + 2 + 1)  # nick chrome + final char on screen
 		if msg_len <= free_space:
 			self.lineview = 0
@@ -1448,7 +1448,7 @@ class VT100_Client(asyncore.dispatcher):
 				for pch in aside:
 					nch = ord(pch)
 					#print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
-					if nch < 0x20:  # or (self.codec == 'utf-8' and nch >= 0x80 and nch < 0x100):
+					if nch < 0x20 and nch != 0x0b:
 						print('substituting non-printable \\x{0:02x}'.format(nch))
 						plain += '?'
 					else:
@@ -1513,7 +1513,9 @@ class VT100_Client(asyncore.dispatcher):
 								self.linebuf = self.linebuf[1:]
 							
 							self.world.send_chan_msg(
-								self.user.nick, self.user.active_chan.nchan, self.linebuf)
+								self.user.nick,
+								self.user.active_chan.nchan,
+								convert_color_codes(self.linebuf))
 
 						self.msg_hist_n = None
 						self.linebuf = u''

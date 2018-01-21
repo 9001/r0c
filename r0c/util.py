@@ -198,6 +198,68 @@ def visual_length(txt):
 
 
 
+
+FOREGROUNDS = {}
+for luma, chars in enumerate([u'01234567',u'89abcdef']):
+	for n, ch in enumerate(chars):
+		FOREGROUNDS[ch] = u'\033[{0};3{1}'.format(luma, n)
+
+BACKGROUNDS = {}
+for n, ch in enumerate(u'01234567'):
+	BACKGROUNDS[ch] = u';4{0}'.format(n)
+
+def convert_color_codes(txt):
+	foregrounds = FOREGROUNDS
+	backgrounds = BACKGROUNDS
+	scan_from = 0
+	while txt:
+		ofs = txt.find(u'\x0b', scan_from)
+		if ofs < 0:
+			break
+		
+		scan_from = ofs + 1
+
+		fg = None
+		if len(txt) > ofs + 1:
+			fg = txt[ofs+1]
+		
+		bg = None
+		if len(txt) > ofs + 3 and txt[ofs+2] == u',':
+			bg = txt[ofs+3]
+		
+		if fg in foregrounds:
+			fg = foregrounds[fg]
+		else:
+			fg = None
+			bg = None  # can't set bg without valid fg
+		
+		if bg in backgrounds:
+			bg = backgrounds[bg]
+		else:
+			bg = None
+
+		resume_txt = ofs + 1
+		if fg:
+			resume_txt += 1
+			scan_from = len(fg) + 1
+		if bg:
+			resume_txt += 2
+			scan_from += len(bg)
+
+		if fg and bg:
+			txt = u'{0}{1}{2}m{3}'.format(
+				txt[:ofs], fg, bg, txt[resume_txt:])
+		elif fg:
+			txt = u'{0}{1}m{2}'.format(
+				txt[:ofs], fg, txt[resume_txt:])
+		else:
+			txt = u'{0}K{1}'.format(
+				txt[:ofs], txt[resume_txt:])
+
+	return txt
+
+
+
 #B35_CHARS = tuple('0123456789abcdefghijkmnopqrstuvwxyz')
 B35_CHARS = tuple('abcdefghijkmnopqrstuvwxyz')
 B35_ATLAS = dict((c, i) for i, c in enumerate(B35_CHARS))
