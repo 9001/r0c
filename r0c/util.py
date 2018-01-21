@@ -19,23 +19,23 @@ print_mutex = threading.Lock()
 if PY2:
 	import __builtin__
 	def print(*args, **kwargs):
+		args = list(args)
+		if WINDOWS and args and u'\033' in args[0]:
+			args[0] = strip_ansi(args[0])
+		
 		with print_mutex:
-			#__builtin__.print("y")
 			t = time.strftime('%H%M%S ')
-			args = list(args)
-			if WINDOWS and args:
-				args[0] = strip_ansi(args[0])
 			__builtin__.print(t + (args[0] if args else ''
 				).replace('\n', '\n'+t), *args[1:], **kwargs)
 else:
 	import builtins
 	def print(*args, **kwargs):
+		args = list(args)
+		if WINDOWS and args and u'\033' in args[0]:
+			args[0] = strip_ansi(args[0])
+		
 		with print_mutex:
-			#builtins.print("y")
 			t = time.strftime('%H%M%S ')
-			args = list(args)
-			if WINDOWS and args:
-				args[0] = strip_ansi(args[0])
 			builtins.print(t + (args[0] if args else ''
 				).replace('\n', '\n'+t), *args[1:], **kwargs)
 

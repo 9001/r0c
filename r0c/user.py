@@ -109,7 +109,7 @@ class User(object):
 		text += u"""
 Useful commands:
    \033[36m/nick\033[0m  change your nickname
-   \033[36m/help\033[0m  full commands listing
+   \033[36m/help\033[0m  how-to and about
 
 Text formatting:
   \033[36mCTRL-O\033[0m  reset text formatting
@@ -416,8 +416,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			nch = self.active_chan.nchan
 			if not arg:
 				self.world.send_chan_msg('--', inf, """[goto]
-  #{0}:
-  {1} messagess since {2}
+  {1} msgs since {2} in {0}
   
   command usage:
     /g 19:47             jump to time
@@ -426,7 +425,10 @@ if you are using a mac, PgUp is fn-Shift-PgUp
     /g 3172              jump to message
     /g 34%               jump to offset
     /l                   jump to most recent
-""".format(nch.get_name(), len(nch.msgs), datetime.datetime.utcfromtimestamp(self.ts).strftime('%Y-%m-%d, %H:%M')))
+""".format(
+				nch.get_name(),
+				len(nch.msgs),
+				datetime.datetime.utcfromtimestamp(nch.msgs[0].ts).strftime('%Y-%m-%d, %H:%M')))
 
 			else:
 				tfmt = '%Y-%m-%dT%H:%M:%S'

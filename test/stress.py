@@ -17,12 +17,15 @@ __copyright__ = 2018
 NUM_CLIENTS = 2
 #NUM_CLIENTS = 4
 
-CHANNELS = ['#2']
+CHANNELS = ['#1']
 #CHANNELS = ['#1','#2','#3','#4']
 
 EVENT_DELAY = 0.01
 EVENT_DELAY = 0.001
 EVENT_DELAY = None
+
+ITERATIONS = 1000000
+ITERATIONS = 10000000
 
 IMMEDIATE_TX = True
 #IMMEDIATE_TX = False
@@ -258,7 +261,7 @@ class Client(asyncore.dispatcher):
 
 		odds_next, odds_join, odds_part, odds_send = chance
 		
-		for n in range(1000000):
+		for n in range(ITERATIONS):
 			if self.stopping:
 				break
 

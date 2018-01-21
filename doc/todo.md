@@ -10,7 +10,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: whatever
 
-* truncate chan hist when it gets 2big
 * admin auth
 * rate limiting
 * nick colours
@@ -31,7 +30,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
   * stty
 
 * ├┐ ┌┬┐ ┌ 
-
 * redraw time every 5 seconds
 * strip colors for non-vt100
 * handle local echo  (good enough)
@@ -48,3 +46,5 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * color codes
 * broadcast "day changed"
 * store buffer in input history when hitting CUp/CDown
+* truncate chan hist when it gets 2big
+

@@ -87,6 +87,8 @@ class World(object):
 
 
 	def send_chan_msg(self, from_nick, nchan, text):
+		max_hist_mem = MAX_HIST_MEM
+		msg_trunc_size = MSG_TRUNC_SIZE
 		with self.mutex:
 			self.num_messages += 1
 			if nchan.name is None and not from_nick.startswith('-'):
@@ -120,6 +122,16 @@ class World(object):
 			msg = Message(nchan, time.time(), from_nick, text)
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
+
+			if len(nchan.msgs) > max_hist_mem:
+				new_len = len(nchan.msgs) - msg_trunc_size
+				print(' hist trunc:  [{0}] from {1} to {2}'.format(
+					nchan.get_name(), len(nchan.msgs), new_len))
+				while new_len > max_hist_mem:
+					print('\033[1;31!!!\033[0m')
+					new_len -= msg_trunc_size
+				nchan.msgs = nchan.msgs[msg_trunc_size:]
+
 			#self.refresh_chan(nchan)
 			for uchan in nchan.uchans:
 				if nchan.name is None or uchan.user.nick_re.search(text):

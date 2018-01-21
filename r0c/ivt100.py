@@ -1404,13 +1404,13 @@ class VT100_Client(asyncore.dispatcher):
 				self.y_input, self.y_status = self.y_status, self.y_input
 
 			if WINDOWS:
-				print('client conf:  stream={0}  vt100={1}  no_echo={2}  enc={3}'.format(
+				print('client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}'.format(
 					'n' if self.linemode else 'Y',
 					'Y' if self.vt100    else 'n',
 					'n' if self.echo_on  else 'Y',
 					self.codec))
 			else:
-				print('client conf:  {0}stream  {1}vt100  {2}no_echo  \033[0m{3}'.format(
+				print('client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}'.format(
 					'\033[1;31m' if self.linemode else '\033[1;32m',
 					'\033[32m'   if self.vt100    else '\033[31m',
 					'\033[31m'   if self.echo_on  else '\033[32m',

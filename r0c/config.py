@@ -2,7 +2,7 @@
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
-BUILD_DATE = '2018-01-16'  # felt like a good idea at the time
+BUILD_DATE = '2018-01-22'  # felt like a good idea at the time
 
 # two example values are listed for each config attribute;
 # the first for debug purposes, the second for regular use
@@ -46,7 +46,16 @@ MESSAGES_PER_LOG_FILE = 131072
 
 # max number of messages to load from disk when joining a channel
 MAX_HIST_LOAD = 64
-MAX_HIST_LOAD = 131072
+MAX_HIST_LOAD = 65536
+
+# max number of messages in channel scrollback before truncating
+MAX_HIST_MEM = 80
+MAX_HIST_MEM = 98304
+
+# number of messages to remove every time the chan gets 2big
+# (may cause a full redraw of some clients focused on chan)
+MSG_TRUNC_SIZE = 8
+MSG_TRUNC_SIZE = 16384
 
 # width of the hexdump, in bytes per line
 HEX_WIDTH = 16
