@@ -5,6 +5,7 @@ if __name__ == '__main__':
 
 import threading
 import datetime
+import calendar
 
 from .util import *
 
@@ -71,6 +72,27 @@ class UChannel(object):
 			return True
 		
 		return False
+
+	def jump_to_msg(self, msg_n):
+		if msg_n >= len(self.nchan.msgs):
+			msg_n = len(self.nchan.msgs)-1
+		
+		self.vis = [VisMessage().c_new(
+			self.nchan.msgs[msg_n], ['x'], msg_n, 0, 1, self)]
+		
+		self.lock_to_bottom = False
+		self.user.client.need_full_redraw = True
+
+	def jump_to_time(self, dt):
+		ts = calendar.timegm(dt.timetuple())
+		for msg in self.nchan.msgs:
+			if msg.ts >= ts:
+				i = self.nchan.msgs.index(msg)
+				print('jump to {0} of {1}'.format(i, len(self.nchan.msgs)))
+				return self.jump_to_msg(i)
+		
+		return self.jump_to_msg(len(self.nchan.msgs)-1)
+
 
 
 class VisMessage(object):
@@ -147,6 +169,7 @@ class VisMessage(object):
 				postfix, self.unformatted[ofs+1:])
 		else:
 			self.txt[0] = self.unformatted
+
 
 
 class Message(object):

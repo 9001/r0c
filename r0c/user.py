@@ -411,6 +411,74 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd == 'goto' or cmd == 'g':
+			ch = self.active_chan
+			nch = self.active_chan.nchan
+			if not arg:
+				self.world.send_chan_msg('--', inf, """[goto]
+  #{0}:
+  {1} messagess since {2}
+  
+  command usage:
+    /g 19:47             jump to time
+    /g 2018-01-21        jump to date
+    /g 2018-01-21 19:47  jump to datetime
+    /g 3172              jump to message
+    /g 34%               jump to offset
+    /l                   jump to most recent
+""".format(nch.get_name(), len(nch.msgs), datetime.datetime.utcfromtimestamp(self.ts).strftime('%Y-%m-%d, %H:%M')))
+
+			else:
+				tfmt = '%Y-%m-%dT%H:%M:%S'
+
+				m = re.match('(^[0-9]+)$', arg)
+				if m:
+					ch.jump_to_msg(int(m.group(0)))
+					return
+				
+				m = re.match('(^[0-9\.]+)%$', arg)
+				if m:
+					ch.jump_to_msg(int(float(m.group(0))*len(nch.msgs)/100.0))
+					return
+
+				m = re.match('(^[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2})$', arg)
+				if m:
+					ht = '{0}T{1}:00'.format(*m.groups())
+					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
+					return
+
+				m = re.match('(^[0-9]{4}-[0-9]{2}-[0-9]{2})$', arg)
+				if m:
+					ht = '{0}T00:00:00'.format(m.group(0))
+					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
+					return
+
+				m = re.match('(^[0-9]{2}:[0-9]{2})$', arg)
+				if m:
+					ht = '{0}T{1}:00'.format(time.strftime('%Y-%m-%d'), m.group(0))
+					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
+					return
+
+				self.world.send_chan_msg('-err-', inf, """[goto]
+  invalid argument format, see /g for help
+""")
+
+
+
+		elif cmd == 'search' or cmd == 'srch' or cmd == 's':
+			ch = self.active_chan
+			nch = self.active_chan.nchan
+			if not arg:
+				self.world.send_chan_msg('--', inf, """[search]
+  plaintext search:
+    /s fore       finds messages like "before"
+
+  regex search:
+    /s s/\\bfore/  finds messages like "foremost"
+""")
+
+
+
 		elif cmd == 'sw':
 			try: arg = int(arg)
 			except: pass

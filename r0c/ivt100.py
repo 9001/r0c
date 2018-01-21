@@ -42,8 +42,9 @@ class VT100_Server(asyncore.dispatcher):
 		self.listen(1)
 
 	def con(self, msg, adr, add=0):
+		ht = time.strftime('%d/%m/%Y, %H:%M:%S')
 		print(' {0} {1}  {2}  {3} :{4}'.format(
-			msg, fmt(), len(self.clients)+add, adr[0], adr[1]))
+			msg, ht, len(self.clients)+add, adr[0], adr[1]))
 	
 	def gen_remote(self, socket, addr, user):
 		raise RuntimeError('inherit me')

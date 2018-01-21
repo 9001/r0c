@@ -151,6 +151,7 @@ class Core(object):
 		self.pushthr_alive = True
 		
 		last_ts = None
+		last_date = None
 		while not self.stopping:
 			while True:
 				ts = time.time()
@@ -172,12 +173,11 @@ class Core(object):
 					world.broadcast_message(
 						"\033[36mday changed to \033[1m{0}".format(date))
 				last_date = date
-				print(date)
 
 			for iface in ifaces:
 				for client in iface.clients:
 					if not client.handshake_sz:
-						print('!!! push_worker without handshake_sz')
+						pass
 					client.refresh(False)
 		
 		self.pushthr_alive = False
