@@ -15,7 +15,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * admin auth
 * rate limiting
 * nick colours
-* broadcast "day changed"
 
 # bugs: important
 
@@ -48,3 +47,4 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * scrolling is wonky when loading small chatlogs
 * deserialize takes 4gb ram
 * color codes
+* broadcast "day changed"

@@ -179,7 +179,7 @@ class World(object):
 			if nchan is None:
 				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
 				nchan.msgs.append(Message(nchan, time.time(), '--', \
-					'\033[1;36mchannel created at {0}'.format(
+					'\033[36mchannel created at \033[1m{0}'.format(
 						datetime.datetime.utcnow().strftime('%Y-%m-%d, %H:%M:%SZ'))))
 				#if nchan.name != 'xld':
 				self.load_chat_log(nchan)
@@ -237,21 +237,21 @@ class World(object):
 	def broadcast_message(self, msg, severity=1):
 		""" 1=append, 2=append+scroll """
 		with self.mutex:
-			chans = {}
-			for user in self.users:
-				for uchan in user.chans:
-					if uchan.nchan not in chans:
-						chans[uchan.nchan] = 1
-						self.send_chan_msg('-err-', uchan.nchan, msg)
-		
+			for nchan in self.pub_ch:
+				self.send_chan_msg('--', nchan, msg)
+			
+			for nchan in self.priv_ch:
+				self.send_chan_msg('--', nchan, msg)
+			
 			if severity > 1:
-				if user.active_chan:
-					if not user.active_chan.lock_to_bottom:
-						user.active_chan.lock_to_bottom = True
-						user.client.need_full_redraw = True
-				else:
-					user.client.say("\n [[ broadcast message ]]\n {0}\n".format(
-						msg).replace(u"\n", u"\r\n").encode('utf-8'))
+				for user in self.users:
+					if user.active_chan:
+						if not user.active_chan.lock_to_bottom:
+							user.active_chan.lock_to_bottom = True
+							user.client.need_full_redraw = True
+					else:
+						user.client.say("\n [[ broadcast message ]]\n {0}\n".format(
+							msg).replace(u"\n", u"\r\n").encode('utf-8'))
 
 
 	def part_chan(self, uchan):
@@ -340,9 +340,9 @@ class World(object):
 						
 					bytes_loaded += f.tell()
 
-				if chunk:
-					chunk.append(Message(None, int(ts, 16), '--', \
-						'\033[36mend of log file "{0}"'.format(fn)))
+				#if chunk:
+				#	chunk.append(Message(None, int(ts, 16), '--', \
+				#		'\033[36mend of log file "{0}"'.format(fn)))
 				
 				if len(chunk) > n_left:
 					chunk = chunk[-n_left:]

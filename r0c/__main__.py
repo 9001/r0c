@@ -82,7 +82,8 @@ class Core(object):
 		self.netcat_server = NetcatServer('0.0.0.0', self.netcat_port, self.world)
 
 		print('  *  Starting push driver')
-		self.push_thr = threading.Thread(target=self.push_worker, args=([self.telnet_server, self.netcat_server],), name='push')
+		self.push_thr = threading.Thread(target=self.push_worker, args=(
+			self.world, [self.telnet_server, self.netcat_server],), name='push')
 		#self.push_thr.daemon = True
 		self.push_thr.start()
 
@@ -146,7 +147,7 @@ class Core(object):
 		self.asyncore_alive = False
 
 
-	def push_worker(self, ifaces):
+	def push_worker(self, world, ifaces):
 		self.pushthr_alive = True
 		
 		last_ts = None
@@ -163,6 +164,15 @@ class Core(object):
 					time.sleep((1-(ts-its))*0.9)
 				else:
 					time.sleep(0.01)
+
+			#ts = (ts - 1516554584) * 10000
+			date = datetime.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+			if date != last_date:
+				if last_date:
+					world.broadcast_message(
+						"\033[36mday changed to \033[1m{0}".format(date))
+				last_date = date
+				print(date)
 
 			for iface in ifaces:
 				for client in iface.clients:

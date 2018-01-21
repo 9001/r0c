@@ -61,10 +61,6 @@ class VT100_Server(asyncore.dispatcher):
 		self.clients.append(remote)
 		remote.conf_wizard()
 	
-	def broadcast(self, message):
-		for client in self.clients:
-			client.say(message)
-	
 	def part(self, remote):
 		remote.dead = True
 		with self.world.mutex:
