@@ -121,6 +121,7 @@ Text formatting:
           say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
+  \033[36mCTRL-D\033[0m  jump to active channel
   \033[36mCTRL-A\033[0m  jump to previous channel
   \033[36mCTRL-X\033[0m  jump to next channel
   \033[36m/3\033[0m      go to channel 3
@@ -250,22 +251,37 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 """)
 				return
 
-			if arg.startswith('-'):
+			# TODO: make this more lenient?
+			legit_chars = azAZ
+			legit_chars += '0123456789_-'
+			new_nick = u''
+			nick_re = u''
+			for ch in arg:
+				if ch in legit_chars:
+					new_nick += ch
+
+			if not new_nick:
 				self.world.send_chan_msg('-err-', inf, """[invalid argument]
-  nicks cannot start with "-" (dash)
+  yooo EXCLUSIVELY illegal chars in new nick
 """)
 				return
 
-			if u' ' in arg or u'\t' in arg:
+			if new_nick != arg:
 				self.world.send_chan_msg('-err-', inf, """[invalid argument]
-  nicks cannot contain whitespace
+  some illegal characters were removed
+""")
+				return
+
+			if new_nick.startswith('-'):
+				self.world.send_chan_msg('-err-', inf, """[invalid argument]
+  nicks cannot start with "-" (dash)
 """)
 				return
 
 			other_user = None
 			with self.world.mutex:
 				for usr in self.world.users:
-					if usr.nick == arg:
+					if usr.nick.lower() == arg.lower():
 						other_user = usr
 						break
 				
@@ -380,7 +396,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 			found = None
 			for usr in self.world.users:
-				if usr.nick == arg1:
+				if usr.nick.lower() == arg1.lower():
 					found = usr
 					break
 
@@ -422,6 +438,26 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				self.world.send_chan_msg(
 					self.nick, self.active_chan.nchan,
 					'{0} {1}'.format(arg2, n))
+
+
+
+		elif cmd == 'names' or cmd == 'na':
+			self.world.send_chan_msg('--', inf,"{1} users in {0}: {2}".format(
+				self.active_chan.nchan.get_name(),
+				len(self.active_chan.nchan.uchans),
+				u', '.join(sorted([x.user.nick for x in
+					self.active_chan.nchan.uchans]))))
+
+
+
+		elif cmd == 'status' or cmd == 'st':
+			n_users = len(self.world.users)
+			n_pub = len(self.world.pub_ch)
+			n_priv = len(self.world.priv_ch) - n_users
+
+			self.world.send_chan_msg('--', inf,
+				"{0} users in {1} public, {2} private channels".format(
+					n_users, n_pub, n_priv))
 
 
 
@@ -647,8 +683,17 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 """.format(cmd_str))
 
 	def set_nick(self, new_nick):
+		nick_re = u''
+		# re.IGNORECASE doesn't work
+		# this is dumb
+		for ch in re.escape(new_nick):
+			if not ch in azAZ:
+				nick_re += ch
+			else:
+				nick_re += '[{0}{1}]'.format(ch.lower(), ch.upper())
+		
 		self.nick = new_nick
 		self.nick_re = re.compile(
 			'(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)'.format(
-				re.escape(self.nick)))
+				nick_re))
 

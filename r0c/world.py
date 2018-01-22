@@ -106,7 +106,7 @@ class World(object):
 						target = nchan.uchans[0].alias
 						if target != from_nick:
 							for usr in self.users:
-								if usr.nick == target:
+								if usr.nick.lower() == target.lower():
 									utarget = usr
 									break
 
