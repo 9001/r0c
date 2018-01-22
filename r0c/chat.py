@@ -28,6 +28,18 @@ class NChannel(object):
 		ret = u', '.join(x.alias for x in self.uchans[:2])
 		return ret or '<abandoned private channel>'
 
+	def __unicode__(self):
+		return u'NChannel {0}'.format(get_name())
+
+	def __str__(self):
+		return 'NChannel {0}'.format(get_name())
+
+	def __repr__(self):
+		return 'NChannel({0}, {1})'.format(self.name, repr(self.topic))
+
+	def __lt__(self, other):
+		return self.name < other.name
+
 
 
 class UChannel(object):

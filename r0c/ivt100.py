@@ -1163,7 +1163,9 @@ class VT100_Client(asyncore.dispatcher):
 			if delta > 1:
 				# acceptable if delta is exactly 2
 				# and the final characters are newline-ish
-				print('client burst  {0}'.format(delta))
+				print('client burst  {0}  {1}  {2}'.format(
+					self.user.nick, self.addr[0], delta))
+
 				if delta > 2 or btext[-1] not in nline:
 					if self.wizard_maxdelta < delta:
 						self.wizard_maxdelta = delta
@@ -1182,7 +1184,8 @@ class VT100_Client(asyncore.dispatcher):
 					for key in drop:
 						del self.esc_tab[key]
 					self.esc_tab[nl.decode('utf-8')] = 'ret'
-					print('client crlf:  {0}'.format(b2hex(nl)))
+					print('client crlf:  {0}  {1}  {2}'.format(
+						self.user.nick, self.addr[0], b2hex(nl)))
 
 				if self.wizard_maxdelta >= nl_a / 2:
 					self.echo_on = True
@@ -1411,17 +1414,17 @@ class VT100_Client(asyncore.dispatcher):
 				self.y_input, self.y_status = self.y_status, self.y_input
 
 			if WINDOWS:
-				print('client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}'.format(
+				print('client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}\n           :  {4}  {5}'.format(
 					'n' if self.linemode else 'Y',
 					'Y' if self.vt100    else 'n',
 					'n' if self.echo_on  else 'Y',
-					self.codec))
+					self.codec, self.user.nick, self.addr[0]))
 			else:
-				print('client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}'.format(
+				print('client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}\n           :  {4}  {5}'.format(
 					'\033[1;31m' if self.linemode else '\033[1;32m',
 					'\033[32m'   if self.vt100    else '\033[31m',
 					'\033[31m'   if self.echo_on  else '\033[32m',
-					self.codec))
+					self.codec, self.user.nick, self.addr[0]))
 
 			self.wizard_stage = None
 			self.in_text = u''

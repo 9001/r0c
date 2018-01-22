@@ -64,6 +64,18 @@ class User(object):
 		if not self.nick:
 			raise RuntimeError("out of legit nicknames")
 
+	def __unicode__(self):
+		return u'User {0} {1}'.format(self.nick, self.client.addr[0])
+
+	def __str__(self):
+		return 'User {0} {1}'.format(self.nick, self.client.addr[0])
+
+	def __repr__(self):
+		return 'User({0}, {1})'.format(repr(self.nick), repr(self.client.addr[0]))
+
+	def __lt__(self, other):
+		return self.nick < other.nick
+
 	def post_init(self, client):
 		self.client = client
 		self.admin = (self.client.addr[0] == '127.0.0.1')  # TODO
@@ -281,7 +293,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			other_user = None
 			with self.world.mutex:
 				for usr in self.world.users:
-					if usr.nick.lower() == arg.lower():
+					if usr.nick.lower() == new_nick.lower():
 						other_user = usr
 						break
 				
@@ -291,17 +303,20 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 """)
 					return
 
+				print('nick change:  {2} {0} -> {1}'.format(
+					self.nick, new_nick, self.client.addr[0]))
+				
 				for uchan in self.chans:
 					self.world.send_chan_msg('--', uchan.nchan,
-						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, arg))
-				
+						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, new_nick))
+
 				# update title in DM windows
 				for nchan in self.world.priv_ch:
 					for usr in nchan.uchans:
 						if usr.alias == self.nick:
-							usr.alias = arg
+							usr.alias = new_nick
 
-				self.set_nick(arg)
+				self.set_nick(new_nick)
 
 
 
@@ -458,6 +473,17 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			self.world.send_chan_msg('--', inf,
 				"{0} users in {1} public, {2} private channels".format(
 					n_users, n_pub, n_priv))
+
+			if self.admin:
+				self.world.send_chan_msg('--', inf, '## users:')
+				for user in sorted(self.world.users):
+					self.world.send_chan_msg('--', inf, '{0} {1}'.format(
+						user.client.addr[0].ljust(15), user.nick))
+				self.world.send_chan_msg('--', inf, '## chans:')
+				for chan in sorted(self.world.pub_ch):
+					self.world.send_chan_msg(
+						'--', inf, '{0}: {1}'.format(chan.name,
+						u', '.join(sorted([x.user.nick for x in chan.uchans]))))
 
 
 
