@@ -74,6 +74,7 @@ class VT100_Server(asyncore.dispatcher):
 			self.clients.remove(remote)
 			try:
 				remote.user.active_chan = None
+				remote.user.old_active_chan = None
 				remote.user.new_active_chan = None
 			except:
 				pass
@@ -181,6 +182,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x12', 'redraw')
 		self.add_esc(u'\x01', 'prev-chan')
 		self.add_esc(u'\x18', 'next-chan')
+		self.add_esc(u'\x04', 'alt-tab')
 
 		thr = threading.Thread(target=self.handshake_timeout, name='hs_to')
 		thr.daemon = True
@@ -327,6 +329,7 @@ class VT100_Client(asyncore.dispatcher):
 				if self.user.active_chan:
 					self.user.active_chan.update_activity_flags(True)
 
+				self.user.old_active_chan = self.user.active_chan
 				self.user.active_chan = self.user.new_active_chan
 				self.user.active_chan.update_activity_flags(True)
 				self.user.new_active_chan = None
@@ -692,35 +695,7 @@ class VT100_Client(asyncore.dispatcher):
 			lines = []
 			lines_left = self.h - 3
 
-			if ch.lock_to_bottom:
-				# lock to bottom, full redraw:
-				# newest/bottom message will be added first
-				ch.vis = []
-				for n, msg in enumerate(reversed(nch.msgs)):
-					imsg = (len(nch.msgs) - 1) - n
-					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
-					
-					n_vis = len(txt)
-					car = 0
-					cdr = n_vis
-					if n_vis >= lines_left:
-						n_vis = lines_left
-						car = cdr - n_vis
-					
-					vmsg = VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
-					ch.vis.append(vmsg)
-					
-					for ln in reversed(vmsg.txt[car:]):
-						lines.append(ln)
-					
-					lines_left -= n_vis
-					if lines_left <= 0:
-						break
-				
-				ch.vis.reverse()
-				lines.reverse()
-			
-			else:
+			if not ch.lock_to_bottom:
 				# fixed scroll position:
 				# oldest/top message will be added first
 				top_msg = ch.vis[0]
@@ -729,17 +704,6 @@ class VT100_Client(asyncore.dispatcher):
 				for n, msg in enumerate(nch.msgs[ imsg : imsg + self.h-3 ]):
 					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
-					#if top_msg is not None:
-						# we can keep the exact scroll position
-						# as long as the top message has the exact
-						# same layout as when it was last displayed
-						
-						#if len(top_msg.txt) == len(txt):
-						#	for n, ln in enumerate(txt):
-						#		if top_msg.txt[n] != ln:
-						#			top_msg = None
-						#			break
-
 					# actually this test is probably accurate enough
 					# and still passes chrome changes (padding etc)
 					if (top_msg is not None and
@@ -775,6 +739,44 @@ class VT100_Client(asyncore.dispatcher):
 					lines_left -= n_vis
 					if lines_left <= 0:
 						break
+
+				if lines_left > 0 and ch.vis[0].msg != nch.msgs[0]:
+					# we didn't manage to fill the screen,
+					# TODO:  go above vis[0] rather than cheat
+					ret = u''
+					lines = []
+					lines_left = self.h - 3
+					ch.lock_to_bottom = True
+
+
+			if ch.lock_to_bottom:
+				# lock to bottom, full redraw:
+				# newest/bottom message will be added first
+				ch.vis = []
+				for n, msg in enumerate(reversed(nch.msgs)):
+					imsg = (len(nch.msgs) - 1) - n
+					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+					
+					n_vis = len(txt)
+					car = 0
+					cdr = n_vis
+					if n_vis >= lines_left:
+						n_vis = lines_left
+						car = cdr - n_vis
+					
+					vmsg = VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
+					ch.vis.append(vmsg)
+					
+					for ln in reversed(vmsg.txt[car:]):
+						lines.append(ln)
+					
+					lines_left -= n_vis
+					if lines_left <= 0:
+						break
+				
+				ch.vis.reverse()
+				lines.reverse()
+			
 			
 			if not self.vt100:
 				#ret = u'\r==========================\r\n'
@@ -1118,6 +1120,11 @@ class VT100_Client(asyncore.dispatcher):
 				print('vis.sno:  ' + ', '.join([str(x.msg.sno) for x in ch.vis]))
 				print('nch.msgs: ' + ', '.join([str(x.sno)     for x in nch.msgs]))
 			print()
+
+		# lock to bottom if all recent messages are visible
+		if not ch.lock_to_bottom \
+		and nch.msgs[-1] == ch.vis[-1].msg:
+			ch.lock_to_bottom = True
 
 		return ret
 
@@ -1562,6 +1569,8 @@ class VT100_Client(asyncore.dispatcher):
 					chan_shift = -1
 				elif act == 'next-chan':
 					chan_shift = +1
+				elif act == 'alt-tab':
+					self.user.exec_cmd('a')
 				else:
 					print('unimplemented action: {0}'.format(act))
 

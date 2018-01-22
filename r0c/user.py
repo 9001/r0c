@@ -24,6 +24,7 @@ class User(object):
 		self.chans = []              # UChannel instances
 		self.active_chan = None      # UChannel
 		self.new_active_chan = None  # set for channel change
+		self.old_active_chan = None  # last focused channel
 		self.nick = None             # str
 		self.nick_re = None          # regex object for ping assert
 		
@@ -218,6 +219,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 	def exec_cmd(self, cmd_str):
+		#print('handle {0}'.format(cmd_str))
 		inf = self.world.get_priv_chan(self, 'r0c-status').nchan
 		cmd = cmd_str # the command keyword
 		arg = None    # single argument with spaces
@@ -391,6 +393,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			uchan = self.world.join_priv_chan(self, arg1)
 			self.new_active_chan = uchan
 			self.world.send_chan_msg(self.nick, uchan.nchan, arg2)
+			self.client.refresh(False)
 
 
 
@@ -406,6 +409,54 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			self.client.refresh(False)
 
 		elif cmd == 'redraw' or cmd == 'r':
+			self.client.need_full_redraw = True
+			self.client.refresh(False)
+
+
+
+		elif cmd == 'fill':
+			if not self.admin_test(cmd, arg):
+				return
+
+			for n in range(int(arg1)):
+				self.world.send_chan_msg(
+					self.nick, self.active_chan.nchan,
+					'{0} {1}'.format(arg2, n))
+
+
+
+		elif cmd == 'a':
+			activity = {}
+			for uchan in self.chans:
+				if uchan.hilights and uchan != self.active_chan:
+					activity[uchan.last_ping] = uchan
+			for uchan in self.chans:
+				if uchan.activity and uchan != self.active_chan:
+					activity[uchan.nchan.msgs[-1].ts] = uchan
+			
+			if activity:
+				x, uchan = sorted(activity.items())[0]
+				self.new_active_chan = uchan
+				nchan = uchan.nchan
+				for msg in nchan.msgs:
+					if msg.sno > uchan.last_read:
+						#print('1st unread msg ({0} > {1}) = {2}'.format(
+						#	msg.sno, uchan.last_read, msg))
+						jump_to = nchan.msgs.index(msg) - 5
+						if jump_to < 0:
+							jump_to = 0
+						uchan.jump_to_msg(jump_to)
+						break
+				#print('jumping to activity in {0}'.format(
+				#	self.new_active_chan.nchan.get_name()))
+			
+			elif self.old_active_chan:
+				self.new_active_chan = self.old_active_chan
+				#print('jumping to last active, {0}'.format(
+				#	self.new_active_chan.nchan.get_name()))
+			else:
+				print('cannot jump, no hilights or prev chan')
+			
 			self.client.need_full_redraw = True
 			self.client.refresh(False)
 
@@ -435,12 +486,12 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 				m = re.match('(^[0-9]+)$', arg)
 				if m:
-					ch.jump_to_msg(int(m.group(0)))
+					ch.jump_to_msg(int(m.group(1)))
 					return
 				
 				m = re.match('(^[0-9\.]+)%$', arg)
 				if m:
-					ch.jump_to_msg(int(float(m.group(0))*len(nch.msgs)/100.0))
+					ch.jump_to_msg(int(float(m.group(1))*len(nch.msgs)/100.0))
 					return
 
 				m = re.match('(^[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2})$', arg)
@@ -451,13 +502,13 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 				m = re.match('(^[0-9]{4}-[0-9]{2}-[0-9]{2})$', arg)
 				if m:
-					ht = '{0}T00:00:00'.format(m.group(0))
+					ht = '{0}T00:00:00'.format(m.group(1))
 					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
 					return
 
 				m = re.match('(^[0-9]{2}:[0-9]{2})$', arg)
 				if m:
-					ht = '{0}T{1}:00'.format(time.strftime('%Y-%m-%d'), m.group(0))
+					ht = '{0}T{1}:00'.format(time.strftime('%Y-%m-%d'), m.group(1))
 					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
 					return
 

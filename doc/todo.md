@@ -6,16 +6,16 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* notifications in topic bar
-* ^d to jump to hilight
-* /names
+* offer to skip wizard if IP has connected before
 * bell on by default, disable with /bn
+* /names
+* notifications in topic bar
 
 # features: whatever
 
+* nick colours
 * admin auth
 * rate limiting
-* nick colours
 * modals with command feedback
 
 # bugs: important
@@ -57,4 +57,5 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * broadcast "day changed"
 * store buffer in input history when hitting CUp/CDown
 * truncate chan hist when it gets 2big
+* ^d to jump to hilight
 
