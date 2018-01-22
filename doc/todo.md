@@ -8,7 +8,10 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 * offer to skip wizard if IP has connected before
 * bell on by default, disable with /bn
+* tabcomplete (last-spoke order)
 * notifications in topic bar
+* kick idle clients (bots that got stuck in the config wizard lel)
+* check if AYT can be used as ping/pong
 
 # features: whatever
 
@@ -16,6 +19,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * admin auth
 * rate limiting
 * modals with command feedback
+* filter bots somehow?
 
 # bugs: important
 
