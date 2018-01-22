@@ -659,12 +659,6 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			code.InteractiveConsole(locals=globals()).interact()
 			print('left repl')
 
-		elif cmd == 'ev':
-			if not self.admin_test(cmd, arg):
-				return
-			
-			eval(arg)
-
 		elif cmd == 'gc':
 			if not self.admin_test(cmd, arg):
 				return
