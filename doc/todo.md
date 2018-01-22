@@ -8,7 +8,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 * offer to skip wizard if IP has connected before
 * bell on by default, disable with /bn
-* /names
 * notifications in topic bar
 
 # features: whatever
@@ -20,8 +19,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # bugs: important
 
-* pings are case-sensitive
-* can't message uppercase nicks
 * text input glitches on colour input near screen edge
 * copy/paste into putty on windows skips newlines ??
 
@@ -58,4 +55,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * store buffer in input history when hitting CUp/CDown
 * truncate chan hist when it gets 2big
 * ^d to jump to hilight
+* /names
+* pings are case-sensitive
+* can't message uppercase nicks
 
