@@ -443,24 +443,28 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 		elif cmd == 'status' or cmd == 'st':
-			n_users = len(self.world.users)
+			n_wizard = sum(1 for x in self.world.users if not x.active_chan)
+			n_users = len(self.world.users) - n_wizard
 			n_pub = len(self.world.pub_ch)
-			n_priv = len(self.world.priv_ch) - n_users
+			n_priv = len(self.world.priv_ch) - (n_users - n_wizard)
 
 			self.world.send_chan_msg('--', inf,
-				"{0} users in {1} public, {2} private channels".format(
-					n_users, n_pub, n_priv))
+				"{0} users + {1} in wizard, {1} public + {2} private chans".format(
+					n_users, n_wizard, n_pub, n_priv))
 
 			if self.admin:
-				self.world.send_chan_msg('--', inf, '## users:')
+				self.world.send_chan_msg('--', inf, '----- users -----')
 				for user in sorted(self.world.users):
-					self.world.send_chan_msg('--', inf, '{0} {1}'.format(
-						user.client.addr[0].ljust(15), user.nick))
-				self.world.send_chan_msg('--', inf, '## chans:')
+					self.world.send_chan_msg('--', inf, '{0} {1} {2}'.format(
+						user.client.addr[0].ljust(15),
+						'ok ' if user.active_chan else 'wiz',
+						user.nick))
+				self.world.send_chan_msg('--', inf, '----- chans -----')
 				for chan in sorted(self.world.pub_ch):
 					self.world.send_chan_msg(
 						'--', inf, '{0}: {1}'.format(chan.name,
 						u', '.join(sorted([x.user.nick for x in chan.uchans]))))
+				self.world.send_chan_msg('--', inf, '-----------------')
 
 
 
