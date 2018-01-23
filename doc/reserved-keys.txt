@@ -1,0 +1,30 @@
+list of keys that have special behavior in shells when combined with CTRL
+
+keys with a '.' are safe to use for hotkeys
+
+Q resume keyboard
+W backspace?
+E . 
+R shift line down
+T .
+Y .
+U erase line
+I horizontal tab
+O .
+P .
+A .
+S stop keyboard
+D end-of-transmission
+F .
+G .
+H .
+J newline
+K .
+L .
+Z background
+X .
+C quit
+V some combinatorial thing
+B tmux meta
+N .
+M newline

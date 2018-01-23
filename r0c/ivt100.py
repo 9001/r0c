@@ -224,7 +224,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.add_esc(u'\x12', 'redraw')
 		self.add_esc(u'\x01', 'prev-chan')
 		self.add_esc(u'\x18', 'next-chan')
-		self.add_esc(u'\x04', 'alt-tab')
+		self.add_esc(u'\x05', 'alt-tab')
 
 		thr = threading.Thread(target=self.handshake_timeout, name='hs_to')
 		thr.daemon = True
@@ -572,7 +572,7 @@ class VT100_Client(asyncore.dispatcher):
 
 			self.world.send_chan_msg('-inf-', inf_n, """[about notifications]{0}
   to jump through unread channels,
-  press CTRL-D or use the command /a
+  press CTRL-E or use the command /a
 
   to disable audible alerts,
   use the command /bn

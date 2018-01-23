@@ -121,7 +121,7 @@ Text formatting:
           say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
-  \033[36mCTRL-D\033[0m  jump to active channel
+  \033[36mCTRL-E\033[0m  jump to active channel
   \033[36mCTRL-A\033[0m  jump to previous channel
   \033[36mCTRL-X\033[0m  jump to next channel
   \033[36m/3\033[0m      go to channel 3
