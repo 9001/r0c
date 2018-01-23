@@ -1,7 +1,7 @@
 #!/bin/bash
 
-preferred_ports="23 351"
-fallback_ports="2323 1351"
+preferred_ports="23 531"
+fallback_ports="2323 1531"
 
 # use preferred ports if root,
 # otherwise use fallback ports
