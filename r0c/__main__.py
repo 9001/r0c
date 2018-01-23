@@ -161,6 +161,7 @@ class Core(object):
 	def push_worker(self, world, ifaces):
 		self.pushthr_alive = True
 		
+		nth_iter = 0
 		last_ts = None
 		last_date = None
 		while not self.stopping:
@@ -190,6 +191,11 @@ class Core(object):
 					if not client.handshake_sz:
 						pass
 					client.refresh(False)
+
+			nth_iter += 1
+			if nth_iter % 600 == 0:
+				for iface in ifaces:
+					iface.save_configs()
 		
 		self.pushthr_alive = False
 

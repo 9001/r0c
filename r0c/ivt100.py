@@ -36,6 +36,7 @@ class VT100_Server(asyncore.dispatcher):
 		self.clients = []
 		self.user_config = {}
 		self.user_config_path = None
+		self.user_config_changed = False
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		if PY2:
 			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -93,6 +94,7 @@ class VT100_Server(asyncore.dispatcher):
 					'inheritance bug: self.user_config_path not set')
 
 			self.user_config = {}
+			self.user_config_changed = False
 			if not os.path.isfile(self.user_config_path):
 				print('  *  {0} loaded 0 client configs'.format(self.__class__.__name__))
 				return
@@ -113,6 +115,10 @@ class VT100_Server(asyncore.dispatcher):
 
 	def save_configs(self):
 		with self.world.mutex:
+			if not self.user_config_changed:
+				return
+
+			self.user_config_changed = False
 			with open(self.user_config_path, 'wb') as f:
 				f.write('1\n'.encode('utf-8'))
 				for k, v in sorted(self.user_config.items()):
@@ -279,7 +285,7 @@ class VT100_Client(asyncore.dispatcher):
 
 	def save_config(self):
 		with self.world.mutex:
-			self.host.user_config[self.addr[0]] = u' '.join([
+			conf_str = u' '.join([
 				
 				hex(int(time.time()*8.0))[2:].rstrip('L'),
 				self.user.nick,
@@ -293,6 +299,15 @@ class VT100_Client(asyncore.dispatcher):
 
 				# user config
 				'1' if self.bell     else '0'])
+
+			try:
+				if self.host.user_config[self.addr[0]] == conf_str:
+					return
+			except:
+				pass
+
+			self.host.user_config[self.addr[0]] = conf_str
+			self.host.user_config_changed = True
 
 
 	def set_codec(self, codec_name):

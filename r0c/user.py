@@ -708,5 +708,6 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			'(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)'.format(
 				nick_re))
 
-		self.client.save_config()
+		if self.active_chan:
+			self.client.save_config()
 
