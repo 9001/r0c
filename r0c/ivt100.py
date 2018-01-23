@@ -318,6 +318,18 @@ class VT100_Client(asyncore.dispatcher):
 		self.inband_will_fail_decode = self.codec in ff_illegal
 
 
+	def reassign_retkey(self, crlf):
+		etab = self.esc_tab.iteritems if PY2 else self.esc_tab.items
+		drop = []
+		for key, value in etab():
+			if value == 'ret':
+				drop.append(key)
+		for key in drop:
+			del self.esc_tab[key]
+		self.crlf = crlf
+		self.esc_tab[self.crlf] = 'ret'
+
+
 	def handshake_timeout(self):
 		time.sleep(1)
 		self.handshake_sz = True
@@ -1374,6 +1386,7 @@ class VT100_Client(asyncore.dispatcher):
 				if self.linemode != looks_like_linemode:
 					self.wizard_stage = 'reuse_impossible'
 				else:
+					self.reassign_retkey(self.crlf)
 					self.wizard_stage = 'end'
 
 			elif u'n' in text:
@@ -1430,16 +1443,8 @@ class VT100_Client(asyncore.dispatcher):
 			if nl_a is not None:
 				nl_b = next((i for i, ch in enumerate(reversed(btext)) if ch in nline), None)
 				if nl_b is not None:
-					etab = self.esc_tab.iteritems if PY2 else self.esc_tab.items
 					nl = btext[nl_a:len(btext)-nl_b]
-					drop = []
-					for key, value in etab():
-						if value == 'ret':
-							drop.append(key)
-					for key in drop:
-						del self.esc_tab[key]
-					self.crlf = nl.decode('utf-8')
-					self.esc_tab[self.crlf] = 'ret'
+					self.reassign_retkey(nl.decode('utf-8'))
 					print('client crlf:  {0}  {1}  {2}'.format(
 						self.user.nick, self.addr[0], b2hex(nl)))
 
