@@ -258,7 +258,6 @@ class VT100_Client(asyncore.dispatcher):
 				load_ok = True
 
 			except:
-				oops()
 				self.linemode = False  # set true by buggy clients
 				self.echo_on = False   # set true by buffy clients
 				self.vt100 = True      # set nope by butty clients
