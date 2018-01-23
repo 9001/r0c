@@ -237,7 +237,7 @@ class VT100_Client(asyncore.dispatcher):
 			self.y_status = 1  # offset from bottom of screen
 
 			try:
-				nick, linemode, vt100, echo_on, crlf, codec, bell = \
+				ts, nick, linemode, vt100, echo_on, crlf, codec, bell = \
 					self.host.user_config[self.addr[0]].split(' ')
 
 				#print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
@@ -281,7 +281,7 @@ class VT100_Client(asyncore.dispatcher):
 		with self.world.mutex:
 			self.host.user_config[self.addr[0]] = u' '.join([
 				
-				# "primary key"
+				hex(int(time.time()*8.0))[2:].rstrip('L'),
 				self.user.nick,
 		
 				# terminal behavior
