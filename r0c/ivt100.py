@@ -232,6 +232,15 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
+	def default_config(self):
+		self.linemode = False  # set true by buggy clients
+		self.echo_on = False   # set true by buffy clients
+		self.vt100 = True      # set nope by butty clients
+		self.bell = True       # doot on hilights
+		self.crlf = u'\n'      # return key
+		self.set_codec('utf-8')
+
+
 	def load_config(self):
 		load_ok = False
 		with self.world.mutex:
@@ -264,12 +273,7 @@ class VT100_Client(asyncore.dispatcher):
 				load_ok = True
 
 			except:
-				self.linemode = False  # set true by buggy clients
-				self.echo_on = False   # set true by buffy clients
-				self.vt100 = True      # set nope by butty clients
-				self.bell = True       # doot on hilights
-				self.crlf = u'\n'      # return key
-				self.set_codec('utf-8')
+				self.default_config()
 
 			if self.echo_on:
 				# if echo enabled, swap status and input:
@@ -1385,12 +1389,14 @@ class VT100_Client(asyncore.dispatcher):
 				looks_like_linemode = (len(text) != 1)
 				if self.linemode != looks_like_linemode:
 					self.wizard_stage = 'reuse_impossible'
+					self.default_config()
 				else:
 					self.reassign_retkey(self.crlf)
 					self.wizard_stage = 'end'
 
 			elif u'n' in text:
 				self.wizard_stage = 'qwer_prompt'
+				self.default_config()
 
 
 		if self.wizard_stage == 'reuse_impossible':
