@@ -7,9 +7,11 @@ import traceback
 import threading
 import asyncore
 import socket
+import binascii
 import datetime
 import platform
 import sys
+import os
 
 from .config import *
 from .util   import *
@@ -32,6 +34,8 @@ class VT100_Server(asyncore.dispatcher):
 		asyncore.dispatcher.__init__(self)
 		self.world = world
 		self.clients = []
+		self.user_config = {}
+		self.user_config_path = None
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		if PY2:
 			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -57,7 +61,6 @@ class VT100_Server(asyncore.dispatcher):
 		self.con(' ++', addr, 1)
 		user = User(self.world, addr)
 		remote = self.gen_remote(socket, addr, user)
-		user.post_init(remote)
 		self.world.add_user(user)
 		self.clients.append(remote)
 		remote.conf_wizard()
@@ -83,6 +86,41 @@ class VT100_Server(asyncore.dispatcher):
 			if remote.user and remote.user in self.world.users:
 				self.world.users.remove(remote.user)
 
+	def load_configs(self):
+		with self.world.mutex:
+			if not self.user_config_path:
+				raise RuntimeError(
+					'inheritance bug: self.user_config_path not set')
+
+			self.user_config = {}
+			if not os.path.isfile(self.user_config_path):
+				print('  *  {0} loaded 0 client configs'.format(self.__class__.__name__))
+				return
+
+			with open(self.user_config_path, 'rb') as f:
+				f.readline()  # discard version info
+				try:
+					for ln in [x.decode('utf-8').strip() for x in f]:
+						k, v = ln.split(' ', 1)
+						self.user_config[k] = v
+				except:
+					print(' -!- invalid config line')
+					try: print(ln)
+					except: pass
+
+			print('  *  {0} knows {1} clients'.format(
+				self.__class__.__name__, len(self.user_config)))
+
+	def save_configs(self):
+		with self.world.mutex:
+			with open(self.user_config_path, 'wb') as f:
+				f.write('1\n'.encode('utf-8'))
+				for k, v in sorted(self.user_config.items()):
+					f.write(u' '.join([k, v]).encode('utf-8'))
+			
+			print('  *  {0} saved {1} client configs'.format(
+				self.__class__.__name__, len(self.user_config)))
+
 
 
 class VT100_Client(asyncore.dispatcher):
@@ -96,15 +134,6 @@ class VT100_Client(asyncore.dispatcher):
 		self.user = user
 		self.dead = False      # set true at disconnect (how does asyncore work)
 
-		# config
-		self.y_input = 0       # offset from bottom of screen
-		self.y_status = 1      # offset from bottom of screen
-		self.linemode = False  # set true by buggy clients
-		self.echo_on = False   # set true by buffy clients
-		self.vt100 = True      # set nope by butty clients
-		self.slowmo_tx = SLOW_MOTION_TX
-		self.set_codec('utf-8')
-
 		# outgoing data
 		self.outbox = Queue()
 		self.replies = Queue()
@@ -114,6 +143,8 @@ class VT100_Client(asyncore.dispatcher):
 		self.backlog = None
 		self.in_bytes = b''
 		self.in_text = u''
+		self.slowmo_tx = SLOW_MOTION_TX
+		self.set_codec('utf-8')
 
 		# incoming requests
 		self.scroll_cmd = None
@@ -133,6 +164,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.wizard_maxdelta = 0
 		self.handshake_sz = False
 		self.handshake_world = False
+		self.show_hilight_tutorial = True
 		self.need_full_redraw = False
 		self.too_small = False
 		self.screen = []
@@ -151,6 +183,10 @@ class VT100_Client(asyncore.dispatcher):
 			'2smol',
 			':('
 		]
+
+		self.codec_map = [ 'utf-8',0,  'cp437',0,  'shift_jis',0,  'latin1',1,  'ascii',2 ]
+		self.codec_uni = [ u'├┐ ┌┬┐ ┌ ',  u'Ð Ñ Ã ',  u'all the above are messed up ' ]
+		self.codec_asc = [ u'hmr', u'DNA', u'n/a' ]
 
 		self.esc_tab = {}
 		self.add_esc(u'\x1b\x5bD', 'cl')
@@ -190,6 +226,76 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
+	def load_config(self):
+		load_ok = False
+		with self.world.mutex:
+			self.user.client = self
+			self.user.admin = (self.addr[0] == '127.0.0.1')  # TODO
+			
+			# static config
+			self.y_input = 0   # offset from bottom of screen
+			self.y_status = 1  # offset from bottom of screen
+
+			try:
+				nick, linemode, vt100, echo_on, crlf, codec, bell = \
+					self.host.user_config[self.addr[0]].split(' ')
+
+				#print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
+
+				# terminal behavior
+				self.linemode = 1 == int(linemode)
+				self.vt100    = 1 == int(vt100)
+				self.echo_on  = 1 == int(echo_on)
+				self.crlf     = binascii.unhexlify(crlf).decode('utf-8')
+				self.set_codec(codec)
+
+				# user config
+				self.bell     = 1 == int(bell)
+
+				if not self.world.find_user(nick):
+					self.user.set_nick(nick)
+
+				load_ok = True
+
+			except:
+				oops()
+				self.linemode = False  # set true by buggy clients
+				self.echo_on = False   # set true by buffy clients
+				self.vt100 = True      # set nope by butty clients
+				self.bell = True       # doot on hilights
+				self.crlf = u'\n'      # return key
+				self.set_codec('utf-8')
+
+			if self.echo_on:
+				# if echo enabled, swap status and input:
+				# that way the screen won't scroll on enter
+				self.y_input, self.y_status = \
+				self.y_status, self.y_input
+
+			if not self.user.nick:
+				self.user.set_rand_nick()
+
+		return load_ok
+
+
+	def save_config(self):
+		with self.world.mutex:
+			self.host.user_config[self.addr[0]] = u' '.join([
+				
+				# "primary key"
+				self.user.nick,
+		
+				# terminal behavior
+				'1' if self.linemode else '0',
+				'1' if self.vt100    else '0',
+				'1' if self.echo_on  else '0',
+				binascii.hexlify(self.crlf.encode('utf-8')).decode('utf-8'),
+				self.codec,
+
+				# user config
+				'1' if self.bell     else '0'])
+
+
 	def set_codec(self, codec_name):
 		multibyte  = ['utf-8','shift_jis']
 		ff_illegal = ['utf-8','shift_jis']
@@ -197,9 +303,11 @@ class VT100_Client(asyncore.dispatcher):
 		self.multibyte_codec = self.codec in multibyte
 		self.inband_will_fail_decode = self.codec in ff_illegal
 
+
 	def handshake_timeout(self):
 		time.sleep(1)
 		self.handshake_sz = True
+
 
 	def add_esc(self, key, act):
 		hist = u''
@@ -216,14 +324,18 @@ class VT100_Client(asyncore.dispatcher):
 				b2hex(key), act, self.esc_tab[key]))
 		self.esc_tab[key] = act
 
+
 	def request_terminal_size(self):
 		pass
+
 
 	def say(self, message):
 		self.outbox.put(message)
 
+
 	def readable(self):
 		return not self.dead
+
 
 	def writable(self):
 		#if not self.replies.empty() or self.backlog:
@@ -245,15 +357,16 @@ class VT100_Client(asyncore.dispatcher):
 			not self.outbox.empty()
 		)
 
+
 	def handle_close(self):
 		if not self.dead:
 			self.host.part(self)
+
 
 	def handle_error(self):
 		whoops()
 		if not self.dead:
 			self.host.part(self)
-
 
 
 	def handle_write(self):
@@ -412,6 +525,37 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
+	def notify_new_hilight(self, uchan):
+		if uchan == self.user.active_chan:
+			return
+
+		#print('ping in {0} while in {1}'.format(uchan.nchan.get_name(), self.user.active_chan.nchan.get_name()))
+		
+		if self.bell and len(uchan.nchan.uchans) > 1:
+			self.say(u'\x07'.encode('utf-8'))
+
+		if self.show_hilight_tutorial:
+			self.show_hilight_tutorial = False
+			inf_u = self.user.chans[0]
+			inf_n = inf_u.nchan
+			
+			cause = u''
+			if len(uchan.nchan.uchans) > 1:
+				cause = u'\nsomeone mentioned your nick in {0}.\n'.format(
+					uchan.nchan.get_name())
+
+			self.world.send_chan_msg('-inf-', inf_n, """[about notifications]{0}
+  to jump through unread channels,
+  press CTRL-D or use the command /a
+
+  to disable audible alerts,
+  use the command /bn
+""".format(cause))
+			self.user.new_active_chan = inf_u
+			self.refresh(False)
+
+
+
 	def update_top_bar(self, full_redraw):
 		""" no need to optimize this tbh """
 		uchan = self.user.active_chan
@@ -528,7 +672,7 @@ class VT100_Client(asyncore.dispatcher):
 		if not full_redraw and not self.linebuf and self.linemode:
 			return u''
 		msg_len = len(self.linebuf)
-		vis_text = self.linebuf.replace(u'\x0b', u'\033[7mK\033[0m')
+		vis_text = self.linebuf.replace(u'\x0b', u'K')  #u'\033[7mK\033[0m')
 		free_space = self.w - (len(self.user.nick) + 2 + 1)  # nick chrome + final char on screen
 		if msg_len <= free_space:
 			self.lineview = 0
@@ -1133,15 +1277,112 @@ class VT100_Client(asyncore.dispatcher):
 
 
 	def conf_wizard(self):
-		#if DBG:
-		#	if u'\x03' in self.in_text:
-		#		self.world.core.shutdown()
+		#print('conf_wizard:  {0}'.format(self.wizard_stage))
+		if self.addr[0] == '127.0.0.1':
+			if u'\x03' in self.in_text:
+				self.world.core.shutdown()
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
 		ftop = u'\n'*20 + u'\033[H\033[J'
 		top = ftop + ' [ r0c configurator ]\n'
 
 		if self.wizard_stage == 'start':
+			if not self.load_config():
+				self.wizard_stage = 'qwer_prompt'
+				return self.conf_wizard()
+			
+			self.wizard_stage = 'config_reuse'
+			self.in_text = u''
+
+			linemode = 'Yes' if int(self.linemode) == 1 else 'No'
+			vt100    = 'Yes' if int(self.vt100)    == 1 else 'No'
+			echo_on  = 'Yes' if int(self.echo_on)  == 1 else 'No'
+
+			enc_ascii = None
+			enc_unicode = None
+			for enc, uni in zip(self.codec_map[::2], self.codec_map[1::2]):
+				if self.codec == enc:
+					enc_ascii   = self.codec_asc[uni]
+					enc_unicode = self.codec_uni[uni]
+			
+			if not enc_ascii:
+				self.wizard_stage = 'qwer_prompt'
+				return self.conf_wizard()
+
+			ok = 'your client is OK'
+			ng = 'get better software'
+
+			to_say = (top + u"""
+ this config was used by your IP earlier:  
+   linemode:  {l_c}  ({l_g})
+   colors:    {c_c}  ({c_g})
+   echo:      {e_c}  ({e_g})
+   retkey:    {r_c}
+   encoding:  {enc_c}
+
+ config check:
+""".format(
+				l_c = linemode.ljust(3),
+				c_c =    vt100.ljust(3),
+				e_c =  echo_on.ljust(3),
+				r_c = b2hex(self.crlf.encode('utf-8')),
+				l_g = ok if not self.linemode else ng,
+				c_g = ok if     self.vt100    else ng,
+				e_g = ok if not self.echo_on  else ng,
+				enc_c = self.codec
+				)).replace(u'\n', u'\r\n').encode('utf-8')
+			
+			if enc_ascii != 'n/a':
+				to_say += u'   the following says "{0}":  " '.format(enc_ascii).encode('utf-8')
+				to_say += enc_unicode.encode(self.codec, 'backslashreplace')
+				to_say += u'"\r\n'.encode('utf-8')
+
+			to_say += u"""\
+\033[32m   this sentence is{0} green \033[0m
+
+   Y:  correct; continue
+   N:  use another config
+
+ press Y or N, followed by [Enter]
+""".format(
+				'' if self.vt100 else ' NOT'
+				).replace(u'\n', u'\r\n').encode('utf-8')
+			
+			self.say(to_say)
+			return
+
+
+		if self.wizard_stage == 'config_reuse':
+			text = self.in_text.lower()
+			if u'y' in text:
+				text = text[text.rfind(u'y'):]
+				looks_like_linemode = (len(text) != 1)
+				if self.linemode != looks_like_linemode:
+					self.wizard_stage = 'reuse_impossible'
+				else:
+					self.wizard_stage = 'end'
+
+			elif u'n' in text:
+				self.wizard_stage = 'qwer_prompt'
+
+
+		if self.wizard_stage == 'reuse_impossible':
+			self.wizard_stage = 'qwer_read'
+			self.in_text = u''
+			self.say((top + u"""
+ sorry, your config is definitely incorrect.
+
+ type the text below, then hit [Enter]:  
+
+   qwer asdf
+
+ """).replace(u"\n", u"\r\n").encode('utf-8'))
+#\033[10Hasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdfasdf
+
+			return
+
+
+		if self.wizard_stage == 'qwer_prompt':
 			self.wizard_stage = 'qwer_read'
 			self.in_text = u''
 			self.say((top + u"""
@@ -1183,7 +1424,8 @@ class VT100_Client(asyncore.dispatcher):
 							drop.append(key)
 					for key in drop:
 						del self.esc_tab[key]
-					self.esc_tab[nl.decode('utf-8')] = 'ret'
+					self.crlf = nl.decode('utf-8')
+					self.esc_tab[self.crlf] = 'ret'
 					print('client crlf:  {0}  {1}  {2}'.format(
 						self.user.nick, self.addr[0], b2hex(nl)))
 
@@ -1361,8 +1603,6 @@ class VT100_Client(asyncore.dispatcher):
 				self.host.part(self)
 
 
-		encs = [ 'utf-8',0,  'cp437',0,  'shift_jis',0,  'latin1',1,  'ascii',2 ]
-		unis = [ u'├┐ ┌┬┐ ┌ ',  u'Ð Ñ Ã ',  u'all the above are messed up ' ]
 		AZ = u'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 		
 		if self.wizard_stage == 'codec':
@@ -1374,18 +1614,18 @@ class VT100_Client(asyncore.dispatcher):
 			to_send = u8((ftop + u'\n which line looks like  "hmr"  or  "dna" ?').replace(u'\n', u'\r\n'))
 
 			if not self.vt100:
-				for nth, (enc, uni) in enumerate(zip(encs[::2], encs[1::2])):
+				for nth, (enc, uni) in enumerate(zip(self.codec_map[::2], self.codec_map[1::2])):
 					to_send += u8(u'\r\n\r\n   {0}:  '.format(AZ[nth]))
 					try:
-						to_send += unis[uni].encode(enc, 'backslashreplace')
+						to_send += self.codec_uni[uni].encode(enc, 'backslashreplace')
 					except:
 						to_send += u8('<codec not available>')
 				to_send += u8(u'\r\n')
 			else:
-				for nth, (enc, uni) in enumerate(zip(encs[::2], encs[1::2])):
+				for nth, (enc, uni) in enumerate(zip(self.codec_map[::2], self.codec_map[1::2])):
 					to_send += u8(u'\033[{0}H   {1}:  '.format(nth*2+4, AZ[nth]))
 					try:
-						to_send += unis[uni].encode(enc, 'backslashreplace')
+						to_send += self.codec_uni[uni].encode(enc, 'backslashreplace')
 					except:
 						to_send += u8('<codec not available>')
 					to_send += u8(u'\033[J\033[{0}H\033[J'.format(nth*2+5))
@@ -1400,19 +1640,15 @@ class VT100_Client(asyncore.dispatcher):
 		if self.wizard_stage == 'codec_answer':
 			found = False
 			text = self.in_text.lower()
-			for n, letter in enumerate(AZ[:int(2+len(encs)/2)].lower()):
+			for n, letter in enumerate(AZ[:int(2+len(self.codec_map)/2)].lower()):
 				if letter in text:
 					self.wizard_stage = 'end'
-					self.set_codec(encs[n*2])
+					self.set_codec(self.codec_map[n*2])
 					break
 
 
 		if self.wizard_stage == 'end':
-			# if echo enabled, swap status and input:
-			# that way the screen won't scroll on enter
-			if self.echo_on:
-				self.y_input, self.y_status = self.y_status, self.y_input
-
+			self.save_config()
 			if WINDOWS:
 				print('client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}\n           :  {4}  {5}'.format(
 					'n' if self.linemode else 'Y',
@@ -1428,11 +1664,6 @@ class VT100_Client(asyncore.dispatcher):
 
 			self.wizard_stage = None
 			self.in_text = u''
-			
-			#print('{0} is going to sleep'.format(threading.current_thread()))
-			#monitor_threads()
-			#time.sleep(3)
-
 			self.user.create_channels()
 
 

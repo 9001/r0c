@@ -27,42 +27,6 @@ class User(object):
 		self.old_active_chan = None  # last focused channel
 		self.nick = None             # str
 		self.nick_re = None          # regex object for ping assert
-		
-		plain_base = u'lammo/{0}'.format(address[0])
-
-		for sep in u'/!@#$%^&*()_+-=[]{};:<>,.':
-
-			plain = plain_base
-			while True:
-				#print(plain)
-				nv = hashlib.sha256(plain.encode('utf-8')).digest()
-				if PY2:
-					nv = int(nv.encode('hex'), 16)
-				else:
-					nv = int.from_bytes(nv, 'big')
-				
-				nv = b35enc(nv)
-				nv = nv.replace('+','').replace('/','')[:6]
-
-				ok = True
-				for user in self.world.users:
-					if user.nick == nv:
-						ok = False
-						break
-
-				if ok:
-					self.set_nick(nv)
-					break
-				else:
-					if len(plain) > 100:
-						break
-					plain += '/{0}'.format(address[1])
-
-			if self.nick:
-				break
-		
-		if not self.nick:
-			raise RuntimeError("out of legit nicknames")
 
 	def __unicode__(self):
 		return u'User {0} {1}'.format(self.nick, self.client.addr[0])
@@ -76,9 +40,33 @@ class User(object):
 	def __lt__(self, other):
 		return self.nick < other.nick
 
-	def post_init(self, client):
-		self.client = client
-		self.admin = (self.client.addr[0] == '127.0.0.1')  # TODO
+	def pattern_gen(self, depth=0):
+		charset = u'/!@#$%^&*()_+-=[]{};:<>,.'
+		for ch in charset:
+			yield ch
+
+		if depth < 2:  # <= 3 chars
+			for ch1 in charset:
+				for ch2 in self.pattern_gen(depth+1):
+					yield ch1 + ch2
+
+	def set_rand_nick(self):
+		plain_base = u'lammo/{0}'.format(self.client.addr[0])
+		for suffix in self.pattern_gen():
+			plain = plain_base + suffix
+			nv = hashlib.sha256(plain.encode('utf-8')).digest()
+			if PY2:
+				nv = int(nv.encode('hex'), 16)
+			else:
+				nv = int.from_bytes(nv, 'big')
+			
+			nv = b35enc(nv)[:6]
+
+			if not self.world.find_user(nv):
+				self.set_nick(nv)
+				break
+
+
 
 	def create_channels(self):
 		# while true; do tail -n +3 ansi | iconv -t 'cp437//IGNORE' | iconv -f cp437 | while IFS= read -r x; do printf "$x\n"; done | sed -r "s/$/$(printf '\033[K')/"; printf '\033[J'; sleep 0.2; printf '\033[H'; done
@@ -292,12 +280,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 			other_user = None
 			with self.world.mutex:
-				for usr in self.world.users:
-					if usr.nick.lower() == new_nick.lower():
-						other_user = usr
-						break
-				
-				if other_user is not None:
+				if self.world.find_user(new_nick):
 					self.world.send_chan_msg('-err-', inf, """[invalid argument]
   that nick is taken
 """)
@@ -308,7 +291,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				
 				for uchan in self.chans:
 					self.world.send_chan_msg('--', uchan.nchan,
-						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, new_nick))
+						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, new_nick), False)
 
 				# update title in DM windows
 				for nchan in self.world.priv_ch:
@@ -409,13 +392,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 """)
 				return
 
-			found = None
-			for usr in self.world.users:
-				if usr.nick.lower() == arg1.lower():
-					found = usr
-					break
-
-			if not found:
+			if not self.world.find_user(arg1):
 				self.world.send_chan_msg('-err-', inf, """[user not found]
   "{0}" is not online
 """.format(arg1))
@@ -624,6 +601,16 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd == 'by':
+			self.client.bell = True
+			self.world.send_chan_msg('--', inf, 'Audible alerts enabled. Disable with /bn')
+
+		elif cmd == 'bn':
+			self.client.bell = False
+			self.world.send_chan_msg('--', inf, 'Audible alerts disabled. Enable with /by')
+
+
+
 		elif cmd == 'cmap':
 			msg = "All foreground colours (0 to f) on default background,\n"
 			msg += "each code wrapped in [brackets] for readability:\n  "
@@ -702,6 +689,10 @@ if you are using a mac, PgUp is fn-Shift-PgUp
   escape the leading "/" by adding another "/"
 """.format(cmd_str))
 
+
+
+
+
 	def set_nick(self, new_nick):
 		nick_re = u''
 		# re.IGNORECASE doesn't work
@@ -716,4 +707,6 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		self.nick_re = re.compile(
 			'(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)'.format(
 				nick_re))
+
+		self.client.save_config()
 

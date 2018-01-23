@@ -6,10 +6,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* offer to skip wizard if IP has connected before
-* bell on by default, disable with /bn
 * tabcomplete (last-spoke order)
-* notifications in topic bar
 * kick idle clients (bots that got stuck in the config wizard lel)
 * check if AYT can be used as ping/pong
 
@@ -20,11 +17,14 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * rate limiting
 * modals with command feedback
 * filter bots somehow?
+* notifications in topic bar
+* preview colours in text input
+* can verify crlf when loading cfg
 
 # bugs: important
 
-* text input glitches on colour input near screen edge
 * copy/paste into putty on windows skips newlines ??
+* non-vt100: /r and ^R don't clear hilights
 
 # bugs: whatever
 
@@ -62,4 +62,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * /names
 * pings are case-sensitive
 * can't message uppercase nicks
+* offer to skip wizard if IP has connected before
+* bell on by default, disable with /bn
 

@@ -17,6 +17,7 @@ class NetcatServer(VT100_Server):
 
 	def __init__(self, host, port, world):
 		VT100_Server.__init__(self, host, port, world)
+		self.user_config_path = 'log/cfg.netcat'
 
 	def gen_remote(self, socket, addr, user):
 		return NetcatClient(self, socket, addr, self.world, user)

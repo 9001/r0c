@@ -56,6 +56,9 @@ class Core(object):
 			print()
 			sys.exit(1)
 
+		try: os.makedirs('log/pm')
+		except: pass
+
 		print('  *  py {0}'.format(host_os()))
 
 		self.telnet_port = int(sys.argv[1])
@@ -80,6 +83,10 @@ class Core(object):
 
 		print('  *  Starting NetCat server')
 		self.netcat_server = NetcatServer('0.0.0.0', self.netcat_port, self.world)
+
+		print('  *  Loading user configs')
+		self.telnet_server.load_configs()
+		self.netcat_server.load_configs()
 
 		print('  *  Starting push driver')
 		self.push_thr = threading.Thread(target=self.push_worker, args=(
@@ -129,6 +136,10 @@ class Core(object):
 		
 		if not clean_shutdown:
 			print(' -X- asyncore is stuck')
+
+		print('  *  Saving user configs')
+		self.telnet_server.save_configs()
+		self.netcat_server.save_configs()
 
 		print('  *  asyncore cleanup')
 		self.netcat_server.close()

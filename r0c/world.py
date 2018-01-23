@@ -37,15 +37,21 @@ class World(object):
 		self.num_parts = 0
 		self.num_messages = 0
 
-		try: os.makedirs('log')
-		except: pass
-
 		threading.Thread(target=self.refresh_chans, name='tx_chan').start()
 
 
 	def add_user(self, user):
 		with self.mutex:
 			self.users.append(user)
+
+
+	def find_user(self, nick):
+		with self.mutex:
+			nick = nick.lower()
+			for usr in self.users:
+				if usr.nick and usr.nick.lower() == nick:
+					return usr
+			return None
 
 
 	def refresh_chans(self):
@@ -57,13 +63,14 @@ class World(object):
 				#	task = self.task_queue.get()
 				#	task[0](*task[1],**task[2])
 
-				for chan in self.dirty_ch:
-					self.refresh_chan(chan)
-				
+				dirty_ch = list(self.dirty_ch)
 				self.dirty_ch = {}
 
+				for chan in dirty_ch:
+					self.refresh_chan(chan)
+
 		self.chan_sync_active = False
-	
+
 
 	def refresh_chan(self, nchan):
 		if not nchan.uchans:
@@ -71,9 +78,9 @@ class World(object):
 			return
 
 		last_msg = nchan.msgs[-1].sno if nchan.msgs else 0
-		if nchan.uchans[0].alias == 'r0c-status':
-			# consider every status message a ping
-			nchan.uchans[0].last_ping = last_msg
+		#if nchan.uchans[0].alias == 'r0c-status':
+		#	# consider every status message a ping
+		#	nchan.uchans[0].last_ping = last_msg
 		
 		for uchan in nchan.uchans:
 			uchan.update_activity_flags(False, last_msg)
@@ -86,7 +93,7 @@ class World(object):
 				uchan.user.client.refresh(False)
 
 
-	def send_chan_msg(self, from_nick, nchan, text):
+	def send_chan_msg(self, from_nick, nchan, text, ping_self=True):
 		max_hist_mem = MAX_HIST_MEM
 		msg_trunc_size = MSG_TRUNC_SIZE
 		with self.mutex:
@@ -105,11 +112,7 @@ class World(object):
 						utarget = None
 						target = nchan.uchans[0].alias
 						if target != from_nick:
-							for usr in self.users:
-								if usr.nick.lower() == target.lower():
-									utarget = usr
-									break
-
+							utarget = self.find_user(target)
 							if utarget is None:
 								self.send_chan_msg('-err-', nchan,
 									'\033[1;31mfailed to locate user "{0}"'.format(
@@ -117,6 +120,7 @@ class World(object):
 								return
 
 							self.join_chan_obj(utarget, nchan, from_nick)
+							self.start_logging(nchan)
 							# fallthrough to send message
 
 			msg = Message(nchan, time.time(), from_nick, text)
@@ -135,7 +139,10 @@ class World(object):
 			#self.refresh_chan(nchan)
 			for uchan in nchan.uchans:
 				if nchan.name is None or uchan.user.nick_re.search(text):
-					uchan.last_ping = msg.sno
+					#if len(nchan.uchans) == 1:
+					#	break
+					if ping_self or uchan.user.nick != from_nick:
+						uchan.last_ping = msg.sno
 			
 			if nchan not in self.dirty_ch:
 				self.dirty_ch[nchan] = 1
@@ -165,7 +172,7 @@ class World(object):
 			user.chans.append(uchan)
 			nchan.uchans.append(uchan)
 			self.send_chan_msg('--', nchan,
-				'\033[1;32m{0}\033[22m has joined'.format(user.nick))
+				'\033[1;32m{0}\033[22m has joined'.format(user.nick), False)
 			uchan.last_read = nchan.msgs[-1].sno
 			return uchan
 
@@ -389,13 +396,21 @@ class World(object):
 
 
 	def start_logging(self, nchan, chat_backlog=None):
-		log_dir = 'log/{0}'.format(nchan.name)
+		if nchan.name is not None:
+			log_dir = 'log/{0}'.format(nchan.name)
+		else:
+			log_dir = 'log/pm/{0}/{1}'.format(
+				'/'.join([x.user.nick for x in nchan.uchans]),
+				id(nchan.name))
 
 		if nchan.log_fh:
 			nchan.log_fh.close()
-
+		else:
+			try: os.makedirs(log_dir)
+			except: pass
+		
 		ts = datetime.datetime.utcnow().strftime('%Y-%m%d-%H%M%S')
-		log_fn = 'log/{0}/{1}'.format(nchan.name, ts)
+		log_fn = '{0}/{1}'.format(log_dir, ts)
 
 		while os.path.isfile(log_fn):
 			log_fn += '-'

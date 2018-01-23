@@ -145,6 +145,7 @@ class TelnetServer(VT100_Server):
 
 	def __init__(self, host, port, world):
 		VT100_Server.__init__(self, host, port, world)
+		self.user_config_path = 'log/cfg.telnet'
 
 	def gen_remote(self, socket, addr, user):
 		return TelnetClient(self, socket, addr, self.world, user)
