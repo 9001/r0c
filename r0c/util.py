@@ -202,6 +202,47 @@ def visual_length(txt):
 
 
 
+# 83% the speed of visual_length,
+# good enough to stop maintaining it and swap w/ len(this)
+def visual_indices(txt):
+	eoc = azAZ
+	ret = []
+	pend_txt = None
+	pend_ofs = []
+	counting = True
+	for n, ch in enumerate(txt):
+		
+		# escape sequences can never contain ESC;
+		# treat pend as regular text if so
+		if ch == u'\033' and pend_txt:
+			ret.extend(pend_ofs)
+			counting = True
+			pend_txt = None
+			pend_ofs = []
+		
+		if not counting:
+			if ch in eoc:
+				counting = True
+		else:
+			if pend_txt:
+				pend_txt += ch
+				pend_ofs.append(n)
+				if pend_txt.startswith(u'\033['):
+					counting = False
+				else:
+					ret.extend(pend_ofs)
+					counting = True
+				pend_txt = None
+				pend_ofs = []
+			else:
+				if ch == u'\033':
+					pend_txt = u'{0}'.format(ch)
+					pend_ofs = [n]
+				else:
+					ret.append(n)
+	return ret
+
+
 
 FOREGROUNDS = {}
 for luma, chars in enumerate([u'01234567',u'89abcdef']):
@@ -212,7 +253,7 @@ BACKGROUNDS = {}
 for n, ch in enumerate(u'01234567'):
 	BACKGROUNDS[ch] = u';4{0}'.format(n)
 
-def convert_color_codes(txt):
+def convert_color_codes(txt, preview=False):
 	foregrounds = FOREGROUNDS
 	backgrounds = BACKGROUNDS
 	scan_from = 0
@@ -250,12 +291,18 @@ def convert_color_codes(txt):
 			resume_txt += 2
 			scan_from += len(bg)
 
+		preview_k = u''
+		if preview:
+			resume_txt = ofs + 1
+			if fg:
+				preview_k = 'K'
+
 		if fg and bg:
-			txt = u'{0}{1}{2}m{3}'.format(
-				txt[:ofs], fg, bg, txt[resume_txt:])
+			txt = u'{0}{1}{2}m{3}{4}'.format(
+				txt[:ofs], fg, bg, preview_k, txt[resume_txt:])
 		elif fg:
-			txt = u'{0}{1}m{2}'.format(
-				txt[:ofs], fg, txt[resume_txt:])
+			txt = u'{0}{1}m{2}{3}'.format(
+				txt[:ofs], fg,preview_k,  txt[resume_txt:])
 		else:
 			txt = u'{0}K{1}'.format(
 				txt[:ofs], txt[resume_txt:])

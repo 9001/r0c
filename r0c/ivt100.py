@@ -96,7 +96,7 @@ class VT100_Server(asyncore.dispatcher):
 			self.user_config = {}
 			self.user_config_changed = False
 			if not os.path.isfile(self.user_config_path):
-				print('  *  {0} loaded 0 client configs'.format(self.__class__.__name__))
+				print('  *  {0} knows 0 clients'.format(self.__class__.__name__))
 				return
 
 			with open(self.user_config_path, 'rb') as f:
@@ -701,18 +701,58 @@ class VT100_Client(asyncore.dispatcher):
 	def update_text_input(self, full_redraw):
 		if not full_redraw and not self.linebuf and self.linemode:
 			return u''
-		msg_len = len(self.linebuf)
-		vis_text = self.linebuf.replace(u'\x0b', u'K')  #u'\033[7mK\033[0m')
-		free_space = self.w - (len(self.user.nick) + 2 + 1)  # nick chrome + final char on screen
-		if msg_len <= free_space:
-			self.lineview = 0
+		
+		if '\x0b' in self.linebuf:
+			ansi = convert_color_codes(self.linebuf, True)
+			chi = visual_indices(ansi)
 		else:
+			ansi = self.linebuf
+			chi = list(range(len(ansi)))
+
+		# nick chrome + final char on screen
+		free_space = self.w - (len(self.user.nick) + 2 + 1)
+		if len(chi) <= free_space:
+			self.lineview = 0
+		
+		else:
+			# cursor is beyond left side of screen 
 			if self.linepos < self.lineview:
 				self.lineview = self.linepos
+
+			# cursor is beyond right side of screen
 			elif self.linepos > self.lineview + free_space:
 				self.lineview = self.linepos - free_space
-			vis_text = vis_text[self.lineview:self.lineview+free_space]
-		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.user.nick, vis_text)
+
+			# text is partially displayed,
+			# but cursor is not sufficiently far to the right
+			midways = int(free_space * 0.5)
+			if self.lineview > 0 and len(chi) - self.lineview < midways:
+				self.lineview = len(chi) - midways
+				if self.lineview < 0:
+					# not sure if this could actually happen
+					# but the test is cheap enough so might as well
+					self.lineview = 0
+			
+			start = 0
+			if self.lineview > 0:
+				# lineview is the first visible character to display,
+				# we want to include any colour codes that precede it
+				# so start from character lineview-1 into the ansi text
+				start = chi[self.lineview - 1] + 1
+
+			end = len(ansi)
+			if self.lineview + free_space < len(chi) - 1:  # off-by-one?
+				# no such concerns about control sequences after the last
+				# visible character; just don't read past the end of chi
+				end = chi[self.lineview + free_space]
+
+			ansi = ansi[start:end]
+
+		if u'\033' in ansi:
+			# reset colours if the visible segment contains any
+			ansi += '\033[0m'
+
+		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.user.nick, ansi)
 		if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
 			self.screen[ self.h - (self.y_input + 1) ] = line
 			return u'\033[{0}H{1}\033[K'.format(self.h - self.y_input, line)
