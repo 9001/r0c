@@ -715,9 +715,14 @@ class VT100_Client(asyncore.dispatcher):
 			self.lineview = 0
 		
 		else:
-			# cursor is beyond left side of screen 
-			if self.linepos < self.lineview:
-				self.lineview = self.linepos
+			# ensure at least 1/3 of the available space is
+			# dedicated to text on the left side of the cursor
+			left_margin = int(free_space * 0.334)
+			if self.linepos - self.lineview < left_margin:
+				self.lineview = self.linepos - left_margin
+				
+				if self.lineview < 0:
+					self.lineview = 0
 
 			# cursor is beyond right side of screen
 			elif self.linepos > self.lineview + free_space:
