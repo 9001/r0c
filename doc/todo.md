@@ -6,9 +6,9 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* tabcomplete (last-spoke order)
 * kick idle clients (bots that got stuck in the config wizard lel)
-* check if AYT can be used as ping/pong
+* suggest non-telnet clients to use the other interface (and vice versa)
+* get terminal size from non-telnets
 
 # features: whatever
 
@@ -17,8 +17,10 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * rate limiting
 * modals with command feedback
 * filter bots somehow?
+
+# features: mostly pointless
+
 * notifications in topic bar
-* preview colours in text input
 * can verify crlf when loading cfg
 
 # bugs: important
@@ -64,4 +66,8 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * can't message uppercase nicks
 * offer to skip wizard if IP has connected before
 * bell on by default, disable with /bn
+* preview colours in text input
+* check if AYT can be used as ping/pong  (not really)
+  * can use crazy options where you expect a nope in return and then get a nope every time you ask
 
+* tabcomplete (last-spoke order)

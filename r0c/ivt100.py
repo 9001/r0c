@@ -9,6 +9,7 @@ import asyncore
 import socket
 import binascii
 import datetime
+import operator
 import platform
 import sys
 import os
@@ -164,6 +165,11 @@ class VT100_Client(asyncore.dispatcher):
 		self.msg_hist_scratch = False
 		self.msg_not_from_hist = False
 
+		# tabcomplete registers
+		self.tc_nicks = None
+		self.tc_msg_pre = None
+		self.tc_msg_post = None
+
 		# state registers
 		self.wizard_stage = 'start'
 		self.wizard_lastlen = 0
@@ -233,6 +239,8 @@ class VT100_Client(asyncore.dispatcher):
 
 
 	def default_config(self):
+		self.y_input = 0       # offset from bottom of screen
+		self.y_status = 1      # offset from bottom of screen
 		self.linemode = False  # set true by buggy clients
 		self.echo_on = False   # set true by buffy clients
 		self.vt100 = True      # set nope by butty clients
@@ -244,13 +252,10 @@ class VT100_Client(asyncore.dispatcher):
 	def load_config(self):
 		load_ok = False
 		with self.world.mutex:
+			self.default_config()
 			self.user.client = self
 			self.user.admin = (self.addr[0] == '127.0.0.1')  # TODO
 			
-			# static config
-			self.y_input = 0   # offset from bottom of screen
-			self.y_status = 1  # offset from bottom of screen
-
 			try:
 				ts, nick, linemode, vt100, echo_on, crlf, codec, bell = \
 					self.host.user_config[self.addr[0]].split(' ')
@@ -278,8 +283,8 @@ class VT100_Client(asyncore.dispatcher):
 			if self.echo_on:
 				# if echo enabled, swap status and input:
 				# that way the screen won't scroll on enter
-				self.y_input, self.y_status = \
-				self.y_status, self.y_input
+				self.y_input = 1
+				self.y_status = 0
 
 			if not self.user.nick:
 				self.user.set_rand_nick()
@@ -312,6 +317,10 @@ class VT100_Client(asyncore.dispatcher):
 
 			self.host.user_config[self.addr[0]] = conf_str
 			self.host.user_config_changed = True
+
+			if self.echo_on:
+				self.y_input = 1
+				self.y_status = 0
 
 
 	def set_codec(self, codec_name):
@@ -1384,18 +1393,41 @@ class VT100_Client(asyncore.dispatcher):
 				self.wizard_stage = 'qwer_prompt'
 				return self.conf_wizard()
 
+
+
+			to_say = (top + u"""
+ verify that your previous config is still OK:
+""").replace(u'\n', u'\r\n').encode('utf-8')
+
+			if enc_ascii == 'n/a':
+				to_say += u'    unicode / extended characters: DISABLED\r\n'.encode('utf-8')
+			else:
+				to_say += u'    this says "{0}":  " '.format(enc_ascii).encode('utf-8')
+				to_say += enc_unicode.encode(self.codec, 'backslashreplace')
+				to_say += u'"\r\n'.encode('utf-8')
+
+			to_say += u"""\
+\033[32m    this sentence is{0} green \033[0m
+""".\
+				format('' if self.vt100 else ' NOT').\
+				replace(u'\n', u'\r\n').encode('utf-8')
+
+
+
 			ok = 'your client is OK'
 			ng = 'get better software'
 
-			to_say = (top + u"""
- this config was used by your IP earlier:  
-   linemode:  {l_c}  ({l_g})
-   colors:    {c_c}  ({c_g})
-   echo:      {e_c}  ({e_g})
-   retkey:    {r_c}
-   encoding:  {enc_c}
+			to_say += u"""
+ technical details:
+    linemode:  {l_c}  ({l_g})
+    colors:    {c_c}  ({c_g})
+    echo:      {e_c}  ({e_g})
+    encoding:  {enc_c},   ret: {r_c}
 
- config check:
+    Y:  correct; continue
+    N:  use another config
+
+ press Y or N, followed by [Enter]
 """.format(
 				l_c = linemode.ljust(3),
 				c_c =    vt100.ljust(3),
@@ -1405,22 +1437,6 @@ class VT100_Client(asyncore.dispatcher):
 				c_g = ok if     self.vt100    else ng,
 				e_g = ok if not self.echo_on  else ng,
 				enc_c = self.codec
-				)).replace(u'\n', u'\r\n').encode('utf-8')
-			
-			if enc_ascii != 'n/a':
-				to_say += u'   the following says "{0}":  " '.format(enc_ascii).encode('utf-8')
-				to_say += enc_unicode.encode(self.codec, 'backslashreplace')
-				to_say += u'"\r\n'.encode('utf-8')
-
-			to_say += u"""\
-\033[32m   this sentence is{0} green \033[0m
-
-   Y:  correct; continue
-   N:  use another config
-
- press Y or N, followed by [Enter]
-""".format(
-				'' if self.vt100 else ' NOT'
 				).replace(u'\n', u'\r\n').encode('utf-8')
 			
 			self.say(to_say)
@@ -1790,8 +1806,10 @@ class VT100_Client(asyncore.dispatcher):
 				
 				self.linebuf = self.linebuf[:self.linepos] + plain + self.linebuf[self.linepos:]
 				self.linepos += len(plain)
+				
 				self.msg_not_from_hist = True
 				self.msg_hist_n = None
+				self.tabcomplete_end()
 				
 				if was_esc:
 					aside = ch
@@ -1806,6 +1824,9 @@ class VT100_Client(asyncore.dispatcher):
 				
 				if DBG:
 					print(' escape seq:  {0} = {1}'.format(b2hex(aside), act))
+
+				if self.tc_nicks and act != 'tab':
+					self.tabcomplete_end()
 
 				hist_step = 0
 				chan_shift = 0
@@ -1875,6 +1896,8 @@ class VT100_Client(asyncore.dispatcher):
 					chan_shift = +1
 				elif act == 'alt-tab':
 					self.user.exec_cmd('a')
+				elif act == 'tab':
+					self.tabcomplete()
 				else:
 					print('unimplemented action: {0}'.format(act))
 
@@ -1947,4 +1970,60 @@ class VT100_Client(asyncore.dispatcher):
 						print('!!! read_cb without handshake_sz')
 				else:
 					self.refresh(old_cursor != self.linepos)
+
+
+
+
+
+	def tabcomplete(self):
+		if self.tc_nicks:
+			self.tabcomplete_cycle()
+		else:
+			self.tabcomplete_init()
+
+
+	def tabcomplete_init(self):
+		try:
+			chan = self.user.active_chan.nchan
+		except:
+			return
+
+		txt = self.linebuf[:self.linepos]
+		ofs = txt.rfind(' ')
+		if ofs >= 0:
+			prefix = txt[ofs+1:].lower()
+		else:
+			prefix = txt.lower()
+
+		self.tc_nicks = [prefix]
+		for user, ts in reversed(sorted(chan.user_act_ts.items(), key=operator.itemgetter(1))):
+			if user != self.user.nick \
+			and user.lower().startswith(prefix):
+				self.tc_nicks.append(user)
+
+		if len(self.tc_nicks) == 1:
+			self.tc_nicks = None
+			return
+
+		self.tc_msg_pre = self.linebuf[:self.linepos-len(prefix)]
+		self.tc_msg_post = self.linebuf[self.linepos:]
+		self.tc_n = 0
+		
+		self.tabcomplete_cycle()
+
+
+	def tabcomplete_cycle(self):
+		self.tc_n += 1
+		if self.tc_n >= len(self.tc_nicks):
+			self.tc_n = 0
+
+		self.linebuf = self.tc_msg_pre + self.tc_nicks[self.tc_n]
+		self.linepos = len(self.linebuf)
+		self.linebuf += self.tc_msg_post
+
+
+	def tabcomplete_end(self):
+		self.tc_nicks = None
+		self.tc_post = None
+		self.tc_pre = None
 

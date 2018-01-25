@@ -275,30 +275,4 @@ if mode == 'unrag-layout-test-interactive':
 	unrag_layout_test_interactive()
 
 if mode == 'test-ansi-annotation':
-	rangetype = range
-	try: rangetype = xrange
-	except: pass
-	ansi_txt = '\033[1;33mHello \033[1;32mWorld\033[0m! This \033[7mis\033[0m a test.\033[A'
-	ansi_txt = '\033[mf\033[s\033[w\033[has\033[3451431613gt\033[m \033[s\033[g\033[s\033[g\033[s\033[gcod\033[me\033[x'
-	rv = visual_indices(ansi_txt)
-	print(' '.join(ansi_txt.replace('\033', '*')))
-	print(' '.join([str(x%10) for x in rangetype(len(ansi_txt))]))
-	print(' '.join([str(x) for x in rv]))
-	print('{0} {1}'.format(visual_length(ansi_txt), len(rv)))
-	visual = ''
-	for ofs in rv:
-		visual += ansi_txt[ofs]
-	print('[{0}]'.format(visual))
-
-	for outer_n in rangetype(3):
-
-		t0 = time.time()
-		for n in rangetype(100000):
-			rv = visual_indices(ansi_txt)
-		print(str(time.time() - t0))
-		
-		t0 = time.time()
-		for n in rangetype(100000):
-			rv = visual_length(ansi_txt)
-		print(str(time.time() - t0))
-
+	test_ansi_annotation()

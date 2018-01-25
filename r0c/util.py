@@ -306,7 +306,7 @@ def convert_color_codes(txt, preview=False):
 				txt[:ofs], fg, bg, preview_k, txt[resume_txt:])
 		elif fg:
 			txt = u'{0}{1}m{2}{3}'.format(
-				txt[:ofs], fg,preview_k,  txt[resume_txt:])
+				txt[:ofs], fg, preview_k, txt[resume_txt:])
 		else:
 			txt = u'{0}K{1}'.format(
 				txt[:ofs], txt[resume_txt:])

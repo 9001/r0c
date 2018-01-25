@@ -123,9 +123,13 @@ class World(object):
 							self.start_logging(nchan)
 							# fallthrough to send message
 
-			msg = Message(nchan, time.time(), from_nick, text)
+			now = time.time()
+			msg = Message(nchan, now, from_nick, text)
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
+
+			if not from_nick.startswith('-'):
+				nchan.user_act_ts[from_nick] = now
 
 			if len(nchan.msgs) > max_hist_mem:
 				new_len = len(nchan.msgs) - msg_trunc_size
@@ -171,6 +175,7 @@ class World(object):
 			uchan = UChannel(user, nchan, alias)
 			user.chans.append(uchan)
 			nchan.uchans.append(uchan)
+			nchan.user_act_ts[user.nick] = time.time()
 			self.send_chan_msg('--', nchan,
 				'\033[1;32m{0}\033[22m has joined'.format(user.nick), False)
 			uchan.last_read = nchan.msgs[-1].sno
@@ -283,6 +288,10 @@ class World(object):
 				i = user.chans.index(uchan)
 			user.chans.remove(uchan)
 			nchan.uchans.remove(uchan)
+			
+			try: del nchan.user_act_ts[user.nick]
+			except: pass
+
 			if i:
 				if len(user.chans) <= i:
 					i -= 1

@@ -37,8 +37,9 @@ class NetcatClient(VT100_Client):
 				return
 
 			data = self.recv(8192)
-			if not data and not self.dead:
-				self.host.part(self)
+			if not data:
+				if not self.dead:
+					self.host.part(self)
 				return
 			
 			if HEXDUMP_IN:

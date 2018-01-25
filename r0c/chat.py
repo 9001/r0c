@@ -18,6 +18,7 @@ class NChannel(object):
 		self.msgs = []         # messages
 		self.name = name
 		self.topic = topic
+		self.user_act_ts = {}  # str(nick) -> ts(last activity)
 
 		self.log_fh = None     # active log file
 		self.log_ctr = 0       # number of messages in file
