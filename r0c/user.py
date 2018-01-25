@@ -456,7 +456,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			n_priv = len(self.world.priv_ch) - (n_users - n_wizard)
 
 			self.world.send_chan_msg('--', inf,
-				"{0} users + {1} in wizard, {1} public + {2} private chans".format(
+				"{0} users + {1} in wizard, {2} public + {3} private chans".format(
 					n_users, n_wizard, n_pub, n_priv))
 
 			if self.admin:
