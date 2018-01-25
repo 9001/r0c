@@ -453,7 +453,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			n_wizard = sum(1 for x in self.world.users if not x.active_chan)
 			n_users = len(self.world.users) - n_wizard
 			n_pub = len(self.world.pub_ch)
-			n_priv = len(self.world.priv_ch) - (n_users - n_wizard)
+			n_priv = len(self.world.priv_ch) - n_users
 
 			self.world.send_chan_msg('--', inf,
 				"{0} users + {1} in wizard, {2} public + {3} private chans".format(
