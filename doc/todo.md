@@ -6,9 +6,8 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* kick idle clients (bots that got stuck in the config wizard lel)
-* suggest non-telnet clients to use the other interface (and vice versa)
 * get terminal size from non-telnets
+* kick idle clients (bots that got stuck in the config wizard lel)
 
 # features: whatever
 
@@ -71,3 +70,4 @@ the other lists are roughly sorted by importance (and additionally split in two 
   * can use crazy options where you expect a nope in return and then get a nope every time you ask
 
 * tabcomplete (last-spoke order)
+* suggest non-telnet clients to use the other interface (and vice versa)

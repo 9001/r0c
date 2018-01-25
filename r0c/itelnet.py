@@ -143,8 +143,8 @@ if not PY2:
 
 class TelnetServer(VT100_Server):
 
-	def __init__(self, host, port, world):
-		VT100_Server.__init__(self, host, port, world)
+	def __init__(self, host, port, world, other_if):
+		VT100_Server.__init__(self, host, port, world, other_if)
 		self.user_config_path = 'log/cfg.telnet'
 
 	def gen_remote(self, socket, addr, user):
@@ -237,6 +237,8 @@ class TelnetClient(VT100_Client):
 					if len(cmd) < 3:
 						print('need more data for generic negotiation')
 						break
+
+					self.num_telnet_negotiations += 1
 					
 					if verbs.get(cmd[1]):
 						if not subjects.get(cmd[2]):

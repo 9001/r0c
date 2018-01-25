@@ -79,10 +79,10 @@ class Core(object):
 		self.world = World(self)
 
 		print('  *  Starting Telnet server')
-		self.telnet_server = TelnetServer('0.0.0.0', self.telnet_port, self.world)
+		self.telnet_server = TelnetServer('0.0.0.0', self.telnet_port, self.world, self.netcat_port)
 
 		print('  *  Starting NetCat server')
-		self.netcat_server = NetcatServer('0.0.0.0', self.netcat_port, self.world)
+		self.netcat_server = NetcatServer('0.0.0.0', self.netcat_port, self.world, self.telnet_port)
 
 		print('  *  Loading user configs')
 		self.telnet_server.load_configs()

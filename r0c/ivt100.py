@@ -31,8 +31,9 @@ else:
 
 class VT100_Server(asyncore.dispatcher):
 
-	def __init__(self, host, port, world):
+	def __init__(self, host, port, world, other_if):
 		asyncore.dispatcher.__init__(self)
+		self.other_if = other_if
 		self.world = world
 		self.clients = []
 		self.user_config = {}
@@ -150,6 +151,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.backlog = None
 		self.in_bytes = b''
 		self.in_text = u''
+		self.num_telnet_negotiations = 0
 		self.slowmo_tx = SLOW_MOTION_TX
 		self.set_codec('utf-8')
 
@@ -174,6 +176,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.wizard_stage = 'start'
 		self.wizard_lastlen = 0
 		self.wizard_maxdelta = 0
+		self.iface_confirmed = False
 		self.handshake_sz = False
 		self.handshake_world = False
 		self.show_hilight_tutorial = True
@@ -1443,21 +1446,33 @@ class VT100_Client(asyncore.dispatcher):
 			return
 
 
+		if self.wizard_stage.startswith('iface_then_'):
+			text = self.in_text.lower()
+			if u'y' in text:
+				ofs = self.wizard_stage.find('_then_')
+				self.wizard_stage = self.wizard_stage[ofs+6:]
+			elif u'n' in text:
+				self.host.part(self)
+
+
 		if self.wizard_stage == 'config_reuse':
 			text = self.in_text.lower()
 			if u'y' in text:
 				text = text[text.rfind(u'y'):]
 				looks_like_linemode = (len(text) != 1)
 				if self.linemode != looks_like_linemode:
-					self.wizard_stage = 'reuse_impossible'
 					self.default_config()
+					if not self.check_correct_iface('reuse_impossible'):
+						return
 				else:
 					self.reassign_retkey(self.crlf)
-					self.wizard_stage = 'end'
+					if not self.check_correct_iface('end'):
+						return
 
 			elif u'n' in text:
-				self.wizard_stage = 'qwer_prompt'
 				self.default_config()
+				if not self.check_correct_iface('qwer_prompt'):
+					return
 
 
 		if self.wizard_stage == 'reuse_impossible':
@@ -1562,7 +1577,8 @@ class VT100_Client(asyncore.dispatcher):
 		if self.wizard_stage == 'echo':
 			if self.linemode:
 				# echo is always enabled if linemode, skip this stage
-				self.wizard_stage = 'linemode'
+				if not self.check_correct_iface('linemode'):
+					return
 			else:
 				self.wizard_stage = 'echo_answer'
 				self.in_text = u''
@@ -1578,12 +1594,14 @@ class VT100_Client(asyncore.dispatcher):
 
 
 		if self.wizard_stage == 'echo_answer':
-			self.wizard_stage = 'linemode'
 			text = self.in_text.lower()
 			if u'a' in text:
 				self.echo_on = True
-			elif u'b' not in text:
-				self.wizard_stage = 'echo_answer'
+				if not self.check_correct_iface('linemode'):
+					return
+			elif u'b' in text:
+				if not self.check_correct_iface('linemode'):
+					return
 
 
 		if self.wizard_stage == 'linemode':
@@ -1751,6 +1769,62 @@ class VT100_Client(asyncore.dispatcher):
 			self.wizard_stage = None
 			self.in_text = u''
 			self.user.create_channels()
+
+
+
+
+
+	def check_correct_iface(self, next_stage):
+		self.wizard_stage = next_stage
+		if self.iface_confirmed:
+			return True
+		
+		self.iface_confirmed = True
+
+		to_say = None
+		ftop = u'\n'*20 + u'\033[H\033[J'
+		top = ftop + ' [ r0c configurator ]\n'
+
+		if self.__class__.__name__ == 'TelnetClient' \
+		and self.num_telnet_negotiations < 1:
+			print('client negs:  {0} bad_if'.format(self.num_telnet_negotiations))
+			to_say = (top + u"""
+ your client is not responding to negotiations.
+   
+   if you are NOT using Telnet,
+   please connect to port {0}
+""").format(self.host.other_if)
+
+		elif self.__class__.__name__ == 'NetcatClient' \
+		and self.num_telnet_negotiations > 0:
+			print('client negs:  {0} bad_if'.format(self.num_telnet_negotiations))
+			to_say = (top + u"""
+ your client has sent {1} Telnet negotiation{2}.
+   
+   if you are using Telnet,
+   please connect to port {0}
+""").format(self.host.other_if,
+			self.num_telnet_negotiations,
+			's' if self.num_telnet_negotiations != 1 else '')
+
+		if to_say:
+			to_say += u"""
+ are you sure the port is correct?
+
+   Y:  yes, ignore and continue
+   N:  no, quit
+
+ press Y or N, followed by [Enter]
+"""
+			
+			self.in_text = u''
+			self.wizard_stage = 'iface_then_' + next_stage
+			self.say(to_say.replace(u'\n', u'\r\n').encode('utf-8'))
+			return False
+
+		print('client negs:  {0} ok'.format(
+			self.num_telnet_negotiations))
+		return True
 
 
 

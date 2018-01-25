@@ -15,8 +15,8 @@ PY2 = (sys.version_info[0] == 2)
 
 class NetcatServer(VT100_Server):
 
-	def __init__(self, host, port, world):
-		VT100_Server.__init__(self, host, port, world)
+	def __init__(self, host, port, world, other_if):
+		VT100_Server.__init__(self, host, port, world, other_if)
 		self.user_config_path = 'log/cfg.netcat'
 
 	def gen_remote(self, socket, addr, user):
@@ -28,6 +28,17 @@ class NetcatClient(VT100_Client):
 	
 	def __init__(self, host, socket, address, world, user):
 		VT100_Client.__init__(self, host, socket, address, world, user)
+		
+		self.looks_like_telnet = {
+			b'\xff\xfe': 1,
+			b'\xff\xfd': 1,
+			b'\xff\xfc': 1,
+			b'\xff\xfb': 1
+		}
+		# trick telnet into revealing itself:
+		# request client status and location
+		self.replies.put(b'\xff\xfd\x05\xff\xfd\x17')
+		
 		self.request_terminal_size()
 
 	def handle_read(self):
@@ -46,6 +57,16 @@ class NetcatClient(VT100_Client):
 				hexdump(data, '-->>')
 			
 			self.in_bytes += data
+
+			if b'\xff' in data:
+				ofs = 0
+				while ofs >= 0:
+					ofs = data.find(b'\xff', ofs)
+					if ofs < 0:
+						break
+					if data[ofs:ofs+2] in self.looks_like_telnet:
+						self.num_telnet_negotiations += 1
+					ofs = ofs + 1
 			
 			try:
 				src = u'{0}'.format(self.in_bytes.decode(self.codec))
