@@ -39,7 +39,6 @@ class NetcatClient(VT100_Client):
 		# request client status and location
 		self.replies.put(b'\xff\xfd\x05\xff\xfd\x17')
 		
-		self.request_terminal_size()
 
 	def handle_read(self):
 		with self.world.mutex:

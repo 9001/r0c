@@ -124,7 +124,7 @@ class VT100_Server(asyncore.dispatcher):
 			with open(self.user_config_path, 'wb') as f:
 				f.write('1\n'.encode('utf-8'))
 				for k, v in sorted(self.user_config.items()):
-					f.write(u' '.join([k, v]).encode('utf-8'))
+					f.write((u' '.join([k, v]) + u'\n').encode('utf-8'))
 			
 			print('  *  {0} saved {1} client configs'.format(
 				self.__class__.__name__, len(self.user_config)))
@@ -185,6 +185,10 @@ class VT100_Client(asyncore.dispatcher):
 		self.screen = []
 		self.w = 80
 		self.h = 24
+		self.pending_size_request = False
+		self.size_request_action = None
+		self.re_cursor_pos = re.compile(
+			'\033\[([0-9]{1,4});([0-9]{1,4})R')
 		
 		self.msg_too_small = [
 			'your screen is too small',
@@ -367,8 +371,18 @@ class VT100_Client(asyncore.dispatcher):
 		self.esc_tab[key] = act
 
 
-	def request_terminal_size(self):
-		pass
+	def request_terminal_size(self, scheduled_task=None):
+		if not self.vt100 \
+		or self.num_telnet_negotiations > 0:
+			# telnet got this covered,
+			# non-vt100 can't be helped
+			return False
+		
+		self.pending_size_request = True
+		self.size_request_action = scheduled_task
+		self.say(b'\033[s\033[999;999H\033[6n\033[u')
+		if self.linemode:
+			self.say(b'\033[H\033[J\r\n   *** please press ENTER  (due to linemode) ***\r\n\r\n   ')
 
 
 	def say(self, message):
@@ -714,6 +728,15 @@ class VT100_Client(asyncore.dispatcher):
 		if not full_redraw and not self.linebuf and self.linemode:
 			return u''
 		
+		line_fmt = u'\033[0;36m{0}>\033[0m {1}'
+		print_fmt = u'\033[{0}H{1}\033[K'
+
+		if self.pending_size_request:
+			line = line_fmt.format(self.user.nick,
+				u'#\033[7m please press ENTER  (due to linemode) \033[0m')
+			self.screen[ self.h - (self.y_input + 1) ] = line
+			return print_fmt.format(self.h - self.y_input, line)
+		
 		if '\x0b' in self.linebuf:
 			ansi = convert_color_codes(self.linebuf, True)
 			chi = visual_indices(ansi)
@@ -769,10 +792,10 @@ class VT100_Client(asyncore.dispatcher):
 			# reset colours if the visible segment contains any
 			ansi += '\033[0m'
 
-		line = u'\033[0;36m{0}>\033[0m {1}'.format(self.user.nick, ansi)
+		line = line_fmt.format(self.user.nick, ansi)
 		if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
 			self.screen[ self.h - (self.y_input + 1) ] = line
-			return u'\033[{0}H{1}\033[K'.format(self.h - self.y_input, line)
+			return print_fmt.format(self.h - self.y_input, line)
 		return u''
 	
 
@@ -1766,13 +1789,27 @@ class VT100_Client(asyncore.dispatcher):
 					'\033[31m'   if self.echo_on  else '\033[32m',
 					self.codec, self.user.nick, self.addr[0]))
 
+			if self.num_telnet_negotiations == 0:
+				self.request_terminal_size()
+				
+				# this is a terrible idea (but terribly good for testing)
+				if False:
+					def sz_requester():
+						while not self.dead:
+							self.request_terminal_size()
+							time.sleep(0.1)
+					
+					thr = threading.Thread(target=sz_requester, name='sz_req')
+					thr.daemon = True
+					thr.start()
+
 			self.wizard_stage = None
 			self.in_text = u''
 			self.user.create_channels()
 
 
 
-
+	
 
 	def check_correct_iface(self, next_stage):
 		self.wizard_stage = next_stage
@@ -1842,7 +1879,47 @@ class VT100_Client(asyncore.dispatcher):
 				return
 
 			full_redraw = True
-
+		
+		# look for incoming ansi escapes (cursor position)
+		#   consider refactoring read_cb to take the
+		#   new segment of text rather than working on in_text
+		#   if more stuff like this needs to be done
+		if u'\033[' in self.in_text:
+			while True:
+				m = self.re_cursor_pos.search(self.in_text)
+				if not m:
+					break
+				
+				sh, sw = [int(x) for x in m.groups()]
+				self.pending_size_request = False
+				self.handshake_sz = True
+				
+				if self.w != sw \
+				or self.h != sh:
+					self.w = sw
+					self.h = sh
+					full_redraw = True
+				
+				ofs = self.in_text.find(u'\033[')
+				self.in_text = self.in_text[:ofs] + self.in_text[ofs+len(m.group(0)):]
+				print('client size:  {0} x {1}'.format(sw, sh))
+		
+		if self.size_request_action:
+			if self.pending_size_request:
+				# still waiting for a response from user,
+				# check if they sent a newline char without offering the size after all
+				# (corrupted or partial response due to backspace etc)
+				for k, v in self.esc_tab:
+					if v == 'ret':
+						if k in self.in_text:
+							self.pending_size_request = False
+							break
+			
+			if not self.pending_size_request:
+				# the response arrived (or is considered lost)
+				if self.size_request_action == 'redraw':
+					full_redraw = True
+		
 		aside = u''
 		old_cursor = self.linepos
 		for ch in self.in_text:
@@ -2039,10 +2116,7 @@ class VT100_Client(asyncore.dispatcher):
 				if full_redraw or self.need_full_redraw:
 					self.need_full_redraw = True
 				
-				if not self.handshake_sz:
-					if DBG:
-						print('!!! read_cb without handshake_sz')
-				else:
+				if self.handshake_sz:
 					self.refresh(old_cursor != self.linepos)
 
 

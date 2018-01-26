@@ -424,6 +424,10 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			self.client.refresh(False)
 
 		elif cmd == 'redraw' or cmd == 'r':
+			if self.client.request_terminal_size('redraw'):
+				# returns true if event was scheduled for later
+				return
+
 			self.client.need_full_redraw = True
 			self.client.refresh(False)
 
