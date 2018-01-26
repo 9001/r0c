@@ -101,16 +101,29 @@ class VT100_Server(asyncore.dispatcher):
 				print('  *  {0} knows 0 clients'.format(self.__class__.__name__))
 				return
 
+			panic = False
 			with open(self.user_config_path, 'rb') as f:
 				f.readline()  # discard version info
 				try:
 					for ln in [x.decode('utf-8').strip() for x in f]:
 						k, v = ln.split(' ', 1)
 						self.user_config[k] = v
+						
+						if len(v.split(' ')) > 15:
+							panic = True
+							print('\n /!\\ YOUR CFG.* FILES ARE BUSTED')
+							print('     i messed up the serialization in an older version of r0c sorry')
+							print('     please run these oneliners to fix them:\n')
+							for fn in 'telnet', 'netcat':
+								print(r"sed -ri 's/([0-9\.]+ [0-9a-f]+ [^ ]+ [01] [01] [01] [^ ]+ [^ ]+ [01])/\1\n/g' log/cfg.{0}".format(fn))
+								print()
 				except:
-					print(' -!- invalid config line')
+					print(' /!\\ invalid config line')
 					try: print(ln)
 					except: pass
+
+			if panic:
+				raise RuntimError('see above')
 
 			print('  *  {0} knows {1} clients'.format(
 				self.__class__.__name__, len(self.user_config)))
@@ -1546,9 +1559,13 @@ class VT100_Client(asyncore.dispatcher):
 			#if any(ch in btext for ch in nline):
 			nl_a = next((i for i, ch in enumerate(btext) if ch in nline), None)
 			if nl_a is not None:
-				nl_b = next((i for i, ch in enumerate(reversed(btext)) if ch in nline), None)
+				for i, ch in enumerate(btext[nl_a:], nl_a):
+					if ch not in nline:
+						break
+					nl_b = i
+				
 				if nl_b is not None:
-					nl = btext[nl_a:len(btext)-nl_b]
+					nl = btext[nl_a:nl_b+1]
 					self.reassign_retkey(nl.decode('utf-8'))
 					print('client crlf:  {0}  {1}  {2}'.format(
 						self.user.nick, self.addr[0], b2hex(nl)))
