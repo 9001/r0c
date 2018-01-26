@@ -2165,7 +2165,12 @@ class VT100_Client(asyncore.dispatcher):
 		if self.tc_n >= len(self.tc_nicks):
 			self.tc_n = 0
 
-		self.linebuf = self.tc_msg_pre + self.tc_nicks[self.tc_n]
+		if not self.tc_msg_pre:
+			nick_suffix = u': '
+		else:
+			nick_suffix = u' '
+
+		self.linebuf = self.tc_msg_pre + self.tc_nicks[self.tc_n] + nick_suffix
 		self.linepos = len(self.linebuf)
 		self.linebuf += self.tc_msg_post
 
