@@ -23,6 +23,10 @@ most to least recommended
 | :---   | :---    |
 | telnet | `telnet r0c.int` |
 | socat  | `socat -,raw,echo=0 tcp:r0c.int:531` |
+| bash   | [mostly internals](clients/bash.sh) |
 | netcat | `nc r0c.int 531` |
-| bash   | `exec 147<>/dev/tcp/r0c.int/531; cat <&147 & while read -r x; do printf '%s\n' "$x" >&147; done` |
-| powershell | [scrolling is kinda broken](clients/powershell.ps1)
+| the oneliner | connecting: `exec 147<>/dev/tcp/r0c.int/531;cat<&147 &while read -rN1 x;do printf '%s' "$x">&147;done` |
+|              | disconnecting: `exec 147<&-; killall cat #sorry` |
+| powershell   | [scrolling is kinda broken](clients/powershell.ps1)
+
+the powershell client is useless because powershell's VT100 implementation is buggy; scrolling sometimes work, sometimes doesn't, high chance you'll miss messages but it's (very slightly) better than nothing

@@ -28,6 +28,8 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # bugs: whatever
 
+* jump to ch0 on nick change
+* powershell's vt100 impl is a glitchy mess
 * py2 deadlocks on quit with threadcapture running
 * channel cleanup doesn't happen unless user joins another channel after parting
 * check for queue buildups in general
