@@ -24,5 +24,5 @@ most to least recommended
 | telnet | `telnet r0c.int` |
 | socat  | `socat -,raw,echo=0 tcp:r0c.int:531` |
 | netcat | `nc r0c.int 531` |
-| bash   | `exec 147<>/dev/tcp/192.168.1.190/531; cat <&147 & while read -r x; do printf '%s\n' "$x" >&147; done` |
-| powershell | [scrolling is kinda broken](blob/master/clients/powershell.ps1)
+| bash   | `exec 147<>/dev/tcp/r0c.int/531; cat <&147 & while read -r x; do printf '%s\n' "$x" >&147; done` |
+| powershell | [scrolling is kinda broken](clients/powershell.ps1)
