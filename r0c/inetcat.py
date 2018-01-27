@@ -84,8 +84,6 @@ class NetcatClient(VT100_Client):
 					src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec, 'backslashreplace'))
 					self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
 			
-			#self.linebuf = self.linebuf[:self.linepos] + src + self.linebuf[self.linepos:]
-			#self.linepos += len(src)
 			self.in_text += src
 			
 			self.read_cb(False)

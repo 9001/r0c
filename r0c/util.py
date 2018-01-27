@@ -248,6 +248,20 @@ def visual_indices(txt):
 
 
 
+def sanitize_ctl_codes(aside):
+	plain = u''
+	for pch in aside:
+		nch = ord(pch)
+		#print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
+		if nch < 0x20 and nch != 0x0b:
+			print('substituting non-printable \\x{0:02x}'.format(nch))
+			plain += '?'
+		else:
+			plain += pch
+	return plain
+
+
+
 FOREGROUNDS = {}
 for luma, chars in enumerate([u'01234567',u'89abcdef']):
 	for n, ch in enumerate(chars):

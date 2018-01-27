@@ -355,7 +355,11 @@ class VT100_Client(asyncore.dispatcher):
 		etab = self.esc_tab.iteritems if PY2 else self.esc_tab.items
 		drop = []
 		for key, value in etab():
-			if value == 'ret':
+			if value == 'ret' \
+			and key != u'\x0d\x00':
+				# \x0d \x00 gets special treatment because
+				# putty sends it for pastes but not keystrokes
+				# and it's unique enough to not cause any issues
 				drop.append(key)
 		for key in drop:
 			del self.esc_tab[key]
@@ -610,8 +614,11 @@ class VT100_Client(asyncore.dispatcher):
 			
 			cause = u''
 			if len(uchan.nchan.uchans) > 1:
-				cause = u'\nsomeone mentioned your nick in {0}.\n'.format(
-					uchan.nchan.get_name())
+				ch_name = uchan.nchan.get_name()
+				if ' ' in ch_name:
+					cause = u'\nsomeone sent you a private message.\n'.format()
+				else:
+					cause = u'\nsomeone mentioned your nick in {0}.\n'.format(ch_name)
 
 			self.world.send_chan_msg('-inf-', inf_n, """[about notifications]{0}
   to jump through unread channels,
@@ -1897,212 +1904,205 @@ class VT100_Client(asyncore.dispatcher):
 
 			full_redraw = True
 		
-		# look for incoming ansi escapes (cursor position)
-		#   consider refactoring read_cb to take the
-		#   new segment of text rather than working on in_text
-		#   if more stuff like this needs to be done
-		if u'\033[' in self.in_text:
-			while True:
-				m = self.re_cursor_pos.search(self.in_text)
-				if not m:
-					break
-				
-				sh, sw = [int(x) for x in m.groups()]
-				self.pending_size_request = False
-				self.handshake_sz = True
-				
-				if self.w != sw \
-				or self.h != sh:
-					self.w = sw
-					self.h = sh
-					full_redraw = True
-				
-				ofs = self.in_text.find(u'\033[')
-				self.in_text = self.in_text[:ofs] + self.in_text[ofs+len(m.group(0)):]
-				print('client size:  {0} x {1}'.format(sw, sh))
-		
-		if self.size_request_action:
-			if self.pending_size_request:
-				# still waiting for a response from user,
-				# check if they sent a newline char without offering the size after all
-				# (corrupted or partial response due to backspace etc)
-				for k, v in self.esc_tab:
-					if v == 'ret':
-						if k in self.in_text:
-							self.pending_size_request = False
-							break
-			
-			if not self.pending_size_request:
-				# the response arrived (or is considered lost)
-				if self.size_request_action == 'redraw':
-					full_redraw = True
-		
 		aside = u''
 		old_cursor = self.linepos
-		for ch in self.in_text:
-			was_esc = None
-			if aside and aside in self.esc_tab:
-				# text until now is an incomplete escape sequence;
-				# if the new character turns into an invalid sequence
-				# we'll turn the old one into a plaintext string
-				was_esc = aside
+		
+		esc_scan = True
+		while esc_scan:
+			esc_scan = False
 			
-			aside += ch
-			if not aside in self.esc_tab:
-				if was_esc:
-					# new character made the escape sequence invalid;
-					# print old buffer as plaintext and create a new
-					# escape sequence buffer for just the new char
-					
-					if ch in self.esc_tab:
-						# ...but only if the new character is
-						# potentially the start of a new esc.seq.
-						aside = was_esc
-					else:
-						# in this case it isn't
-						was_esc = False
+			for nth, ch in enumerate(self.in_text):
 				
-				plain = u''
-				for pch in aside:
-					nch = ord(pch)
-					#print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
-					if nch < 0x20 and nch != 0x0b:
-						print('substituting non-printable \\x{0:02x}'.format(nch))
-						plain += '?'
-					else:
-						plain += pch
+				was_esc = None
+				if aside and aside in self.esc_tab:
+					# text until now is an incomplete escape sequence;
+					# if the new character turns into an invalid sequence
+					# we'll turn the old one into a plaintext string
+					was_esc = aside
 				
-				self.linebuf = self.linebuf[:self.linepos] + plain + self.linebuf[self.linepos:]
-				self.linepos += len(plain)
+				aside += ch
+				csi = ( aside == u'\033' ) or aside.startswith(u'\033[')
+				bad_csi = csi and len(aside) > 12
 				
-				self.msg_not_from_hist = True
-				self.msg_hist_n = None
-				self.tabcomplete_end()
-				
-				if was_esc:
-					aside = ch
-				else:
-					aside = u''
-			
-			else:
-				# this is an escape sequence; handle it
-				act = self.esc_tab[aside]
-				if not act:
-					continue
-				
-				if DBG:
-					print(' escape seq:  {0} = {1}'.format(b2hex(aside), act))
+				if not aside in self.esc_tab and ( bad_csi or not csi ):
 
-				if self.tc_nicks and act != 'tab':
-					self.tabcomplete_end()
+					if bad_csi:
+						# escape the ESC and take it from the top:
+						# there might be esc_tab sequences within
+						self.in_text = u'[ESC]' + aside[1:] + self.in_text[nth+1:]
+						esc_scan = True
+						break
 
-				hist_step = 0
-				chan_shift = 0
-
-				aside = u''
-				if act == 'cl':
-					self.linepos -= 1
-					if self.linepos < 0:
-						self.linepos = 0
-				elif act == 'cr':
-					self.linepos += 1
-					if self.linepos > len(self.linebuf):
-						self.linepos = len(self.linebuf)
-				elif act == 'cu':
-					hist_step = -1
-				elif act == 'cd':
-					hist_step = 1
-				elif act == 'home':
-					self.linepos = 0
-				elif act == 'end':
-					self.linepos = len(self.linebuf)
-				elif act == 'bs':
-					if self.linepos > 0:
-						self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
-						self.linepos -= 1
-				elif act == 'ret':
-					if self.linebuf:
-						# add this to the message/command ("input") history
-						if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
-							if self.msg_hist_scratch:
-								self.msg_hist[-1] = self.linebuf
-							else:
-								self.msg_hist.append(self.linebuf)
-
-						self.msg_hist_scratch = False
-						self.msg_not_from_hist = False
+					if was_esc:
+						# new character made the escape sequence invalid;
+						# print old buffer as plaintext and create a new
+						# escape sequence buffer for just the new char
 						
-						single = self.linebuf.startswith('/')
-						double = self.linebuf.startswith('//')
-						if single and not double:
-							# this is a command
-							self.user.exec_cmd(self.linebuf[1:])
+						if ch in self.esc_tab:
+							# ...but only if the new character is
+							# potentially the start of a new esc.seq.
+							aside = was_esc
 						else:
-							if double:
-								# remove escape character
-								self.linebuf = self.linebuf[1:]
-							
-							self.world.send_chan_msg(
-								self.user.nick,
-								self.user.active_chan.nchan,
-								convert_color_codes(self.linebuf))
-
-						self.msg_hist_n = None
-						self.linebuf = u''
-						self.linepos = 0
-				elif act == 'pgup':
-					self.scroll_cmd = -(self.h - 4)
-					#self.scroll_cmd = -10
-				elif act == 'pgdn':
-					self.scroll_cmd = +(self.h - 4)
-					#self.scroll_cmd = +10
-				elif act == 'redraw':
-					self.need_full_redraw = True
-				elif act == 'prev-chan':
-					chan_shift = -1
-				elif act == 'next-chan':
-					chan_shift = +1
-				elif act == 'alt-tab':
-					self.user.exec_cmd('a')
-				elif act == 'tab':
-					self.tabcomplete()
-				else:
-					print('unimplemented action: {0}'.format(act))
-
-				if chan_shift != 0:
-					i = self.user.chans.index(self.user.active_chan) + chan_shift
-					if i < 0:
-						i = len(self.user.chans) - 1
-					if i >= len(self.user.chans):
-						i = 0
-					self.user.new_active_chan = self.user.chans[i]
-				
-				elif hist_step == 0:
+							# in this case it isn't
+							was_esc = False
+					
+					self.linebuf = \
+						self.linebuf[:self.linepos] + sanitize_ctl_codes(aside) + \
+						self.linebuf[self.linepos:]
+					self.linepos += len(aside)
+					
+					self.msg_not_from_hist = True
 					self.msg_hist_n = None
+					self.tabcomplete_end()
+					
+					if was_esc:
+						aside = ch
+					else:
+						aside = u''
 				
 				else:
-					if self.msg_hist_n is None:
-						if hist_step < 0:
-							self.msg_hist_n = len(self.msg_hist) - 1
-					else:
-						self.msg_hist_n += hist_step
+					# this is an escape sequence; handle it
+					act = False
+					if aside in self.esc_tab:
+						act = self.esc_tab[aside]
 
-					if self.msg_hist_n is not None:
-						if self.msg_hist_n < 0 or self.msg_hist_n >= len(self.msg_hist):
+					if not act:
+						if not csi:
+							continue
+
+						m = self.re_cursor_pos.match(aside)
+						if not m:
+							continue
+
+						sh, sw = [int(x) for x in m.groups()]
+						self.pending_size_request = False
+						self.handshake_sz = True
+						
+						if self.w != sw \
+						or self.h != sh:
+							self.w = sw
+							self.h = sh
+							full_redraw = True
+						
+						aside = aside[len(m.group(0)):]
+						print('client size:  {0} x {1}'.format(sw, sh))
+
+						continue
+					
+					if DBG:
+						print(' escape seq:  {0} = {1}'.format(b2hex(aside), act))
+
+					if self.tc_nicks and act != 'tab':
+						self.tabcomplete_end()
+
+					hist_step = 0
+					chan_shift = 0
+
+					aside = u''
+					if act == 'cl':
+						self.linepos -= 1
+						if self.linepos < 0:
+							self.linepos = 0
+					elif act == 'cr':
+						self.linepos += 1
+						if self.linepos > len(self.linebuf):
+							self.linepos = len(self.linebuf)
+					elif act == 'cu':
+						hist_step = -1
+					elif act == 'cd':
+						hist_step = 1
+					elif act == 'home':
+						self.linepos = 0
+					elif act == 'end':
+						self.linepos = len(self.linebuf)
+					elif act == 'bs':
+						if self.linepos > 0:
+							self.linebuf = self.linebuf[:self.linepos-1] + self.linebuf[self.linepos:]
+							self.linepos -= 1
+					elif act == 'ret':
+						if self.linebuf:
+							# add this to the message/command ("input") history
+							if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
+								if self.msg_hist_scratch:
+									self.msg_hist[-1] = self.linebuf
+								else:
+									self.msg_hist.append(self.linebuf)
+
+							self.msg_hist_scratch = False
+							self.msg_not_from_hist = False
+							self.pending_size_request = False
+							
+							single = self.linebuf.startswith('/')
+							double = self.linebuf.startswith('//')
+							if single and not double:
+								# this is a command
+								self.user.exec_cmd(self.linebuf[1:])
+							else:
+								if double:
+									# remove escape character
+									self.linebuf = self.linebuf[1:]
+								
+								self.world.send_chan_msg(
+									self.user.nick,
+									self.user.active_chan.nchan,
+									convert_color_codes(self.linebuf))
+
 							self.msg_hist_n = None
-
-					# capture unfinished entries so they can be resumed
-					if self.linebuf and self.msg_not_from_hist:
-						self.msg_hist.append(self.linebuf)
-						self.msg_hist_scratch = True
-
-					self.msg_not_from_hist = False
-
-					if self.msg_hist_n is None:
-						self.linebuf = u''
+							self.linebuf = u''
+							self.linepos = 0
+					elif act == 'pgup':
+						self.scroll_cmd = -(self.h - 4)
+						#self.scroll_cmd = -10
+					elif act == 'pgdn':
+						self.scroll_cmd = +(self.h - 4)
+						#self.scroll_cmd = +10
+					elif act == 'redraw':
+						self.need_full_redraw = True
+					elif act == 'prev-chan':
+						chan_shift = -1
+					elif act == 'next-chan':
+						chan_shift = +1
+					elif act == 'alt-tab':
+						self.user.exec_cmd('a')
+					elif act == 'tab':
+						self.tabcomplete()
 					else:
-						self.linebuf = self.msg_hist[self.msg_hist_n]
-					self.linepos = len(self.linebuf)
+						print('unimplemented action: {0}'.format(act))
+
+					if chan_shift != 0:
+						i = self.user.chans.index(self.user.active_chan) + chan_shift
+						if i < 0:
+							i = len(self.user.chans) - 1
+						if i >= len(self.user.chans):
+							i = 0
+						self.user.new_active_chan = self.user.chans[i]
+					
+					elif hist_step == 0:
+						self.msg_hist_n = None
+					
+					else:
+						if self.msg_hist_n is None:
+							if hist_step < 0:
+								self.msg_hist_n = len(self.msg_hist) - 1
+						else:
+							self.msg_hist_n += hist_step
+
+						if self.msg_hist_n is not None:
+							if self.msg_hist_n < 0 or self.msg_hist_n >= len(self.msg_hist):
+								self.msg_hist_n = None
+
+						# capture unfinished entries so they can be resumed
+						if self.linebuf and self.msg_not_from_hist:
+							self.msg_hist.append(self.linebuf)
+							self.msg_hist_scratch = True
+
+						self.msg_not_from_hist = False
+
+						if self.msg_hist_n is None:
+							self.linebuf = u''
+						else:
+							self.linebuf = self.msg_hist[self.msg_hist_n]
+						self.linepos = len(self.linebuf)
 		if aside:
 			if DBG:
 				print('need more data for {0} runes: {1}'.format(len(aside), b2hex(aside)))
@@ -2128,6 +2128,11 @@ class VT100_Client(asyncore.dispatcher):
 			return
 		self.too_small = False
 
+		if self.size_request_action \
+		and not self.pending_size_request \
+		and self.size_request_action == 'redraw':
+			full_redraw = True
+		
 		if not self.dead:
 			with self.world.mutex:
 				if full_redraw or self.need_full_redraw:
@@ -2135,7 +2140,6 @@ class VT100_Client(asyncore.dispatcher):
 				
 				if self.handshake_sz:
 					self.refresh(old_cursor != self.linepos)
-
 
 
 

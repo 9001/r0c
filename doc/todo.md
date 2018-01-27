@@ -6,6 +6,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
+* write documentation orz
 * kick idle clients (bots that got stuck in the config wizard lel)
 
 # features: whatever
@@ -23,8 +24,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # bugs: important
 
-* copy/paste into putty on windows skips newlines ??
-* non-vt100: /r and ^R don't clear hilights
+* `nothing to see here`
 
 # bugs: whatever
 
@@ -71,3 +71,5 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * tabcomplete (last-spoke order)
 * suggest non-telnet clients to use the other interface (and vice versa)
 * get terminal size from non-telnets
+* copy/paste into putty on windows skips newlines ??
+* non-vt100: /r and ^R don't clear hilights
