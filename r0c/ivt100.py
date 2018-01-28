@@ -177,7 +177,6 @@ class VT100_Client(asyncore.dispatcher):
 		self.lineview = 0
 		self.msg_hist = []
 		self.msg_hist_n = None
-		self.msg_hist_scratch = False
 		self.msg_not_from_hist = False
 
 		# tabcomplete registers
@@ -775,7 +774,7 @@ class VT100_Client(asyncore.dispatcher):
 		if self.pending_size_request:
 			line = line_fmt.format(self.user.nick,
 				u'#\033[7m please press ENTER  (due to linemode) \033[0m')
-			if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw::
+			if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
 				self.screen[ self.h - (self.y_input + 1) ] = line
 				return print_fmt.format(self.h - self.y_input, line)
 			return u''
@@ -2055,12 +2054,8 @@ class VT100_Client(asyncore.dispatcher):
 						if self.linebuf:
 							# add this to the message/command ("input") history
 							if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
-								if self.msg_hist_scratch:
-									self.msg_hist[-1] = self.linebuf
-								else:
-									self.msg_hist.append(self.linebuf)
+								self.msg_hist.append(self.linebuf)
 
-							self.msg_hist_scratch = False
 							self.msg_not_from_hist = False
 							self.pending_size_request = False
 							
@@ -2126,7 +2121,6 @@ class VT100_Client(asyncore.dispatcher):
 						# capture unfinished entries so they can be resumed
 						if self.linebuf and self.msg_not_from_hist:
 							self.msg_hist.append(self.linebuf)
-							self.msg_hist_scratch = True
 
 						self.msg_not_from_hist = False
 
