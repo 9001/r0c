@@ -368,7 +368,17 @@ class VT100_Client(asyncore.dispatcher):
 
 
 	def handshake_timeout(self):
+		if DBG:
+			print('handshake_sz  init')
+		
 		time.sleep(1)
+		
+		if DBG:
+			if self.handshake_sz:
+				print('handshake_sz  timeout')
+			else:
+				print('handshake_sz  ok')
+		
 		self.handshake_sz = True
 
 
@@ -487,6 +497,17 @@ class VT100_Client(asyncore.dispatcher):
 			or not self.handshake_sz \
 			or not self.handshake_world \
 			or self.wizard_stage is not None:
+				return
+
+			if self.dead:
+				whoops('refreshing dead client #wow #whoa')
+				try: print('*** i am {0}'.format(self.addr))
+				except: pass
+				try: print('*** i am [{0}]'.format(self.user.nick))
+				except: pass
+				if self in self.host.clients:
+					print('*** dead client still in host.clients')
+					del self.host.clients[self]
 				return
 
 			if not self.user:
@@ -754,8 +775,10 @@ class VT100_Client(asyncore.dispatcher):
 		if self.pending_size_request:
 			line = line_fmt.format(self.user.nick,
 				u'#\033[7m please press ENTER  (due to linemode) \033[0m')
-			self.screen[ self.h - (self.y_input + 1) ] = line
-			return print_fmt.format(self.h - self.y_input, line)
+			if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw::
+				self.screen[ self.h - (self.y_input + 1) ] = line
+				return print_fmt.format(self.h - self.y_input, line)
+			return u''
 		
 		if '\x0b' in self.linebuf:
 			ansi = convert_color_codes(self.linebuf, True)
@@ -869,24 +892,21 @@ class VT100_Client(asyncore.dispatcher):
 				txt[n] = msg_nl + line
 		
 		return txt
-	
 
 
-	def update_chat_view(self, full_redraw, mark_messages_read):
-		ret = u''
+
+	def update_chat_view(self, full_redraw, mark_messages_read, call_depth=0):
 		ch = self.user.active_chan
 		nch = ch.nchan
+		ret = u''
+
+		if call_depth > 3:
+			# the famous "should never happen"
+			whoops('ch={0} usr={1}'.format(
+				nch.get_name(), self.user.nick))
+			return None
 
 		debug_scrolling = False
-
-		#if not self.vt100:
-		#	if self.scroll_cmd is not None:
-		#		if self.scroll_cmd < 0:
-		#			#self.lock_to_bottom = False
-		#			# this doesn't work
-		#			full_redraw = True
-		
-		#print('\n@@@ update chat view @@@ {0}'.format(time.time()))
 		
 		nick_w = None
 		if self.user.active_chan.alias == 'r0c-status':
@@ -925,6 +945,7 @@ class VT100_Client(asyncore.dispatcher):
 		
 		# first ensure our cache is sane
 		if not ch.vis:
+			self.scroll_cmd = None
 			ch.lock_to_bottom = True
 			full_redraw = True
 		else:
@@ -951,6 +972,7 @@ class VT100_Client(asyncore.dispatcher):
 					print('\033[1;33mviewport NG:  [{0}] in [{1}]\033[0m'.format(
 						ch.user.nick, nch.get_name()))
 
+					self.scroll_cmd = None
 					ch.lock_to_bottom = True
 					full_redraw = True
 		
@@ -961,11 +983,17 @@ class VT100_Client(asyncore.dispatcher):
 		if ch.lock_to_bottom \
 		and not full_redraw \
 		and nch.msgs[-1].sno - ch.vis[-1].msg.sno > self.h * 2:
-			
+
 			# lots of messages since last time, no point in scrolling
+			self.scroll_cmd = None
 			full_redraw = True
-		
+
 		if full_redraw:
+			if self.scroll_cmd:
+				# all the scrolling code assumes a gradual refresh,
+				# this is cheap enough to almost be defendable
+				self.update_chat_view(False, False, call_depth+1)
+
 			lines = []
 			lines_left = self.h - 3
 
@@ -1066,9 +1094,8 @@ class VT100_Client(asyncore.dispatcher):
 				lines.append('--')
 			
 			for n in range(self.h - 3):
-				if self.screen[n+1] != lines[n]:
-					self.screen[n+1] = lines[n]
-					ret += u'\033[{0}H\033[K{1}'.format(n+2, self.screen[n+1])
+				self.screen[n+1] = lines[n]
+				ret += u'\033[{0}H\033[K{1}'.format(n+2, self.screen[n+1])
 		
 		else:
 			# full_redraw = False,
@@ -1383,7 +1410,11 @@ class VT100_Client(asyncore.dispatcher):
 				if t_steps < 0:
 					# rely on vt100 code to determine the new display
 					# then retransmit the full display  (good enough)
-					return u'\r\n'*self.h + self.update_chat_view(True, True)
+					ret = self.update_chat_view(True, True, call_depth+1)
+					if ret is not None:
+						return u'\r\n'*self.h + ret
+					else:
+						return u'\r\n'*self.h + u'somethhing broke\r\n'
 
 		if len(nch.msgs) <= ch.vis[0].im \
 		or nch.msgs[ch.vis[0].im] != ch.vis[0].msg:
@@ -1400,6 +1431,8 @@ class VT100_Client(asyncore.dispatcher):
 		and nch.msgs[-1] == ch.vis[-1].msg:
 			ch.lock_to_bottom = True
 
+		#print('update_chat:  {0} runes'.format(len(ret)))
+		#print(' scroll_cmd:  {0}'.format(self.scroll_cmd))
 		return ret
 
 
@@ -1983,10 +2016,9 @@ class VT100_Client(asyncore.dispatcher):
 							self.w = sw
 							self.h = sh
 							full_redraw = True
+							print('client size:  {0} x {1}'.format(sw, sh))
 						
 						aside = aside[len(m.group(0)):]
-						print('client size:  {0} x {1}'.format(sw, sh))
-
 						continue
 					
 					if DBG:
@@ -2057,7 +2089,7 @@ class VT100_Client(asyncore.dispatcher):
 						self.scroll_cmd = +(self.h - 4)
 						#self.scroll_cmd = +10
 					elif act == 'redraw':
-						self.need_full_redraw = True
+						self.user.exec_cmd('r')
 					elif act == 'prev-chan':
 						chan_shift = -1
 					elif act == 'next-chan':
@@ -2131,16 +2163,24 @@ class VT100_Client(asyncore.dispatcher):
 		if self.size_request_action \
 		and not self.pending_size_request \
 		and self.size_request_action == 'redraw':
+			self.size_request_action = None
 			full_redraw = True
+		
+		if DBG:
+			if self.dead:
+				print('CANT_ANSWER:  dead')
+			if not self.handshake_sz:
+				print('CANT_ANSWER:  handshake_sz')
+			if not self.handshake_world:
+				print('CANT_ANSWER:  handshake_world')
 		
 		if not self.dead:
 			with self.world.mutex:
-				if full_redraw or self.need_full_redraw:
+				if full_redraw:
 					self.need_full_redraw = True
 				
 				if self.handshake_sz:
 					self.refresh(old_cursor != self.linepos)
-
 
 
 

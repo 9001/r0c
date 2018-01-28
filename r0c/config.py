@@ -25,6 +25,7 @@ HEXDUMP_OUT = False
 
 # filter packets larger than N bytes from being hexdumped
 HEXDUMP_TRUNC = 65535
+HEXDUMP_TRUNC = 1
 HEXDUMP_TRUNC = 128
 
 # set true for a really bad "slow network" simulation

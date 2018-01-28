@@ -34,6 +34,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * channel cleanup doesn't happen unless user joins another channel after parting
 * check for queue buildups in general
 * colours don't carry over in wordwraps
+* wasteful redraws (text input before channel redraw etc)
 
 # done
 

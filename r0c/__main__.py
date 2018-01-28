@@ -188,9 +188,8 @@ class Core(object):
 
 			for iface in ifaces:
 				for client in iface.clients:
-					if not client.handshake_sz:
-						pass
-					client.refresh(False)
+					if client.handshake_sz:
+						client.refresh(False)
 
 			nth_iter += 1
 			if nth_iter % 600 == 0:
