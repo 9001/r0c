@@ -27,6 +27,6 @@ most to least recommended
 | netcat | `nc r0c.int 531` |
 | the oneliner | connecting: `exec 147<>/dev/tcp/r0c.int/531;cat<&147 &while read -rN1 x;do printf '%s' "$x">&147;done` |
 |              | disconnecting: `exec 147<&-; killall cat #sorry` |
-| powershell   | [scrolling is kinda broken](clients/powershell.ps1)
+| powershell   | [if you insist](clients/powershell.ps1)
 
-the powershell client is useless because powershell's VT100 implementation is buggy; scrolling sometimes work, sometimes doesn't, high chance you'll miss messages but it's (very slightly) better than nothing
+the powershell client is gonna waste a LOT of data ~~(an entire kilobyte for each new message, totally unbelievable, who could possibly afford that)~~ because powershell's scrolling is glitchy af
