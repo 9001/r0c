@@ -76,3 +76,8 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * get terminal size from non-telnets
 * copy/paste into putty on windows skips newlines ??
 * non-vt100: /r and ^R don't clear hilights
+* spinlock on incoming CSI sequences
+* handle massive nicks
+* some clients sending invalid utf8?
+  * unparseable data before 303 in 303 total:
+  * \xe2\xa3\xbf in messages

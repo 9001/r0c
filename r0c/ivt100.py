@@ -366,6 +366,26 @@ class VT100_Client(asyncore.dispatcher):
 		self.esc_tab[self.crlf] = 'ret'
 
 
+	def set_term_size(self, w, h):
+		self.w = w
+		self.h = h
+		if DBG:
+			print('terminal sz:  {0}x{1}'.format(self.w, self.h))
+
+		if self.w >= 512:
+			print('screen width {0} reduced to 80'.format(self.w))
+			self.w = 80
+		if self.h >= 512:
+			print('screen height {0} reduced to 24'.format(self.h))
+			self.h = 24
+
+		self.user.nick_len = len(self.user.nick)
+		if self.user.nick_len > self.w * 0.25:
+			self.user.nick_len = int(self.w * 0.25)
+		
+		self.handshake_sz = True
+
+
 	def handshake_timeout(self):
 		if DBG:
 			print('handshake_sz  init')
@@ -610,7 +630,7 @@ class VT100_Client(asyncore.dispatcher):
 			# position cursor after CLeft/CRight/Home/End
 			if self.vt100 and (to_send or cursor_moved):
 				to_send += u'\033[{0};{1}H'.format(self.h - self.y_input,
-					len(self.user.nick) + 2 + self.linepos + 1 - self.lineview)
+					self.user.nick_len + 2 + self.linepos + 1 - self.lineview)
 
 			# do it
 			if to_send:
@@ -770,9 +790,9 @@ class VT100_Client(asyncore.dispatcher):
 		
 		line_fmt = u'\033[0;36m{0}>\033[0m {1}'
 		print_fmt = u'\033[{0}H{1}\033[K'
-
+		
 		if self.pending_size_request:
-			line = line_fmt.format(self.user.nick,
+			line = line_fmt.format(self.user.nick[:self.user.nick_len],
 				u'#\033[7m please press ENTER  (due to linemode) \033[0m')
 			if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
 				self.screen[ self.h - (self.y_input + 1) ] = line
@@ -787,7 +807,7 @@ class VT100_Client(asyncore.dispatcher):
 			chi = list(range(len(ansi)))
 
 		# nick chrome + final char on screen
-		free_space = self.w - (len(self.user.nick) + 2 + 1)
+		free_space = self.w - (self.user.nick_len + 2 + 1)
 		if len(chi) <= free_space:
 			self.lineview = 0
 		
@@ -820,7 +840,26 @@ class VT100_Client(asyncore.dispatcher):
 				# lineview is the first visible character to display,
 				# we want to include any colour codes that precede it
 				# so start from character lineview-1 into the ansi text
-				start = chi[self.lineview - 1] + 1
+				try:
+					start = chi[self.lineview - 1] + 1
+				except:
+					# seen in the wild, likely caused by that one guy with
+					# the stupidly long nickname; adding this just in case
+					whoops('IT HAPPENED')
+					print('user     = {0}'.format(self.user.nick))
+					try: print('chan     = {0}'.format(self.user.active_chan.nchan.get_name()))
+					except: pass
+					print('linepos  = ' + str(self.linepos))
+					print('lineview = ' + str(self.lineview))
+					print('chi      = ' + ','.join([str(x) for x in chi]))
+					print('line     = ' + b2hex(self.linebuf.encode('utf-8')))
+					print('termsize = ' + str(self.w) + 'x' + str(self.h))
+					print('free_spa = ' + str(free_space))
+					print('-'*72)
+					# reset to sane defaults
+					self.lineview = 0
+					start = 0
+
 
 			end = len(ansi)
 			if self.lineview + free_space < len(chi) - 1:  # off-by-one?
@@ -834,7 +873,7 @@ class VT100_Client(asyncore.dispatcher):
 			# reset colours if the visible segment contains any
 			ansi += '\033[0m'
 
-		line = line_fmt.format(self.user.nick, ansi)
+		line = line_fmt.format(self.user.nick[:self.user.nick_len], ansi)
 		if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
 			self.screen[ self.h - (self.y_input + 1) ] = line
 			return print_fmt.format(self.h - self.y_input, line)
@@ -1936,13 +1975,13 @@ class VT100_Client(asyncore.dispatcher):
 
 			full_redraw = True
 		
-		aside = u''
 		old_cursor = self.linepos
 		
 		esc_scan = True
 		while esc_scan:
 			esc_scan = False
 			
+			aside = u''
 			for nth, ch in enumerate(self.in_text):
 				
 				was_esc = None
@@ -2012,11 +2051,9 @@ class VT100_Client(asyncore.dispatcher):
 						
 						if self.w != sw \
 						or self.h != sh:
-							self.w = sw
-							self.h = sh
 							full_redraw = True
-							print('client size:  {0} x {1}'.format(sw, sh))
-						
+							self.set_term_size(sw, sh)
+
 						aside = aside[len(m.group(0)):]
 						continue
 					

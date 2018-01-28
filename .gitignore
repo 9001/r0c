@@ -16,3 +16,6 @@ log
 
 # winmerge
 *.bak
+
+# other licenses
+contrib/

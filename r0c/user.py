@@ -27,6 +27,7 @@ class User(object):
 		self.old_active_chan = None  # last focused channel
 		self.nick = None             # str
 		self.nick_re = None          # regex object for ping assert
+		self.nick_len = None         # visible segment for self
 
 	def __unicode__(self):
 		return u'User {0} {1}'.format(self.nick, self.client.addr[0])
@@ -261,29 +262,30 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 					new_nick += ch
 
 			if not new_nick:
-				self.world.send_chan_msg('-err-', inf, """[invalid argument]
-  yooo EXCLUSIVELY illegal chars in new nick
-""")
+				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
+					"yooo EXCLUSIVELY illegal chars in new nick\n")
 				return
 
 			if new_nick != arg:
-				self.world.send_chan_msg('-err-', inf, """[invalid argument]
-  some illegal characters were removed
-""")
+				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
+					"some illegal characters were removed\n")
 				return
 
 			if new_nick.startswith('-'):
-				self.world.send_chan_msg('-err-', inf, """[invalid argument]
-  nicks cannot start with "-" (dash)
-""")
+				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
+					"nicks cannot start with "-" (dash)\n")
+				return
+
+			if len(new_nick) > 32:
+				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
+					"too long\n")
 				return
 
 			other_user = None
 			with self.world.mutex:
 				if self.world.find_user(new_nick):
-					self.world.send_chan_msg('-err-', inf, """[invalid argument]
-  that nick is taken
-""")
+					self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
+						"that nick is taken\n")
 					return
 
 				print('nick change:  {2} {0} -> {1}'.format(
@@ -722,6 +724,10 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		self.nick_re = re.compile(
 			'(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)'.format(
 				nick_re))
+
+		self.nick_len = len(new_nick)
+		if self.nick_len > self.client.w * 0.25:
+			self.nick_len = int(self.client.w * 0.25)
 
 		if self.active_chan:
 			self.client.save_config()

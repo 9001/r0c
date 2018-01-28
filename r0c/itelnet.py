@@ -210,21 +210,25 @@ class TelnetClient(VT100_Client):
 						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec))
 						self.in_bytes = self.in_bytes[uee.start:]
 
-					elif decode_until < uee.start + 6 and not self.multibyte_codec:
+					elif decode_until < uee.start + 6 and self.multibyte_codec:
 						
-						print('need more data to parse unicode codepoint at {0} in {1} ...probably'.format(
-							uee.start, decode_until))
+						print('need more data to parse unicode codepoint at {0} in {1}/{2} ...probably'.format(
+							uee.start, decode_until, len(self.in_bytes)))
 						hexdump(self.in_bytes[decode_until-8:], 'XXX ')
 						return
 					
 					else:
 						
 						# it can't be helped
-						print('warning: unparseable data before {0} in {1} total:'.format(
-							decode_until, len(self.in_bytes)))
+						print('warning: unparseable data at {0} in {1}/{2}:'.format(
+							uee.start, decode_until, len(self.in_bytes)))
 
 						hexdump(self.in_bytes, 'XXX ')
-						src = u'{0}'.format(self.in_bytes[:decode_until].decode(self.codec, 'backslashreplace'))
+						try:
+							src = u'{0}'.format(self.in_bytes[:decode_until].decode(self.codec, 'backslashreplace'))
+						except:
+							src = u'[ unfixable text corruption ]'  # can happen in py2
+
 						self.in_bytes = self.in_bytes[decode_until:]
 				
 				self.in_text += src
@@ -301,18 +305,7 @@ class TelnetClient(VT100_Client):
 								if DBG:
 									print('           :  {0}'.format(b2hex(cmd)))
 								
-								self.w, self.h = struct.unpack('>HH', cmd[3:7])
-								if DBG:
-									print('terminal sz:  {0}x{1}'.format(self.w, self.h))
-
-								if self.w >= 512:
-									print('screen width {0} reduced to 80'.format(self.w))
-									self.w = 80
-								if self.h >= 512:
-									print('screen height {0} reduced to 24'.format(self.h))
-									self.h = 24
-
-								self.handshake_sz = True
+								self.set_term_size(*struct.unpack('>HH', cmd[3:7]))
 							
 					else:
 						print('=== invalid negotiation:')
