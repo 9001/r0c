@@ -832,9 +832,9 @@ class User(object):
 			if txt.startswith('| '):
 				txt = txt[2:]
 
-		txt = re.sub(r'\*\*`?([^\*]+)`?\*\*', '\033[1;36m\\1\033[0m', txt)
-		txt = re.sub(r'`([^`]+)`',            '\033[0;36m\\1\033[0m', txt)
-		txt = re.sub(r'\n# ([^\n]*)\n',       '\n\033[1;33m=== \\1 ===\033[0m\n', txt)
+		txt = re.sub(r'\*\*`?([^\*`]+)`?\*\*', '\033[1;36m\\1\033[0m', txt)
+		txt = re.sub(r'`([^`]+)`',             '\033[1;35m\\1\033[0m', txt)
+		txt = re.sub(r'\n# ([^\n]*)\n',        '\n\033[1;33m=== \\1 ===\033[0m\n', txt)
 		txt = txt.replace('\n', '\r\n')
 
 		self.world.send_chan_msg('-nfo-', inf, txt)
