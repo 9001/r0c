@@ -203,20 +203,23 @@ class TelnetClient(VT100_Client):
 				
 				except UnicodeDecodeError as uee:
 					
-					# first check whether the offending byte is an inband signal
-					if decode_until > uee.start and self.in_bytes[uee.start] == xff:
+					is_inband  = decode_until > uee.start and self.in_bytes[uee.start] == xff
+					is_partial = decode_until < uee.start + 6 and self.multibyte_codec
+					
+					if is_inband or is_partial:
 						
-						# it is, keep the text before it
+						if is_partial:
+							print('need more data to parse unicode codepoint at {0} in {1}/{2} ...probably'.format(
+								uee.start, decode_until, len(self.in_bytes)))
+							hexdump(self.in_bytes[max(0,decode_until-8):decode_until], 'XXX ')
+
 						src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec))
 						self.in_bytes = self.in_bytes[uee.start:]
-
-					elif decode_until < uee.start + 6 and self.multibyte_codec:
 						
-						print('need more data to parse unicode codepoint at {0} in {1}/{2} ...probably'.format(
-							uee.start, decode_until, len(self.in_bytes)))
-						hexdump(self.in_bytes[decode_until-8:], 'XXX ')
-						return
-					
+						if is_partial and not is_inband:
+							self.in_text += src
+							break
+
 					else:
 						
 						# it can't be helped
@@ -316,6 +319,7 @@ class TelnetClient(VT100_Client):
 					print('=== unhandled data from client:')
 					hexdump(self.in_bytes, 'XXX ')
 					self.in_bytes = self.in_bytes[0:0]
+					break
 			
 			self.read_cb(full_redraw)
 

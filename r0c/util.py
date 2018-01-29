@@ -27,8 +27,8 @@ if PY2:
 		
 		with print_mutex:
 			t = time.strftime('%H%M%S ')
-			__builtin__.print(t + str(args[0] if args else ''
-				).replace('\n', '\n'+t), *args[1:], **kwargs)
+			__builtin__.print(t + str(args[0] if args else u''
+				).replace(u'\n', u'\n'+t), *args[1:], **kwargs)
 else:
 	import builtins
 	def print(*args, **kwargs):
@@ -40,8 +40,8 @@ else:
 		
 		with print_mutex:
 			t = time.strftime('%H%M%S ')
-			builtins.print(t + str(args[0] if args else ''
-				).replace('\n', '\n'+t), *args[1:], **kwargs)
+			builtins.print(t + str(args[0] if args else u''
+				).replace(u'\n', u'\n'+t), *args[1:], **kwargs)
 
 def num(c):
 	try:

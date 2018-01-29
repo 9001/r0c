@@ -1585,6 +1585,7 @@ class VT100_Client(asyncore.dispatcher):
 
 			elif u'n' in text:
 				self.default_config()
+				self.user.set_rand_nick()
 				if not self.check_correct_iface('qwer_prompt'):
 					return
 

@@ -14,7 +14,7 @@ __copyright__ = 2018
 # config
 #
 
-NUM_CLIENTS = 2
+NUM_CLIENTS = 1
 #NUM_CLIENTS = 4
 
 CHANNELS = ['#1']
@@ -30,6 +30,12 @@ ITERATIONS = 10000000
 IMMEDIATE_TX = True
 #IMMEDIATE_TX = False
 
+VISUAL_CLIENT = True
+#VISUAL_CLIENT = False
+
+TELNET = False
+TELNET = True
+
 #
 # config end
 
@@ -42,6 +48,13 @@ import signal
 import random
 import time
 import sys
+import os
+
+sys.path.insert(1, os.path.join(sys.path[0], '..'))
+from r0c.util import *
+import builtins
+try: print = __builtin__.print
+except: print = builtins.print
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -49,6 +62,84 @@ if PY2:
 	from Queue import Queue
 else:
 	from queue import Queue
+
+
+def get_term_size():
+	"""
+	https://github.com/chrippa/backports.shutil_get_terminal_size
+	MIT licensed
+	"""
+	import struct
+	
+	try:
+		from ctypes import windll, create_string_buffer, WinError
+
+		_handle_ids = {
+			0: -10,
+			1: -11,
+			2: -12,
+		}
+
+		def _get_terminal_size(fd):
+			handle = windll.kernel32.GetStdHandle(_handle_ids[fd])
+			if handle == 0:
+				raise OSError('handle cannot be retrieved')
+			if handle == -1:
+				raise WinError()
+			csbi = create_string_buffer(22)
+			res = windll.kernel32.GetConsoleScreenBufferInfo(handle, csbi)
+			if res:
+				res = struct.unpack("hhhhHhhhhhh", csbi.raw)
+				left, top, right, bottom = res[5:9]
+				columns = right - left + 1
+				lines = bottom - top + 1
+				return [columns, lines]
+			else:
+				raise WinError()
+
+	except ImportError:
+		import fcntl
+		import termios
+
+		def _get_terminal_size(fd):
+			try:
+				res = fcntl.ioctl(fd, termios.TIOCGWINSZ, b"\x00" * 4)
+			except IOError as e:
+				raise OSError(e)
+			lines, columns = struct.unpack("hh", res)
+
+			return [columns, lines]
+
+	try:
+		columns = int(os.environ["COLUMNS"])
+	except (KeyError, ValueError):
+		columns = 0
+
+	try:
+		lines = int(os.environ["LINES"])
+	except (KeyError, ValueError):
+		lines = 0
+
+	# Only query if necessary
+	if columns <= 0 or lines <= 0:
+		try:
+			size = _get_terminal_size(sys.__stdout__.fileno())
+		except (NameError, OSError):
+			size = [80,24]
+
+		if columns <= 0:
+			columns = size[0]
+		if lines <= 0:
+			lines = size[1]
+
+	return [columns, lines]
+
+
+tsz = get_term_size()
+tsz[1] -= 1
+tszb = struct.pack('>HH', *tsz)
+#print(b2hex(tszb))
+#sys.exit(0)
 
 
 class Client(asyncore.dispatcher):
@@ -101,12 +192,24 @@ class Client(asyncore.dispatcher):
 			
 			if self.stage == 'start':
 				self.send_status('start')
+				hit = False
+
+				if 'verify that your previous config' in self.in_text:
+					hit = True
+					self.in_text = u''
+					self.tx('n')
+
 				if 'type the text below, then hit [Enter]:' in self.in_text:
+					hit = True
 					self.stage = 'qwer'
 					self.in_text = u''
 					for ch in u'qwer asdf\n':
 						self.tx(ch)
 						time.sleep(0.1)
+
+				if hit and TELNET:
+					#print('sending telnet termsize\n'*100)
+					self.txb(b'\xff\xfa\x1f' + tszb + b'\xff\xf0')
 				continue
 
 			if self.stage == 'qwer':
@@ -125,8 +228,6 @@ class Client(asyncore.dispatcher):
 				if test_pass:
 					self.in_text = u''
 					self.stage = 'color'
-					self.txb(b'\xff\xfa\x1f\x00\x80\x00\x24\xff\xf0')  # 128x36
-				
 				continue
 
 
@@ -150,6 +251,10 @@ class Client(asyncore.dispatcher):
 				ofs1 = self.in_text.find(u'H\033[0;36m')
 				ofs2 = self.in_text.find(u'>\033[0m ')
 				if ofs1 >= 0 and ofs2 == ofs1 + 8 + 6:
+					if not TELNET:
+						#print('sending vt100 termsize\n'*100)
+						self.tx(u'\033[{1};{0}R'.format(*tsz))
+
 					self.nick = self.in_text[ofs2-6:ofs2]
 					self.in_text = u''
 					self.tx(u'/join {0}\n'.format(CHANNELS[0]))
@@ -165,6 +270,9 @@ class Client(asyncore.dispatcher):
 
 					if self.behavior == 'reconnect_loop':
 						return self.reconnect_loop()
+
+					if self.behavior == 'split_utf8_runes':
+						return self.split_utf8_runes()
 
 					print('u wot')
 					return
@@ -197,6 +305,25 @@ class Client(asyncore.dispatcher):
 				self.tx(u'{0} done\n'.format(time.time()))
 		
 		self.actor_active = False
+
+
+	def split_utf8_runes(self):
+		charset = u'⢀⣴⣷⣄⠈⠻⡿⠋'
+		to_send = charset.encode('utf-8')
+
+		while False:
+			#print('tx up')
+			for n in range(len(to_send)):
+				#print('tx ch')
+				self.txb(to_send[n:n+1])
+				time.sleep(0.2)
+
+		self.txb(to_send[0:2])
+		to_send = to_send[2:] + to_send[0:2]
+		while True:
+			for n in range(0, len(to_send), 3):
+				self.txb(to_send[n:n+3])
+				time.sleep(0.2)
 
 
 	def reconnect_loop(self):
@@ -435,6 +562,9 @@ class Client(asyncore.dispatcher):
 	def handle_close(self):
 		self.dead = True
 
+	def handle_error(self):
+		whoops()
+
 	def tx(self, bv):
 		self.txb(bv.encode('utf-8'))
 	
@@ -471,6 +601,9 @@ class Client(asyncore.dispatcher):
 			self.dead = True
 			return
 		
+		if VISUAL_CLIENT:
+			print(data.decode('utf-8', 'ignore'))
+
 		if not self.tx_only:
 			self.in_text += data.decode('utf-8', 'ignore')
 		
@@ -535,8 +668,9 @@ class Core(object):
 
 		signal.signal(signal.SIGINT, self.signal_handler)
 
-		behaviors = ['jump_channels'] * (NUM_CLIENTS - 1)
-		behaviors.append('reconnect_loop')
+		#behaviors = ['jump_channels'] * (NUM_CLIENTS)
+		#behaviors.append('reconnect_loop')
+		behaviors = ['split_utf8_runes'] * (NUM_CLIENTS)
 		self.clients = []
 		for behavior in behaviors:
 			cmd_q = multiprocessing.Queue()
@@ -560,6 +694,8 @@ class Core(object):
 
 	def run(self):
 		print('  *  test is running')
+
+		print_status = not VISUAL_CLIENT
 		
 		while not self.stopping:
 			for n in range(0,5):
@@ -568,7 +704,8 @@ class Core(object):
 					cli.recv_status()
 				if self.stopping:
 					break
-			self.print_status()
+			if print_status:
+				self.print_status()
 
 		print('\r\n  *  subcores stopping')
 		for subcore in self.clients:
