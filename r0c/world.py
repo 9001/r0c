@@ -149,8 +149,12 @@ class World(object):
 						if isinstance(from_nick, str):
 							whoops('from_nick is bytestring')
 
-					if ping_self or uchan.user.nick != from_nick:
-						uchan.last_ping = msg.sno
+					if uchan.alias == 'r0c-status':
+						if ping_self:
+							uchan.last_ping = msg.sno
+					else:
+						if ping_self or uchan.user.nick != from_nick:
+							uchan.last_ping = msg.sno
 			
 			if nchan not in self.dirty_ch:
 				self.dirty_ch[nchan] = 1
