@@ -253,7 +253,7 @@ def sanitize_ctl_codes(aside):
 	for pch in aside:
 		nch = ord(pch)
 		#print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
-		if nch < 0x20 and nch != 0x0b:
+		if nch < 0x20 and nch != 0x0b and nch != 0x0f:
 			print('substituting non-printable \\x{0:02x}'.format(nch))
 			plain += '?'
 		else:
@@ -325,6 +325,17 @@ def convert_color_codes(txt, preview=False):
 			txt = u'{0}K{1}'.format(
 				txt[:ofs], txt[resume_txt:])
 
+	scan_from = 0
+	while txt:
+		ofs = txt.find(u'\x0f', scan_from)
+		if ofs < 0:
+			break
+
+		scan_from = ofs + 1
+		txt = u'{0}\033[0m{2}{1}'.format(
+			txt[:ofs], txt[scan_from:],
+			'O' if preview else '')
+	
 	return txt
 
 

@@ -6,14 +6,11 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* write documentation orz
 * kick idle clients (bots that got stuck in the config wizard lel)
 
 # features: whatever
 
-* print nick on connect and disconnect
 * nick colours
-* admin auth
 * rate limiting
 * modals with command feedback
 * filter bots somehow?
@@ -29,7 +26,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # bugs: whatever
 
-* jump to ch0 on nick change, day change
 * wordwrap slices colour codes in half
 * powershell's vt100 impl is a glitchy mess
 * py2 deadlocks on quit with threadcapture running
@@ -83,3 +79,8 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * some clients sending invalid utf8?
   * unparseable data before 303 in 303 total:
   * \xe2\xa3\xbf in messages
+
+* jump to ch0 on nick change, day change
+* print nick on connect and disconnect
+* admin auth
+* write documentation orz

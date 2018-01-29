@@ -16,6 +16,46 @@ PY2 = (sys.version_info[0] == 2)
 
 
 
+HELP_INTRO = """\
+Useful commands:
+   \033[36m/nick\033[0m  change your nickname
+   \033[36m/help\033[0m  how-to and about
+
+Text formatting:
+  \033[36mCTRL-O\033[0m  reset text formatting
+  \033[36mCTRL-B\033[0m  bold/bright text on/off
+  \033[36mCTRL-K\033[0m  followed by a colour code:
+       \033[36m2\033[0m  \033[32mgreen\033[0m,
+    \033[36m15,4\033[0m  \033[1;37;44mbold white on blue\033[0m --
+          say \033[1m/cmap\033[0m to see all options
+
+Switching channels:
+  \033[36mCTRL-E\033[0m  jump to active channel
+  \033[36mCTRL-A\033[0m  jump to previous channel
+  \033[36mCTRL-X\033[0m  jump to next channel
+  \033[36m/3\033[0m      go to channel 3
+  \033[36m/0\033[0m      go to this channel
+
+Creating or joining the "general" chatroom:
+  \033[36m/join #general\033[0m
+
+Leaving a chatroom:
+  \033[36m/part\033[0m
+
+Changing your nickname:
+  \033[36m/nick new_name\033[0m
+
+Keybinds:
+  \033[36mUp\033[0m / \033[36mDown\033[0m       input history
+  \033[36mLeft\033[0m / \033[36mRight\033[0m    input field traversing
+  \033[36mHome\033[0m / \033[36mEnd\033[0m      input field jump
+  \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
+
+if you are using a mac, PgUp is fn-Shift-PgUp
+"""
+
+
+
 class User(object):
 	def __init__(self, world, address):
 		self.world = world
@@ -107,57 +147,7 @@ class User(object):
 """
 
 		text = text.replace(u'`', u'\033[').replace('build_date', BUILD_DATE)
-
-		text += u"""
-Useful commands:
-   \033[36m/nick\033[0m  change your nickname
-   \033[36m/help\033[0m  how-to and about
-
-Text formatting:
-  \033[36mCTRL-O\033[0m  reset text formatting
-  \033[36mCTRL-B\033[0m  bold/bright text on/off
-  \033[36mCTRL-K\033[0m  followed by a colour code:
-       \033[36m2\033[0m  \033[32mgreen\033[0m,
-    \033[36m15,4\033[0m  \033[1;37;44mbold white on blue\033[0m --
-          say \033[1m/cmap\033[0m to see all options
-
-Switching channels:
-  \033[36mCTRL-E\033[0m  jump to active channel
-  \033[36mCTRL-A\033[0m  jump to previous channel
-  \033[36mCTRL-X\033[0m  jump to next channel
-  \033[36m/3\033[0m      go to channel 3
-  \033[36m/0\033[0m      go to this channel
-
-Creating or joining the "general" chatroom:
-  \033[36m/join #general\033[0m
-
-Leaving a chatroom:
-  \033[36m/part\033[0m
-
-Changing your nickname:
-  \033[36m/nick new_name\033[0m
-
-Keybinds:
-  \033[36mUp\033[0m / \033[36mDown\033[0m       input history
-  \033[36mLeft\033[0m / \033[36mRight\033[0m    input field traversing
-  \033[36mHome\033[0m / \033[36mEnd\033[0m      input field jump
-  \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
-
-if you are using a mac, PgUp is fn-Shift-PgUp
-
-"""
-
-# cp437 box æøå
-#\xc9\xcd\xcd\xcd\xcd\xcd\xbb
-#\xba \x91\x94\x86 \xba
-#\xc8\xcd\xcd\xcd\xcd\xcd\xbc
-
-#  >> if your terminal is blocking the CTRL key,
-#  >> press ESC followed by the 2nd key instead
-
-# æ     ø     å
-# c3 a6 c3 b8 c3 a5 utf-8 to putty, works
-# c3 a6 c3 b8 c3 a5 utf-8 from putty, fucked
+		text += HELP_INTRO
 
 		uchan = self.world.join_priv_chan(self, 'r0c-status')
 		nchan = uchan.nchan
@@ -185,9 +175,6 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			nchan = uchan.nchan
 			if len(nchan.msgs) < 100:
 				for n in range(1,200):
-					#txt = u'{0:03}_{1} EOL'.format(
-					#	n, u'_dsfarg, {0:03}_'.format(n).join(
-					#		str(v).rjust(3, '0') for v in range(1, min(48, n))))
 					txt = u'{1}_{0:03}     \\\\\\\\'.format(n,
 						u'_{0:03}     \\\\\\\\\n'.format(n).join(
 							str(v).rjust(v+4, ' ') for v in range(0, 12)))
@@ -235,14 +222,25 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		cmd = cmd.lower()
 
 		if arg:
+			arg1 = arg
 			ofs = arg.find(' ')
 			if ofs > 0:
 				arg1 = arg[:ofs].lower()
 				arg2 = arg[ofs+1:]
 
-		if cmd == 'me':
+		if cmd == 'help':
+			self.help(arg, inf)
+
+		elif cmd == 'me':
 			self.world.send_chan_msg('***', self.active_chan.nchan,
 				'\033[1m{0}\033[22m {1}'.format(self.nick, arg))
+
+		elif cmd == 'auth':
+			if arg == ADMIN_PWD:
+				self.admin = True
+				self.world.send_chan_msg('-nfo-', inf, "please don't break anything")
+			else:
+				self.world.send_chan_msg('-err-', inf, 'wrong password')
 
 		elif cmd == 'nick' or cmd == 'n':
 			if not arg:
@@ -293,7 +291,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				
 				for uchan in self.chans:
 					self.world.send_chan_msg('--', uchan.nchan,
-						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(self.nick, new_nick), False)
+						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(
+							self.nick, new_nick), False)
 
 				# update last-spoke tables
 				now = time.time()
@@ -362,7 +361,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 					for n in range(0,1048576):
 						if n % 16384 == 0:
 							print(n)
-						self.world.send_chan_msg('--', self.active_chan.nchan, 'large history load test {0}'.format(n))
+						self.world.send_chan_msg('--', self.active_chan.nchan,
+							'large history load test {0}'.format(n))
 
 
 
@@ -460,10 +460,27 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			n_users = len(self.world.users) - n_wizard
 			n_pub = len(self.world.pub_ch)
 			n_priv = len(self.world.priv_ch) - n_users
+			
+			n_in_chans = 0
+			seen_users = {}
+
+			for chan in self.world.pub_ch:
+				for user in [x.user for x in chan.uchans]:
+					if user not in seen_users:
+						seen_users[user] = 1
+						n_in_chans += 1
+			
+			for chan in self.world.priv_ch:
+				if len(chan.uchans) == 1:
+					continue
+				for user in [x.user for x in chan.uchans]:
+					if user not in seen_users:
+						seen_users[user] = 1
+						n_in_chans += 1
 
 			self.world.send_chan_msg('--', inf,
-				"{0} users + {1} in wizard, {2} public + {3} private chans".format(
-					n_users, n_wizard, n_pub, n_priv))
+				"{0} users + {1} in wizard, {2} in chans, {3} public + {4} private chans".format(
+					n_users, n_wizard, n_in_chans, n_pub, n_priv))
 
 			if self.admin:
 				self.world.send_chan_msg('--', inf, '----- users -----')
@@ -600,6 +617,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				return
 
 			self.client.w = arg
+			self.world.send_chan_msg('-ínf-', inf, \
+				'screen width: {0} letters'.format(self.client.w), False)
 
 
 
@@ -615,6 +634,8 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				return
 
 			self.client.h = arg
+			self.world.send_chan_msg('-ínf-', inf, \
+				'screen height: {0} letters'.format(self.client.h), False)
 
 
 
@@ -632,16 +653,24 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 				except: pass
 
 			if int_arg is not None:
+				if int_arg > 200:
+					self.world.send_chan_msg('-err-', inf, 'whoa dude')
+					return
+
 				self.client.scroll_f = None
 				self.client.scroll_i = int_arg
-				self.world.send_chan_msg('-err-', inf, \
-					'scroll size: {0} lines'.format(self.client.scroll_i))
+				self.world.send_chan_msg('-ínf-', inf, \
+					'scroll size: {0} lines'.format(self.client.scroll_i), False)
 			
 			elif perc_arg is not None:
+				if perc_arg > 200:
+					self.world.send_chan_msg('-err-', inf, 'whoa dude')
+					return
+
 				self.client.scroll_i = None
 				self.client.scroll_f = perc_arg / 100.0
-				self.world.send_chan_msg('-err-', inf, \
-					'scroll size: {0}% of screen'.format(self.client.scroll_f*100))
+				self.world.send_chan_msg('-ínf-', inf, \
+					'scroll size: {0}% of screen'.format(self.client.scroll_f*100), False)
 
 			else:
 				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
@@ -656,11 +685,13 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 		elif cmd == 'by':
 			self.client.bell = True
-			self.world.send_chan_msg('--', inf, 'Audible alerts enabled. Disable with /bn')
+			self.world.send_chan_msg('--', inf,
+				'Audible alerts enabled. Disable with /bn', False)
 
 		elif cmd == 'bn':
 			self.client.bell = False
-			self.world.send_chan_msg('--', inf, 'Audible alerts disabled. Enable with /by')
+			self.world.send_chan_msg('--', inf,
+				'Audible alerts disabled. Enable with /by', False)
 
 
 
@@ -682,7 +713,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			for n in range(0, 8):
 				msg += '\033[4{0}m f,{0} '.format(n)
 			msg += "\033[0m\n"
-			self.world.send_chan_msg('-inf-', inf, msg)
+			self.world.send_chan_msg('-nfo-', inf, msg)
 
 
 
@@ -768,3 +799,41 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 		if self.active_chan:
 			self.client.save_config()
 
+
+
+	def help(self, arg, inf):
+		if arg is None:
+			arg = 'topics'
+
+		txt = None
+		if arg == 'intro':
+			txt = HELP_INTRO
+		else:
+			legit_chars = azAZ
+			page = ''
+			for ch in arg:
+				if ch in legit_chars:
+					page += ch
+			try:
+				with open('doc/help-{0}.md'.format(page), 'rb') as f:
+					txt = f.read().decode('utf-8')
+			except:
+				self.world.send_chan_msg('-err-', inf, 'that help page does not exist')
+				return
+		
+		txt = txt.replace('\r', '')
+
+		txt = u'\033[0;30;46m{0}\033[K\n\033[0m\n'.format(u'=' * 32) + txt
+
+		txt = txt.replace('| | |\n|-|-|\n', '')
+		if '\n| ' in txt:
+			txt = txt.replace('\n| ', '\n').replace(' | ', '  ')
+			if txt.startswith('| '):
+				txt = txt[2:]
+
+		txt = re.sub(r'`([^`]+)`',        '\033[0;36m\\1\033[0m', txt)
+		txt = re.sub(r'\*\*([^\*]+)\*\*', '\033[1;36m\\1\033[0m', txt)
+		txt = re.sub(r'\n# ([^\n]*)\n',   '\n\033[1;33m=== \\1 ===\033[0m\n', txt)
+		txt = txt.replace('\n', '\r\n')
+
+		self.world.send_chan_msg('-nfo-', inf, txt)

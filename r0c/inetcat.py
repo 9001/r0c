@@ -73,7 +73,7 @@ class NetcatClient(VT100_Client):
 			
 			except UnicodeDecodeError as uee:
 				if len(self.in_bytes) < uee.start + 6:
-					print('need more data to parse unicode codepoint at {0} in {1} ...probably'.format(
+					print('need more data to parse unicode codepoint at {0} in {1}'.format(
 						uee.start, len(self.in_bytes)))
 					hexdump(self.in_bytes[-8:], 'XXX ')
 					src = u'{0}'.format(self.in_bytes[:uee.start].decode(self.codec))

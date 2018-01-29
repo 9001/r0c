@@ -209,7 +209,7 @@ class TelnetClient(VT100_Client):
 					if is_inband or is_partial:
 						
 						if is_partial:
-							print('need more data to parse unicode codepoint at {0} in {1}/{2} ...probably'.format(
+							print('need more data to parse unicode codepoint at {0} in {1}/{2}'.format(
 								uee.start, decode_until, len(self.in_bytes)))
 							hexdump(self.in_bytes[max(0,decode_until-8):decode_until], 'XXX ')
 

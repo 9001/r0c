@@ -129,9 +129,7 @@ class World(object):
 			nchan.latest = msg.ts
 
 			if not from_nick.startswith('-') \
-			and not from_nick == '***' \
-			and not from_nick == '':
-				# TODO: figure out where '' comes from
+			and not from_nick == '***':
 				nchan.user_act_ts[from_nick] = now
 
 			if len(nchan.msgs) > max_hist_mem:

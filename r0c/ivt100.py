@@ -61,12 +61,13 @@ class VT100_Server(asyncore.dispatcher):
 
 	def handle_accept(self):
 		socket, addr = self.accept()
-		self.con(' ++', addr, 1)
 		user = User(self.world, addr)
 		remote = self.gen_remote(socket, addr, user)
 		self.world.add_user(user)
 		self.clients.append(remote)
 		remote.conf_wizard()
+		print('client join:  {0}  {1}  {2}'.format(
+			remote.user.nick,  *list(remote.addr)))
 	
 	def part(self, remote):
 		remote.dead = True
@@ -76,7 +77,8 @@ class VT100_Server(asyncore.dispatcher):
 			#print('==[part]' + '='*71)
 			
 			remote.close()
-			self.con('  -', remote.addr, -1)
+			print('client part:  {0}  {1}  {2}'.format(
+				remote.user.nick,  *list(remote.addr)))
 			self.clients.remove(remote)
 			try:
 				remote.user.active_chan = None
@@ -662,7 +664,7 @@ class VT100_Client(asyncore.dispatcher):
 				else:
 					cause = u'\nsomeone mentioned your nick in {0}.\n'.format(ch_name)
 
-			self.world.send_chan_msg('-inf-', inf_n, """[about notifications]{0}
+			self.world.send_chan_msg('-nfo-', inf_n, """[about notifications]{0}
   to jump through unread channels,
   press CTRL-E or use the command /a
 
@@ -801,7 +803,8 @@ class VT100_Client(asyncore.dispatcher):
 				return print_fmt.format(self.h - self.y_input, line)
 			return u''
 		
-		if '\x0b' in self.linebuf:
+		if '\x0b' in self.linebuf \
+		or '\x0f' in self.linebuf:
 			ansi = convert_color_codes(self.linebuf, True)
 			chi = visual_indices(ansi)
 		else:
@@ -886,26 +889,15 @@ class VT100_Client(asyncore.dispatcher):
 	def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
 		ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
 		
-		#if not self.vt100:
-		#	if u'\033' in msg.txt:
-		#		txt = strip_ansi(msg.txt)
-		#	else:
-		#		txt = msg.txt
-		#	return [u'\r{0} <{1}> {2}\n'.format(ts, msg.user, txt)]
+		txt = []
+		for ln in [x.rstrip() for x in msg.txt.split('\n')]:
+			if len(ln) < msg_w \
+			or visual_length(ln) < msg_w:
+				txt.append(ln)
+			else:
+				ln = ' '.join(prewrap(ln.rstrip(), msg_w))
+				txt.extend(unrag(ln, msg_w) or [' '])
 
-		if msg.txt.startswith(u'  ') or u'\n' in msg.txt:
-			txt = msg.txt.split('\n')  # splitlines removes trailing newline
-			for n in range(len(txt)):
-				txt[n] = trunc(txt[n], msg_w)[0]
-		
-		elif len(msg.txt) < msg_w \
-		or visual_length(msg.txt) < msg_w:
-			txt = [msg.txt]
-		
-		else:
-			txt = ' '.join(prewrap(msg.txt, msg_w))
-			txt = unrag(txt, msg_w) or [' ']
-		
 		for n, line in enumerate(txt):
 			if u'\033' in line:
 				if self.vt100:
@@ -1046,8 +1038,6 @@ class VT100_Client(asyncore.dispatcher):
 				for n, msg in enumerate(nch.msgs[ imsg : imsg + self.h-3 ]):
 					txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 					
-					# actually this test is probably accurate enough
-					# and still passes chrome changes (padding etc)
 					if (top_msg is not None and
 						len(top_msg.txt) == len(txt)):
 
@@ -2276,7 +2266,11 @@ class VT100_Client(asyncore.dispatcher):
 		else:
 			nick_suffix = u' '
 
-		self.linebuf = self.tc_msg_pre + self.tc_nicks[self.tc_n] + nick_suffix
+		nick = self.tc_nicks[self.tc_n]
+		if nick == '':
+			nick_suffix = u''
+
+		self.linebuf = self.tc_msg_pre + nick + nick_suffix
 		self.linepos = len(self.linebuf)
 		self.linebuf += self.tc_msg_post
 

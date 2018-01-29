@@ -54,7 +54,13 @@ class Core(object):
 			print('  example 2:')
 			print('    python -m r0c 23 531')
 			print()
-			sys.exit(1)
+			return False
+
+		if ADMIN_PWD == 'hunter2':
+			print()
+			print('\033[1;31m  change the ADMIN_PWD in config.py \033[0m')
+			print()
+			return False
 
 		try: os.makedirs('log/pm')
 		except: pass
@@ -97,6 +103,8 @@ class Core(object):
 		print('  *  Handover to asyncore')
 		self.asyncore_thr = threading.Thread(target=self.asyncore_worker, name='ac_mgr')
 		self.asyncore_thr.start()
+
+		return True
 
 
 	def run(self):
@@ -183,7 +191,7 @@ class Core(object):
 			if date != last_date:
 				if last_date:
 					world.broadcast_message(
-						"\033[36mday changed to \033[1m{0}".format(date))
+						"\033[36mday changed to \033[1m{0}".format(date), False)
 				last_date = date
 
 			for iface in ifaces:
@@ -217,8 +225,8 @@ class Core(object):
 def run():
 	core = Core()
 	try:
-		core.start()
-		core.run()
+		if core.start():
+			core.run()
 	except:
 		whoops()
 		os._exit(1)
