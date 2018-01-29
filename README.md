@@ -8,9 +8,13 @@
 
 ## summary
 
+imagine being stuck on ancient gear, in the middle of nowhere, on a slow connection between machines that are even more archaic than the toaster you're trying to keep from falling apart
+
+retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when life gives you lemons
+
 * tries to be irssi
 * zero dependencies on python 2.6, 2.7, 3.x
-* supports telnet and netcat clients
+* supports telnet, netcat, /dev/tcp clients
 * fallbacks for inhumane conditions
   * linemode
   * no vt100 / ansi escape codes
