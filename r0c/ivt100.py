@@ -170,6 +170,8 @@ class VT100_Client(asyncore.dispatcher):
 
 		# incoming requests
 		self.scroll_cmd = None
+		self.scroll_i = None
+		self.scroll_f = 1
 
 		# input buffer
 		self.linebuf = u''
@@ -2115,12 +2117,23 @@ class VT100_Client(asyncore.dispatcher):
 							self.msg_hist_n = None
 							self.linebuf = u''
 							self.linepos = 0
-					elif act == 'pgup':
-						self.scroll_cmd = -(self.h - 4)
-						#self.scroll_cmd = -10
-					elif act == 'pgdn':
-						self.scroll_cmd = +(self.h - 4)
-						#self.scroll_cmd = +10
+					
+					elif act == 'pgup' \
+					or   act == 'pgdn':
+						
+						steps = self.h - 4
+						if self.scroll_i is not None:
+							steps = self.scroll_i
+						elif self.scroll_f is not None:
+							steps = int(steps * self.scroll_f)
+						else:
+							what('no scroll size?!')
+
+						if act == 'pgup':
+							steps *= -1
+						
+						self.scroll_cmd = steps
+
 					elif act == 'redraw':
 						self.user.exec_cmd('r')
 					elif act == 'prev-chan':

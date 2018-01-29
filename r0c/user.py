@@ -618,6 +618,42 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 
 
 
+		elif cmd == 'ss':
+			if arg == '0':
+				arg = '100%'
+
+			int_arg = None
+			try: int_arg = int(arg)
+			except: pass
+
+			perc_arg = None
+			if arg and arg.endswith('%'):
+				try: perc_arg = int(arg[:-1])
+				except: pass
+
+			if int_arg is not None:
+				self.client.scroll_f = None
+				self.client.scroll_i = int_arg
+				self.world.send_chan_msg('-err-', inf, \
+					'scroll size: {0} lines'.format(self.client.scroll_i))
+			
+			elif perc_arg is not None:
+				self.client.scroll_i = None
+				self.client.scroll_f = perc_arg / 100.0
+				self.world.send_chan_msg('-err-', inf, \
+					'scroll size: {0}% of screen'.format(self.client.scroll_f*100))
+
+			else:
+				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+  usage:     /ss  lines_scrolled_per_pgup_pgdn
+  example:   /sh  0     (entire screen)
+  example:   /sh  10    (10 lines)
+  example:   /sh  50%   (half the screen)
+""")
+			return
+
+
+
 		elif cmd == 'by':
 			self.client.bell = True
 			self.world.send_chan_msg('--', inf, 'Audible alerts enabled. Disable with /bn')
@@ -695,7 +731,7 @@ if you are using a mac, PgUp is fn-Shift-PgUp
 			
 			gc.collect()
 
-		elif cmd == 'quit' or cmd == 'q':
+		elif cmd == 'quit' or cmd == 'q' or cmd == 'exit':
 			self.client.host.part(self.client)
 
 
