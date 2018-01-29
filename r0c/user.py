@@ -618,7 +618,7 @@ class User(object):
 				return
 
 			self.client.w = arg
-			self.world.send_chan_msg(u'-ínf-', inf, \
+			self.world.send_chan_msg(u'-nfo-', inf, \
 				u'screen width: {0} letters'.format(self.client.w), False)
 
 
@@ -635,7 +635,7 @@ class User(object):
 				return
 
 			self.client.h = arg
-			self.world.send_chan_msg(u'-ínf-', inf, \
+			self.world.send_chan_msg(u'-nfo-', inf, \
 				u'screen height: {0} letters'.format(self.client.h), False)
 
 
@@ -660,7 +660,7 @@ class User(object):
 
 				self.client.scroll_f = None
 				self.client.scroll_i = int_arg
-				self.world.send_chan_msg(u'-ínf-', inf, \
+				self.world.send_chan_msg(u'-nfo-', inf, \
 					u'scroll size: {0} lines'.format(self.client.scroll_i), False)
 			
 			elif perc_arg is not None:
@@ -670,7 +670,7 @@ class User(object):
 
 				self.client.scroll_i = None
 				self.client.scroll_f = perc_arg / 100.0
-				self.world.send_chan_msg(u'-ínf-', inf, \
+				self.world.send_chan_msg(u'-nfo-', inf, \
 					u'scroll size: {0}% of screen'.format(self.client.scroll_f*100), False)
 
 			else:
