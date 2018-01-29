@@ -1,43 +1,44 @@
-**/n** or **/nick** changes your nickname
+**`/n`** or **`/nick`** changes your nickname  
 `/n SparTacus`
 
-**/j** or **/join** enters a chatroom
+**`/j`** or **`/join`** enters a chatroom  
 `/j #music`
 
-**/p** or **/part** leaves the chatroom
+**`/p`** or **`/part`** leaves the chatroom
 
-**/t** or **/topic** changes the channel topic
+**`/t`** or **`/topic`** changes the channel topic  
 `/t electro swing`
 
-**/me**, the single mandatory feature anywhere
+**`/me`**, the single mandatory feature anywhere  
 `/me regrets adding this`
 
-**/m** or **/msg** sends a private message
+**`/m`** or **`/msg`** sends a private message  
 `/msg SparTacus stop stealing my nick`
 
-**/q** or **/quit** disconnects your client
+**`/q`** or **`/quit`** disconnects your client
 
 # info
 
-**/help** displays these help pages
+**`/help`** displays these help pages
 
-**/na** or **/names** shows a list of people in the channel
+**`/na`** or **`/names`** shows a list of people in the channel
 
-**/st** or **/status** shows info about online users
+**`/st`** or **`/status`** shows info about online users
 
-**/cmap** shows a list of colour codes
+**`/cmap`** shows a list of colour codes
 
 # control
 
-**/r** or **/redraw** redraws the screen to fix corruption, use this if things are glitchy after resizing the window
+**`/r`** or **`/redraw`** redraws the screen to fix corruption, use this if things are glitchy after resizing the window
 
-**/by** and **/bn** turns on/off audible alerts when someone mentions your name
+**`/by`** and **`/bn`** turns on/off audible alerts when someone mentions your name
 
-**/sw** and **/sh** sets the terminal width/height in case the detection fails
-`/sw 80`
+**`/sw`** and **`/sh`** sets the terminal width/height in case the detection fails  
+`/sw 80`  
 `/sh 24`
 
-**/ss** sets the PgUp/PgDn scroll amount
+**`/ss`** sets the PgUp/PgDn scroll amount
+
 | | |
 |-|-|
 | `/sh 0`   | entire screen
@@ -46,15 +47,16 @@
 
 # navigation
 
-**/a** jumps to the oldest unread message across all your channels
+**`/a`** jumps to the oldest unread message across all your channels
 
-**/3** jumps to your 3rd window
+**`/3`** jumps to your 3rd window
 
-**/u**, **/up**, **/d**, **/down** are PageUp/PageDown for clients where the PgUp/PgDn buttons are busted
+**`/u`**, **`/up`**, **`/d`**, **`/down`** are PageUp/PageDown for clients where the PgUp/PgDn buttons are busted
 
-**/l** or **/latest** scrolls to the bottom of the chat window
+**`/l`** or **`/latest`** scrolls to the bottom of the chat window
 
-**/g** or **/goto** jumps to a point in the past
+**`/g`** or **`/goto`** jumps to a point in the past
+
 | | |
 |-|-|
 | `/g 19:47`            | jump to time
@@ -65,18 +67,18 @@
 
 # admin commands
 
-**/auth** promotes you to administrator
+**`/auth`** promotes you to administrator  
 `/auth hunter2`
 
-**/fill** floods the channel with messages
+**`/fill`** floods the channel with messages  
 `/fill 30 desu`
 
-**/cls** blanks the channel
+**`/cls`** blanks the channel
 
-**/sd** shuts down the server
+**`/sd`** shuts down the server
 
-**/mem** dumps server memory to file
+**`/mem`** dumps server memory to file
 
-**/repl** drops server into a shell
+**`/repl`** drops server into a shell
 
-**/gc** forces a garbage collection
+**`/gc`** forces a garbage collection

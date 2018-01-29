@@ -802,7 +802,7 @@ class User(object):
 
 
 	def help(self, arg, inf):
-		if arg is None:
+		if not arg:
 			arg = 'topics'
 
 		txt = None
@@ -822,18 +822,19 @@ class User(object):
 				return
 		
 		txt = txt.replace('\r', '')
+		txt = txt.replace('  \n', '\n')
 
 		txt = u'\033[0;30;46m{0}\033[K\n\033[0m\n'.format(u'=' * 32) + txt
 
-		txt = txt.replace('| | |\n|-|-|\n', '')
+		txt = txt.replace('\n\n| | |\n|-|-|\n', '\n')
 		if '\n| ' in txt:
 			txt = txt.replace('\n| ', '\n').replace(' | ', '  ')
 			if txt.startswith('| '):
 				txt = txt[2:]
 
-		txt = re.sub(r'`([^`]+)`',        '\033[0;36m\\1\033[0m', txt)
-		txt = re.sub(r'\*\*([^\*]+)\*\*', '\033[1;36m\\1\033[0m', txt)
-		txt = re.sub(r'\n# ([^\n]*)\n',   '\n\033[1;33m=== \\1 ===\033[0m\n', txt)
+		txt = re.sub(r'\*\*`?([^\*]+)`?\*\*', '\033[1;36m\\1\033[0m', txt)
+		txt = re.sub(r'`([^`]+)`',            '\033[0;36m\\1\033[0m', txt)
+		txt = re.sub(r'\n# ([^\n]*)\n',       '\n\033[1;33m=== \\1 ===\033[0m\n', txt)
 		txt = txt.replace('\n', '\r\n')
 
 		self.world.send_chan_msg('-nfo-', inf, txt)
