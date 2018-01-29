@@ -108,10 +108,10 @@ class VT100_Server(asyncore.dispatcher):
 				f.readline()  # discard version info
 				try:
 					for ln in [x.decode('utf-8').strip() for x in f]:
-						k, v = ln.split(' ', 1)
+						k, v = ln.split(u' ', 1)
 						self.user_config[k] = v
 						
-						if len(v.split(' ')) > 15:
+						if len(v.split(u' ')) > 15:
 							panic = True
 							print('\n /!\\ YOUR CFG.* FILES ARE BUSTED')
 							print('     i messed up the serialization in an older version of r0c sorry')
@@ -628,8 +628,8 @@ class VT100_Client(asyncore.dispatcher):
 					full_redraw or self.echo_on)
 
 				# reset colours if necessary
-				if '\033[' in self.linebuf or fix_color:
-					to_send += '\033[0m'
+				if u'\033[' in self.linebuf or fix_color:
+					to_send += u'\033[0m'
 			
 			# position cursor after CLeft/CRight/Home/End
 			if self.vt100 and (to_send or cursor_moved):
@@ -659,12 +659,12 @@ class VT100_Client(asyncore.dispatcher):
 			cause = u''
 			if len(uchan.nchan.uchans) > 1:
 				ch_name = uchan.nchan.get_name()
-				if ' ' in ch_name:
+				if u' ' in ch_name:
 					cause = u'\nsomeone sent you a private message.\n'.format()
 				else:
 					cause = u'\nsomeone mentioned your nick in {0}.\n'.format(ch_name)
 
-			self.world.send_chan_msg('-nfo-', inf_n, """[about notifications]{0}
+			self.world.send_chan_msg(u'-nfo-', inf_n, u"""[about notifications]{0}
   to jump through unread channels,
   press CTRL-E or use the command /a
 
@@ -682,7 +682,7 @@ class VT100_Client(asyncore.dispatcher):
 		nchan = uchan.nchan
 		topic = nchan.topic
 		if nchan.name is None:
-			topic = topic.replace('[[uch_a]]', uchan.alias)
+			topic = topic.replace(u'[[uch_a]]', uchan.alias)
 
 		top_bar = u'\033[1H\033[44;48;5;235;38;5;220m{0}\033[K'.format(topic)
 		
@@ -705,10 +705,10 @@ class VT100_Client(asyncore.dispatcher):
 		nbuf  = self.user.chans.index(uchan)
 		nchan = uchan.nchan
 		chan_name = self.user.active_chan.nchan.name
-		chan_hash = '#'
+		chan_hash = u'#'
 		if chan_name is None:
 			# private chat
-			chan_hash = '\033[1;37m'
+			chan_hash = u'\033[1;37m'
 			chan_name = self.user.active_chan.alias
 
 		hilights = []
@@ -728,11 +728,11 @@ class VT100_Client(asyncore.dispatcher):
 		
 		if hilights:
 			hilights = u'   \033[33mh:\033[1m{0}\033[22;39m'.format(
-				','.join(str(x) for x in hilights))
+				u','.join(str(x) for x in hilights))
 		
 		if activity:
 			activity = u'   \033[32ma:\033[1m{0}\033[22;39m'.format(
-				','.join(str(x) for x in activity))
+				u','.join(str(x) for x in activity))
 		
 		offscreen = None
 		if not uchan.lock_to_bottom and uchan.vis[-1].im < len(nchan.msgs):
@@ -742,15 +742,15 @@ class VT100_Client(asyncore.dispatcher):
 		line = trunc(u'{0}{1}   {2}: {3}{4}{5}{6}{7}\033[K'.format(
 			preface, hhmmss,
 			nbuf, chan_hash, chan_name,
-			offscreen or '',
-			hilights or '',
-			activity or '',
+			offscreen or u'',
+			hilights or u'',
+			activity or u'',
 			len(nchan.uchans)), self.w)[0]
 		
 		if not self.vt100:
 			now = int(time.time())
 			if full_redraw or (now % 5 == 1) or ((hilights or activity) and now % 2 == 1):
-				return '\r{0}   {1}> '.format(strip_ansi(line), self.user.nick)
+				return u'\r{0}   {1}> '.format(strip_ansi(line), self.user.nick)
 				#pad_sz = len(self.user.nick) + 3
 				#return '\r{0}{1}\r{2}> '.format(
 				#	' '*pad_sz,
@@ -876,7 +876,7 @@ class VT100_Client(asyncore.dispatcher):
 
 		if u'\033' in ansi:
 			# reset colours if the visible segment contains any
-			ansi += '\033[0m'
+			ansi += u'\033[0m'
 
 		line = line_fmt.format(self.user.nick[:self.user.nick_len], ansi)
 		if self.screen[  self.h - (self.y_input + 1) ] != line or full_redraw:
@@ -895,8 +895,8 @@ class VT100_Client(asyncore.dispatcher):
 			or visual_length(ln) < msg_w:
 				txt.append(ln)
 			else:
-				ln = ' '.join(prewrap(ln.rstrip(), msg_w))
-				txt.extend(unrag(ln, msg_w) or [' '])
+				ln = u' '.join(prewrap(ln.rstrip(), msg_w))
+				txt.extend(unrag(ln, msg_w) or [u' '])
 
 		for n, line in enumerate(txt):
 			if u'\033' in line:
@@ -906,18 +906,18 @@ class VT100_Client(asyncore.dispatcher):
 					line = strip_ansi(line)
 
 			if n == 0:
-				c1 = ''
-				c2 = ''
+				c1 = u''
+				c2 = u''
 				if self.vt100:
-					if msg.user == '-nfo-':
-						c1 = '\033[0;32m'
-						c2 = '\033[0m'
-					elif msg.user == '-err-':
-						c1 = '\033[1;33m'
-						c2 = '\033[0m'
-					elif msg.user == '***':
-						c1 = '\033[36m'
-						c2 = '\033[0m'
+					if msg.user == u'-nfo-':
+						c1 = u'\033[0;32m'
+						c2 = u'\033[0m'
+					elif msg.user == u'-err-':
+						c1 = u'\033[1;33m'
+						c2 = u'\033[0m'
+					elif msg.user == u'***':
+						c1 = u'\033[36m'
+						c2 = u'\033[0m'
 
 				txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
 			else:
@@ -941,7 +941,7 @@ class VT100_Client(asyncore.dispatcher):
 		debug_scrolling = False
 		
 		nick_w = None
-		if self.user.active_chan.alias == 'r0c-status':
+		if self.user.active_chan.alias == u'r0c-status':
 			nick_w = 6
 			
 		if self.w >= 140:
@@ -1117,11 +1117,11 @@ class VT100_Client(asyncore.dispatcher):
 					#print('sending {0} of {1}'.format(ln, len(lines)))
 					#if isinstance(lines, list):
 					#	print('lines is list')
-					ret += u'\r{0}{1}\r\n'.format(ln, ' '*((self.w-len(ln))-2))
+					ret += u'\r{0}{1}\r\n'.format(ln, u' '*((self.w-len(ln))-2))
 				return ret
 
 			while len(lines) < self.h - 3:
-				lines.append('--')
+				lines.append(u'--')
 			
 			for n in range(self.h - 3):
 				self.screen[n+1] = lines[n]
@@ -1272,7 +1272,7 @@ class VT100_Client(asyncore.dispatcher):
 					#print(u'@@@ vis{0:2} stp{1:2} += {2}'.format(n_vis, n_steps, ln))
 
 					if not self.vt100:
-						ret += u'\r{0}{1}\r\n'.format(ln, ' '*((self.w-len(ln))-2))
+						ret += u'\r{0}{1}\r\n'.format(ln, u' '*((self.w-len(ln))-2))
 
 					elif lines_in_use < self.h - 3:
 						ret += u'\033[{0}H\033[K{1}'.format(lines_in_use + 2, ln)
@@ -1406,7 +1406,7 @@ class VT100_Client(asyncore.dispatcher):
 						vmsg.apply_markup()
 						v = vmsg.txt[0]
 						if v and not v.startswith(' '):
-							ret += '\033[{0}H{1} '.format(y_pos, v[:v.find(' ')])
+							ret += u'\033[{0}H{1} '.format(y_pos, v[:v.find(' ')])
 					
 					y_pos += vmsg.cdr - vmsg.car
 
@@ -1417,7 +1417,7 @@ class VT100_Client(asyncore.dispatcher):
 					new_screen.append(ln)
 			
 			while len(new_screen) < self.h - 2:
-				new_screen.append('--')
+				new_screen.append(u'--')
 
 			new_screen.append(self.screen[-2])
 			new_screen.append(self.screen[-1])
@@ -1477,7 +1477,7 @@ class VT100_Client(asyncore.dispatcher):
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
 		ftop = u'\n'*20 + u'\033[H\033[J'
-		top = ftop + ' [ r0c configurator ]\n'
+		top = ftop + u' [ r0c configurator ]\n'
 
 		if self.wizard_stage == 'start':
 			if not self.load_config():
@@ -1518,7 +1518,7 @@ class VT100_Client(asyncore.dispatcher):
 			to_say += u"""\
 \033[32m    this sentence is{0} green \033[0m
 """.\
-				format('' if self.vt100 else ' NOT').\
+				format(u'' if self.vt100 else ' NOT').\
 				replace(u'\n', u'\r\n').encode('utf-8')
 
 
@@ -1866,15 +1866,15 @@ class VT100_Client(asyncore.dispatcher):
 			self.save_config()
 			if WINDOWS:
 				print('client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}\n           :  {4}  {5}'.format(
-					'n' if self.linemode else 'Y',
-					'Y' if self.vt100    else 'n',
-					'n' if self.echo_on  else 'Y',
+					u'n' if self.linemode else u'Y',
+					u'Y' if self.vt100    else u'n',
+					u'n' if self.echo_on  else u'Y',
 					self.codec, self.user.nick, self.addr[0]))
 			else:
 				print('client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}\n           :  {4}  {5}'.format(
-					'\033[1;31m' if self.linemode else '\033[1;32m',
-					'\033[32m'   if self.vt100    else '\033[31m',
-					'\033[31m'   if self.echo_on  else '\033[32m',
+					u'\033[1;31m' if self.linemode else u'\033[1;32m',
+					u'\033[32m'   if self.vt100    else u'\033[31m',
+					u'\033[31m'   if self.echo_on  else u'\033[32m',
 					self.codec, self.user.nick, self.addr[0]))
 
 			if self.num_telnet_negotiations == 0:
@@ -1908,7 +1908,7 @@ class VT100_Client(asyncore.dispatcher):
 
 		to_say = None
 		ftop = u'\n'*20 + u'\033[H\033[J'
-		top = ftop + ' [ r0c configurator ]\n'
+		top = ftop + u' [ r0c configurator ]\n'
 
 		if self.__class__.__name__ == 'TelnetClient' \
 		and self.num_telnet_negotiations < 1:
@@ -1930,7 +1930,7 @@ class VT100_Client(asyncore.dispatcher):
    please connect to port {0}
 """).format(self.host.other_if,
 			self.num_telnet_negotiations,
-			's' if self.num_telnet_negotiations != 1 else '')
+			u's' if self.num_telnet_negotiations != 1 else u'')
 
 		if to_say:
 			to_say += u"""

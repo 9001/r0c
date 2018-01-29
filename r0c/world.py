@@ -98,12 +98,12 @@ class World(object):
 		msg_trunc_size = MSG_TRUNC_SIZE
 		with self.mutex:
 			self.num_messages += 1
-			if nchan.name is None and not from_nick.startswith('-'):
+			if nchan.name is None and not from_nick.startswith(u'-'):
 				# private chan, check if we have anyone to send to
 				if len(nchan.uchans) == 1:
 					if nchan.uchans[0].alias == 'r0c-status':
 						if nchan.uchans[0].user.nick == from_nick:
-							self.send_chan_msg('-err-', nchan, 'this buffer does not accept messages, only commands\n')
+							self.send_chan_msg(u'-err-', nchan, u'this buffer does not accept messages, only commands\n')
 							return
 					
 					else:
@@ -114,8 +114,8 @@ class World(object):
 						if target != from_nick:
 							utarget = self.find_user(target)
 							if utarget is None:
-								self.send_chan_msg('-err-', nchan,
-									'\033[1;31mfailed to locate user "{0}"'.format(
+								self.send_chan_msg(u'-err-', nchan,
+									u'\033[1;31mfailed to locate user "{0}"'.format(
 										nchan.uchans[0].alias))
 								return
 
@@ -128,8 +128,8 @@ class World(object):
 			nchan.msgs.append(msg)
 			nchan.latest = msg.ts
 
-			if not from_nick.startswith('-') \
-			and not from_nick == '***':
+			if not from_nick.startswith(u'-') \
+			and not from_nick == u'***':
 				nchan.user_act_ts[from_nick] = now
 
 			if len(nchan.msgs) > max_hist_mem:
@@ -146,6 +146,12 @@ class World(object):
 				if nchan.name is None or uchan.user.nick_re.search(text):
 					#if len(nchan.uchans) == 1:
 					#	break
+					if PY2:
+						if isinstance(uchan.user.nick, str):
+							whoops('uchan.user.nick is bytestring')
+						if isinstance(from_nick, str):
+							whoops('from_nick is bytestring')
+
 					if ping_self or uchan.user.nick != from_nick:
 						uchan.last_ping = msg.sno
 			
@@ -177,8 +183,8 @@ class World(object):
 			user.chans.append(uchan)
 			nchan.uchans.append(uchan)
 			nchan.user_act_ts[user.nick] = time.time()
-			self.send_chan_msg('--', nchan,
-				'\033[1;32m{0}\033[22m has joined'.format(user.nick), False)
+			self.send_chan_msg(u'--', nchan,
+				u'\033[1;32m{0}\033[22m has joined'.format(user.nick), False)
 			uchan.last_read = nchan.msgs[-1].sno
 			return uchan
 
@@ -202,9 +208,9 @@ class World(object):
 			name = name.strip()
 			nchan = self.get_pub_chan(name)
 			if nchan is None:
-				nchan = NChannel(name, '#{0} - no topic has been set'.format(name))
-				nchan.msgs.append(Message(nchan, time.time(), '--', \
-					'\033[36mchannel created at \033[1m{0}'.format(
+				nchan = NChannel(name, u'#{0} - no topic has been set'.format(name))
+				nchan.msgs.append(Message(nchan, time.time(), u'--', \
+					u'\033[36mchannel created at \033[1m{0}'.format(
 						datetime.datetime.utcnow().strftime('%Y-%m-%d, %H:%M:%SZ'))))
 				#if nchan.name != 'xld':
 				self.load_chat_log(nchan)
@@ -220,7 +226,7 @@ class World(object):
 		with self.mutex:
 			uchan = self.get_priv_chan(user, alias)
 			if uchan is None:
-				nchan = NChannel(None, 'DM with [[uch_a]]')
+				nchan = NChannel(None, u'DM with [[uch_a]]')
 				self.priv_ch.append(nchan)
 				uchan = self.join_chan_obj(user, nchan)
 				uchan.alias = alias
@@ -253,7 +259,7 @@ class World(object):
 				for user in self.users:
 					if user.active_chan:
 						#print('         : {0} ->'.format(user))
-						to_send = '\033[H{0}\033[K'.format(msg)
+						to_send = u'\033[H{0}\033[K'.format(msg)
 						user.client.screen[0] = to_send
 						user.client.say(to_send.encode(
 							user.client.codec, 'backslashreplace'))
@@ -263,10 +269,10 @@ class World(object):
 		""" 1=append, 2=append+scroll """
 		with self.mutex:
 			for nchan in self.pub_ch:
-				self.send_chan_msg('--', nchan, msg)
+				self.send_chan_msg(u'--', nchan, msg)
 			
 			for nchan in self.priv_ch:
-				self.send_chan_msg('--', nchan, msg)
+				self.send_chan_msg(u'--', nchan, msg)
 			
 			if severity > 1:
 				for user in self.users:
@@ -275,7 +281,7 @@ class World(object):
 							user.active_chan.lock_to_bottom = True
 							user.client.need_full_redraw = True
 					else:
-						user.client.say("\n [[ broadcast message ]]\n {0}\n".format(
+						user.client.say(u"\n [[ broadcast message ]]\n {0}\n".format(
 							msg).replace(u"\n", u"\r\n").encode('utf-8'))
 
 
@@ -298,8 +304,8 @@ class World(object):
 					i -= 1
 				user.new_active_chan = user.chans[i]
 			
-			self.send_chan_msg('--', nchan,
-				'\033[1;33m{0}\033[22m has left'.format(user.nick))
+			self.send_chan_msg(u'--', nchan,
+				u'\033[1;33m{0}\033[22m has left'.format(user.nick))
 
 			if not nchan.uchans:
 				print(' close chan:  [{0}]'.format(nchan.get_name()))
@@ -347,7 +353,7 @@ class World(object):
 		#	# daily dose
 
 		#print('  chan hist:  reading files')
-		ln = '???'
+		ln = u'???'
 		t2 = time.time()
 		chunks = [nchan.msgs]
 		n_left = MAX_HIST_LOAD - len(nchan.msgs)
@@ -363,7 +369,7 @@ class World(object):
 					f.readline()  # discard version info
 					for ln in f:
 						ts, user, txt = \
-							ln.decode('utf-8').rstrip('\n').split(' ', 2)
+							ln.decode('utf-8').rstrip('\n').split(u' ', 2)
 
 						chunk.append(Message(None, int(ts, 16)/8.0, user, txt))
 						
@@ -427,7 +433,7 @@ class World(object):
 
 		nchan.log_ctr = 0
 		nchan.log_fh = open(log_fn, 'wb')
-		nchan.log_fh.write('1 {0:x}\n'.format(
+		nchan.log_fh.write(u'1 {0:x}\n'.format(
 			int(time.time())).encode('utf-8'))
 
 		#print('opened log file {0}'.format(log_fn))

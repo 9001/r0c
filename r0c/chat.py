@@ -27,7 +27,7 @@ class NChannel(object):
 		if self.name:
 			return u'#' + self.name
 		ret = u', '.join(x.alias for x in self.uchans[:2])
-		return ret or '<abandoned private channel>'
+		return ret or u'<abandoned private channel>'
 
 	def __unicode__(self):
 		return u'NChannel {0}'.format(get_name())

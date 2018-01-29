@@ -16,7 +16,7 @@ PY2 = (sys.version_info[0] == 2)
 
 
 
-HELP_INTRO = """\
+HELP_INTRO = u"""\
 Useful commands:
    \033[36m/nick\033[0m  change your nickname
    \033[36m/help\033[0m  how-to and about
@@ -149,17 +149,17 @@ class User(object):
 		text = text.replace(u'`', u'\033[').replace('build_date', BUILD_DATE)
 		text += HELP_INTRO
 
-		uchan = self.world.join_priv_chan(self, 'r0c-status')
+		uchan = self.world.join_priv_chan(self, u'r0c-status')
 		nchan = uchan.nchan
-		nchan.topic = 'r0c readme (and status info)'
+		nchan.topic = u'r0c readme (and status info)'
 
-		msg = Message(nchan, time.time(), '-nfo-', text)
+		msg = Message(nchan, time.time(), u'-nfo-', text)
 		nchan.msgs.append(msg)
 
 		if False:
 			text = []
-			lipsum1 = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-			lipsum2 = "Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
+			lipsum1 = u"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+			lipsum2 = u"Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
 			for n in range(10):
 				text.append(lipsum1)
 				text.append(lipsum2)
@@ -171,7 +171,7 @@ class User(object):
 
 
 		if False:
-			uchan = self.world.join_pub_chan(self, 'general')
+			uchan = self.world.join_pub_chan(self, u'general')
 			nchan = uchan.nchan
 			if len(nchan.msgs) < 100:
 				for n in range(1,200):
@@ -181,7 +181,7 @@ class User(object):
 					self.world.send_chan_msg(self.nick, nchan, txt)
 
 		if False:
-			uchan = self.world.join_pub_chan(self, 'smalltalk')
+			uchan = self.world.join_pub_chan(self, u'smalltalk')
 			nchan = uchan.nchan
 			for n in range(1,3):
 				txt = u'  message {0}\n      mes {0}'.format(n)
@@ -198,9 +198,9 @@ class User(object):
 		print('denied exec:  /{0} {1} from {2} ({3})'.format(
 			cmd, arg, self.nick, self.client.addr))
 
-		inf = self.world.get_priv_chan(self, 'r0c-status').nchan
+		inf = self.world.get_priv_chan(self, u'r0c-status').nchan
 		
-		self.world.send_chan_msg('-err-', inf, """\033[1;31m[denied]\033[0m
+		self.world.send_chan_msg(u'-err-', inf, u"""\033[1;31m[denied]\033[0m
   don't move, the police are on the way
 """)
 
@@ -209,13 +209,13 @@ class User(object):
 
 	def exec_cmd(self, cmd_str):
 		#print('handle {0}'.format(cmd_str))
-		inf = self.world.get_priv_chan(self, 'r0c-status').nchan
+		inf = self.world.get_priv_chan(self, u'r0c-status').nchan
 		cmd = cmd_str # the command keyword
 		arg = None    # single argument with spaces
 		arg1 = None   # 1st of 2 arguments
 		arg2 = None   # 2nd of 2 arguments
 		
-		ofs = cmd.find(' ')
+		ofs = cmd.find(u' ')
 		if ofs > 0:
 			cmd = cmd_str[:ofs]
 			arg = cmd_str[ofs+1:]
@@ -223,28 +223,28 @@ class User(object):
 
 		if arg:
 			arg1 = arg
-			ofs = arg.find(' ')
+			ofs = arg.find(u' ')
 			if ofs > 0:
 				arg1 = arg[:ofs].lower()
 				arg2 = arg[ofs+1:]
 
-		if cmd == 'help':
+		if cmd == u'help':
 			self.help(arg, inf)
 
-		elif cmd == 'me':
-			self.world.send_chan_msg('***', self.active_chan.nchan,
-				'\033[1m{0}\033[22m {1}'.format(self.nick, arg))
+		elif cmd == u'me':
+			self.world.send_chan_msg(u'***', self.active_chan.nchan,
+				u'\033[1m{0}\033[22m {1}'.format(self.nick, arg))
 
-		elif cmd == 'auth':
+		elif cmd == u'auth':
 			if arg == ADMIN_PWD:
 				self.admin = True
-				self.world.send_chan_msg('-nfo-', inf, "please don't break anything")
+				self.world.send_chan_msg(u'-nfo-', inf, u"please don't break anything")
 			else:
-				self.world.send_chan_msg('-err-', inf, 'wrong password')
+				self.world.send_chan_msg(u'-err-', inf, u'wrong password')
 
 		elif cmd == 'nick' or cmd == 'n':
 			if not arg:
-				self.world.send_chan_msg('-err-', inf, """[invalid argument]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid argument]
   usage:     /nick  new_nickname
   example:   /nick  spartacus
 """)
@@ -252,7 +252,7 @@ class User(object):
 
 			# TODO: make this more lenient?
 			legit_chars = azAZ
-			legit_chars += '0123456789_-'
+			legit_chars += u'0123456789_-'
 			new_nick = u''
 			nick_re = u''
 			for ch in arg:
@@ -260,38 +260,38 @@ class User(object):
 					new_nick += ch
 
 			if not new_nick:
-				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
-					"yooo EXCLUSIVELY illegal chars in new nick\n")
+				self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
+					u"yooo EXCLUSIVELY illegal chars in new nick\n")
 				return
 
 			if new_nick != arg:
-				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
-					"some illegal characters were removed\n")
+				self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
+					u"some illegal characters were removed\n")
 				return
 
 			if new_nick.startswith('-'):
-				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
-					"nicks cannot start with "-" (dash)\n")
+				self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
+					u"nicks cannot start with "-" (dash)\n")
 				return
 
 			if len(new_nick) > 32:
-				self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
-					"too long\n")
+				self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
+					u"too long\n")
 				return
 
 			other_user = None
 			with self.world.mutex:
 				if self.world.find_user(new_nick):
-					self.world.send_chan_msg('-err-', inf, "[invalid argument]\n  " +
-						"that nick is taken\n")
+					self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
+						u"that nick is taken\n")
 					return
 
 				print('nick change:  {2} {0} -> {1}'.format(
 					self.nick, new_nick, self.client.addr[0]))
 				
 				for uchan in self.chans:
-					self.world.send_chan_msg('--', uchan.nchan,
-						'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(
+					self.world.send_chan_msg(u'--', uchan.nchan,
+						u'\033[1;36m{0}\033[22m changed nick to \033[1m{1}'.format(
 							self.nick, new_nick), False)
 
 				# update last-spoke tables
@@ -313,7 +313,7 @@ class User(object):
 
 		elif cmd == 'topic' or cmd == 't':
 			if not arg:
-				self.world.send_chan_msg('-err-', inf, """[invalid argument]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid argument]
   usage:     /topic  the_new_topic
   example:   /topic  cooking recipes
 """)
@@ -322,29 +322,29 @@ class User(object):
 			uchan = self.active_chan
 			nchan = uchan.nchan
 			if nchan in self.world.priv_ch:
-				self.world.send_chan_msg('-err-', inf, """[error]
+				self.world.send_chan_msg(u'-err-', inf, u"""[error]
   cannot change the topic of private channels
 """)
 				return
 
 			old_topic = nchan.topic
 			nchan.topic = arg
-			self.world.send_chan_msg('--', nchan,
-				'\033[36m{0} has changed the topic from [\033[0m{1}\033[36m] -to-> [\033[0m{2}\033[36m]\033[0m'.format(
+			self.world.send_chan_msg(u'--', nchan,
+				u'\033[36m{0} has changed the topic from [\033[0m{1}\033[36m] -to-> [\033[0m{2}\033[36m]\033[0m'.format(
 				self.nick, old_topic, arg))
 
 
 
 		elif cmd == 'join' or cmd == 'j':
 			if not arg or len(arg) < 2:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /join  #channel_name
   example:   /join  #general
 """)
 				return
 			
 			if not arg.startswith('#'):
-				self.world.send_chan_msg('-err-', inf, """[error]
+				self.world.send_chan_msg(u'-err-', inf, u"""[error]
   illegal channel name:  {0}
   channel names must start with #
 """.format(arg))
@@ -361,14 +361,14 @@ class User(object):
 					for n in range(0,1048576):
 						if n % 16384 == 0:
 							print(n)
-						self.world.send_chan_msg('--', self.active_chan.nchan,
-							'large history load test {0}'.format(n))
+						self.world.send_chan_msg(u'--', self.active_chan.nchan,
+							u'large history load test {0}'.format(n))
 
 
 
 		elif cmd == 'part' or cmd == 'p':
-			if self.active_chan.alias == 'r0c-status':
-				self.world.send_chan_msg('-err-', inf, """[error]
+			if self.active_chan.alias == u'r0c-status':
+				self.world.send_chan_msg(u'-err-', inf, u"""[error]
   cannot part the status channel
 """.format(arg))
 				return
@@ -383,7 +383,7 @@ class User(object):
 		elif cmd.isdigit():
 			nch = int(cmd)
 			if nch >= len(self.chans):
-				self.world.send_chan_msg('-err-', inf, """[error]
+				self.world.send_chan_msg(u'-err-', inf, u"""[error]
   you only have {0} channels my dude
 """.format(len(self.chans)))
 				return
@@ -395,14 +395,14 @@ class User(object):
 
 		elif cmd == 'msg' or cmd == 'm':
 			if not arg1 or not arg2:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /msg   nickname   your message text
   example:   /msg   ed   hello world
 """)
 				return
 
 			if not self.world.find_user(arg1):
-				self.world.send_chan_msg('-err-', inf, """[user not found]
+				self.world.send_chan_msg(u'-err-', inf, u"""[user not found]
   "{0}" is not online
 """.format(arg1))
 				return
@@ -447,7 +447,7 @@ class User(object):
 
 
 		elif cmd == 'names' or cmd == 'na':
-			self.world.send_chan_msg('--', inf,"{1} users in {0}: {2}".format(
+			self.world.send_chan_msg(u'--', inf, u"{1} users in {0}: {2}".format(
 				self.active_chan.nchan.get_name(),
 				len(self.active_chan.nchan.uchans),
 				u', '.join(sorted([x.user.nick for x in
@@ -478,23 +478,24 @@ class User(object):
 						seen_users[user] = 1
 						n_in_chans += 1
 
-			self.world.send_chan_msg('--', inf,
-				"{0} users + {1} in wizard, {2} in chans, {3} public + {4} private chans".format(
+			self.world.send_chan_msg(u'--', inf,
+				u"{0} users + {1} in wizard, {2} in chans, {3} public + {4} private chans".format(
 					n_users, n_wizard, n_in_chans, n_pub, n_priv))
 
 			if self.admin:
-				self.world.send_chan_msg('--', inf, '----- users -----')
+				self.world.send_chan_msg(u'--', inf, u'----- users -----')
 				for user in sorted(self.world.users):
-					self.world.send_chan_msg('--', inf, '{0} {1} {2}'.format(
+					self.world.send_chan_msg(
+						u'--', inf, u'{0} {1} {2}'.format(
 						user.client.addr[0].ljust(15),
 						'ok ' if user.active_chan else 'wiz',
 						user.nick))
-				self.world.send_chan_msg('--', inf, '----- chans -----')
+				self.world.send_chan_msg(u'--', inf, u'----- chans -----')
 				for chan in sorted(self.world.pub_ch):
 					self.world.send_chan_msg(
-						'--', inf, '{0}: {1}'.format(chan.name,
+						u'--', inf, u'{0}: {1}'.format(chan.name,
 						u', '.join(sorted([x.user.nick for x in chan.uchans]))))
-				self.world.send_chan_msg('--', inf, '-----------------')
+				self.world.send_chan_msg(u'--', inf, u'-----------------')
 
 
 
@@ -539,7 +540,7 @@ class User(object):
 			ch = self.active_chan
 			nch = self.active_chan.nchan
 			if not arg:
-				self.world.send_chan_msg('--', inf, """[goto]
+				self.world.send_chan_msg(u'--', inf, u"""[goto]
   {1} msgs since {2} in {0}
   
   command usage:
@@ -585,7 +586,7 @@ class User(object):
 					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
 					return
 
-				self.world.send_chan_msg('-err-', inf, """[goto]
+				self.world.send_chan_msg(u'-err-', inf, u"""[goto]
   invalid argument format, see /g for help
 """)
 
@@ -595,7 +596,7 @@ class User(object):
 			ch = self.active_chan
 			nch = self.active_chan.nchan
 			if not arg:
-				self.world.send_chan_msg('--', inf, """[search]
+				self.world.send_chan_msg(u'--', inf, u"""[search]
   plaintext search:
     /s fore       finds messages like "before"
 
@@ -610,15 +611,15 @@ class User(object):
 			except: pass
 			
 			if not arg:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /sw  your_screen_width
   example:   /sw  80
 """)
 				return
 
 			self.client.w = arg
-			self.world.send_chan_msg('-ínf-', inf, \
-				'screen width: {0} letters'.format(self.client.w), False)
+			self.world.send_chan_msg(u'-ínf-', inf, \
+				u'screen width: {0} letters'.format(self.client.w), False)
 
 
 
@@ -627,15 +628,15 @@ class User(object):
 			except: pass
 			
 			if not arg:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /sh  your_screen_height
   example:   /sh  24
 """)
 				return
 
 			self.client.h = arg
-			self.world.send_chan_msg('-ínf-', inf, \
-				'screen height: {0} letters'.format(self.client.h), False)
+			self.world.send_chan_msg(u'-ínf-', inf, \
+				u'screen height: {0} letters'.format(self.client.h), False)
 
 
 
@@ -654,26 +655,26 @@ class User(object):
 
 			if int_arg is not None:
 				if int_arg > 200:
-					self.world.send_chan_msg('-err-', inf, 'whoa dude')
+					self.world.send_chan_msg(u'-err-', inf, u'whoa dude')
 					return
 
 				self.client.scroll_f = None
 				self.client.scroll_i = int_arg
-				self.world.send_chan_msg('-ínf-', inf, \
-					'scroll size: {0} lines'.format(self.client.scroll_i), False)
+				self.world.send_chan_msg(u'-ínf-', inf, \
+					u'scroll size: {0} lines'.format(self.client.scroll_i), False)
 			
 			elif perc_arg is not None:
 				if perc_arg > 200:
-					self.world.send_chan_msg('-err-', inf, 'whoa dude')
+					self.world.send_chan_msg(u'-err-', inf, u'whoa dude')
 					return
 
 				self.client.scroll_i = None
 				self.client.scroll_f = perc_arg / 100.0
-				self.world.send_chan_msg('-ínf-', inf, \
-					'scroll size: {0}% of screen'.format(self.client.scroll_f*100), False)
+				self.world.send_chan_msg(u'-ínf-', inf, \
+					u'scroll size: {0}% of screen'.format(self.client.scroll_f*100), False)
 
 			else:
-				self.world.send_chan_msg('-err-', inf, """[invalid arguments]
+				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /ss  lines_scrolled_per_pgup_pgdn
   example:   /sh  0     (entire screen)
   example:   /sh  10    (10 lines)
@@ -685,41 +686,45 @@ class User(object):
 
 		elif cmd == 'by':
 			self.client.bell = True
-			self.world.send_chan_msg('--', inf,
-				'Audible alerts enabled. Disable with /bn', False)
+			self.world.send_chan_msg(u'--', inf,
+				u'Audible alerts enabled. Disable with /bn', False)
 
 		elif cmd == 'bn':
 			self.client.bell = False
-			self.world.send_chan_msg('--', inf,
-				'Audible alerts disabled. Enable with /by', False)
+			self.world.send_chan_msg(u'--', inf,
+				u'Audible alerts disabled. Enable with /by', False)
 
 
 
 		elif cmd == 'cmap':
-			msg = "All foreground colours (0 to f) on default background,\n"
-			msg += "each code wrapped in [brackets] for readability:\n  "
+			msg = u"All foreground colours (0 to f) on default background,\n"
+			msg += u"each code wrapped in [brackets] for readability:\n  "
 			for n in range(0, 16):
 				if n == 8:
-					msg += '\n  \033[1;3{0}m[{1:x}], '.format(n%8, n)
+					msg += u'\n  \033[1;3{0}m[{1:x}], '.format(n%8, n)
 				else:
-					msg += '\033[3{0}m[{1:x}], '.format(n%8, n)
-			msg += "\033[0m\n\nEach background with black text:\n  \033[30m"
+					msg += u'\033[3{0}m[{1:x}], '.format(n%8, n)
+			
+			msg += u"\033[0m\n\nEach background with black text:\n  \033[30m"
 			for n in range(0, 8):
-				msg += '\033[4{0}m 0,{0} '.format(n)
-			msg += "\033[0m\n\nEach background with gray text:\n  \033[37m"
+				msg += u'\033[4{0}m 0,{0} '.format(n)
+			
+			msg += u"\033[0m\n\nEach background with gray text:\n  \033[37m"
 			for n in range(0, 8):
-				msg += '\033[4{0}m 7,{0} '.format(n)
-			msg += "\033[0m\n\nEach background with white text:\n  \033[1;37m"
+				msg += u'\033[4{0}m 7,{0} '.format(n)
+			
+			msg += u"\033[0m\n\nEach background with white text:\n  \033[1;37m"
 			for n in range(0, 8):
-				msg += '\033[4{0}m f,{0} '.format(n)
-			msg += "\033[0m\n"
+				msg += u'\033[4{0}m f,{0} '.format(n)
+			
+			msg += u"\033[0m\n"
 			self.world.send_chan_msg('-nfo-', inf, msg)
 
 
 
 		elif cmd == 'cls':
 			msg = Message(
-				self.active_chan.nchan, time.time(), '-nfo-',
+				self.active_chan.nchan, time.time(), u'-nfo-',
 				u'\033[1;36m{0}\033[22m wiped the chat'.format(self.nick))
 			#msg.sno = 0  # what was i thinking
 			self.active_chan.nchan.msgs = [msg]
@@ -728,7 +733,7 @@ class User(object):
 			if not self.admin_test(cmd, arg):
 				return
 			
-			msg = "\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
+			msg = u"\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
 			self.world.broadcast_message(msg, 2)
 			
 			def killer():
@@ -768,7 +773,7 @@ class User(object):
 
 
 		else:
-			self.world.send_chan_msg('-err-', inf, """invalid command:  /{0}
+			self.world.send_chan_msg(u'-err-', inf, u"""invalid command:  /{0}
   if you meant to send that as a message,
   escape the leading "/" by adding another "/"
 """.format(cmd_str))
@@ -785,7 +790,7 @@ class User(object):
 			if not ch in azAZ:
 				nick_re += ch
 			else:
-				nick_re += '[{0}{1}]'.format(ch.lower(), ch.upper())
+				nick_re += u'[{0}{1}]'.format(ch.lower(), ch.upper())
 		
 		self.nick = new_nick
 		self.nick_re = re.compile(
@@ -803,10 +808,10 @@ class User(object):
 
 	def help(self, arg, inf):
 		if not arg:
-			arg = 'topics'
+			arg = u'topics'
 
 		txt = None
-		if arg == 'intro':
+		if arg == u'intro':
 			txt = HELP_INTRO
 		else:
 			legit_chars = azAZ
@@ -818,23 +823,23 @@ class User(object):
 				with open('doc/help-{0}.md'.format(page), 'rb') as f:
 					txt = f.read().decode('utf-8')
 			except:
-				self.world.send_chan_msg('-err-', inf, 'that help page does not exist')
+				self.world.send_chan_msg(u'-err-', inf, u'that help page does not exist')
 				return
 		
-		txt = txt.replace('\r', '')
-		txt = txt.replace('  \n', '\n')
+		txt = txt.replace(u'\r', u'')
+		txt = txt.replace(u'  \n', u'\n')
 
 		txt = u'\033[0;30;46m{0}\033[K\n\033[0m\n'.format(u'=' * 32) + txt
 
-		txt = txt.replace('\n\n| | |\n|-|-|\n', '\n')
-		if '\n| ' in txt:
-			txt = txt.replace('\n| ', '\n').replace(' | ', '  ')
-			if txt.startswith('| '):
+		txt = txt.replace(u'\n\n| | |\n|-|-|\n', u'\n')
+		if u'\n| ' in txt:
+			txt = txt.replace(u'\n| ', u'\n').replace(u' | ', u'  ')
+			if txt.startswith(u'| '):
 				txt = txt[2:]
 
 		txt = re.sub(r'\*\*`?([^\*`]+)`?\*\*', '\033[1;36m\\1\033[0m', txt)
 		txt = re.sub(r'`([^`]+)`',             '\033[1;35m\\1\033[0m', txt)
 		txt = re.sub(r'\n# ([^\n]*)\n',        '\n\033[1;33m=== \\1 ===\033[0m\n', txt)
-		txt = txt.replace('\n', '\r\n')
+		txt = txt.replace(u'\n', u'\r\n')
 
-		self.world.send_chan_msg('-nfo-', inf, txt)
+		self.world.send_chan_msg(u'-nfo-', inf, txt)

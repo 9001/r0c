@@ -313,7 +313,7 @@ def convert_color_codes(txt, preview=False):
 		if preview:
 			resume_txt = ofs + 1
 			if fg:
-				preview_k = 'K'
+				preview_k = u'K'
 
 		if fg and bg:
 			txt = u'{0}{1}{2}m{3}{4}'.format(
@@ -334,26 +334,26 @@ def convert_color_codes(txt, preview=False):
 		scan_from = ofs + 1
 		txt = u'{0}\033[0m{2}{1}'.format(
 			txt[:ofs], txt[scan_from:],
-			'O' if preview else '')
+			u'O' if preview else u'')
 	
 	return txt
 
 
 
 #B35_CHARS = tuple('0123456789abcdefghijkmnopqrstuvwxyz')
-B35_CHARS = tuple('abcdefghijkmnopqrstuvwxyz')
+B35_CHARS = tuple(u'abcdefghijkmnopqrstuvwxyz')
 B35_ATLAS = dict((c, i) for i, c in enumerate(B35_CHARS))
 B35_BASE = len(B35_CHARS)
 def b35enc(number):
 	if not number:
 		return B35_CHARS[0]
 
-	prefix = ''
+	prefix = u''
 	if number < 0:
-		prefix = '-'
+		prefix = u'-'
 		number = abs(number)
 
-	ret = ''
+	ret = u''
 	while number:
 		number, rem = divmod(number, B35_BASE)
 		ret = B35_CHARS[rem] + ret
@@ -362,7 +362,7 @@ def b35enc(number):
 
 def b35dec(b35str):
 	factor = 1
-	if b35str.startswith('-'):
+	if b35str.startswith(u'-'):
 		b35str = b35str[1:]
 		factor = -1
 
