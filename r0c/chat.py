@@ -94,7 +94,7 @@ class UChannel(object):
 			msg_n = len(self.nchan.msgs)-1
 		
 		self.vis = [VisMessage().c_new(
-			self.nchan.msgs[msg_n], ['x'], msg_n, 0, 1, self)]
+			self.nchan.msgs[msg_n], [u'x'], msg_n, 0, 1, self)]
 		
 		self.lock_to_bottom = False
 		self.user.client.need_full_redraw = True
@@ -177,9 +177,9 @@ class VisMessage(object):
 			else:
 				postfix = None
 
-		if postfix and not self.unformatted.startswith(' '):
+		if postfix and not self.unformatted.startswith(u' '):
 			#print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
-			ofs = self.unformatted.find(' ')
+			ofs = self.unformatted.find(u' ')
 			self.txt[0] = u'{0}{1}{2}{3}'.format(
 				prefix, self.unformatted[:ofs], \
 				postfix, self.unformatted[ofs+1:])

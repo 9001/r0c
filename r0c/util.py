@@ -88,7 +88,7 @@ def hexdump(pk, prefix=''):
 
 
 
-azAZ = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
+azAZ = u'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
 def trunc(txt, maxlen):
 	eoc = azAZ
@@ -255,7 +255,7 @@ def sanitize_ctl_codes(aside):
 		#print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
 		if nch < 0x20 and nch != 0x0b and nch != 0x0f:
 			print('substituting non-printable \\x{0:02x}'.format(nch))
-			plain += '?'
+			plain += u'?'
 		else:
 			plain += pch
 	return plain
@@ -340,7 +340,7 @@ def convert_color_codes(txt, preview=False):
 
 
 
-#B35_CHARS = tuple('0123456789abcdefghijkmnopqrstuvwxyz')
+#B35_CHARS = tuple(u'0123456789abcdefghijkmnopqrstuvwxyz')
 B35_CHARS = tuple(u'abcdefghijkmnopqrstuvwxyz')
 B35_ATLAS = dict((c, i) for i, c in enumerate(B35_CHARS))
 B35_BASE = len(B35_CHARS)

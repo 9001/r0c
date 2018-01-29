@@ -207,16 +207,16 @@ class VT100_Client(asyncore.dispatcher):
 			'\033\[([0-9]{1,4});([0-9]{1,4})R')
 		
 		self.msg_too_small = [
-			'your screen is too small',
-			'screen is too small',
-			'screen too small',
-			'screen 2 small',
-			'scrn 2 small',
-			'too small',
-			'2 small',
-			'2 smol',
-			'2smol',
-			':('
+			u'your screen is too small',
+			u'screen is too small',
+			u'screen too small',
+			u'screen 2 small',
+			u'scrn 2 small',
+			u'too small',
+			u'2 small',
+			u'2 smol',
+			u'2smol',
+			u':('
 		]
 
 		self.codec_map = [ 'utf-8',0,  'cp437',0,  'shift_jis',0,  'latin1',1,  'ascii',2 ]
@@ -281,7 +281,7 @@ class VT100_Client(asyncore.dispatcher):
 			
 			try:
 				ts, nick, linemode, vt100, echo_on, crlf, codec, bell = \
-					self.host.user_config[self.addr[0]].split(' ')
+					self.host.user_config[self.addr[0]].split(u' ')
 
 				#print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
 
@@ -323,14 +323,14 @@ class VT100_Client(asyncore.dispatcher):
 				self.user.nick,
 		
 				# terminal behavior
-				'1' if self.linemode else '0',
-				'1' if self.vt100    else '0',
-				'1' if self.echo_on  else '0',
+				u'1' if self.linemode else u'0',
+				u'1' if self.vt100    else u'0',
+				u'1' if self.echo_on  else u'0',
 				binascii.hexlify(self.crlf.encode('utf-8')).decode('utf-8'),
 				self.codec,
 
 				# user config
-				'1' if self.bell     else '0'])
+				u'1' if self.bell     else u'0'])
 
 			try:
 				if self.host.user_config[self.addr[0]] == conf_str:
@@ -751,11 +751,6 @@ class VT100_Client(asyncore.dispatcher):
 			now = int(time.time())
 			if full_redraw or (now % 5 == 1) or ((hilights or activity) and now % 2 == 1):
 				return u'\r{0}   {1}> '.format(strip_ansi(line), self.user.nick)
-				#pad_sz = len(self.user.nick) + 3
-				#return '\r{0}{1}\r{2}> '.format(
-				#	' '*pad_sz,
-				#	strip_ansi(line)[:self.w-pad_sz],
-				#	self.user.nick)
 			return u''
 
 		elif full_redraw:
@@ -782,7 +777,6 @@ class VT100_Client(asyncore.dispatcher):
 				if int(time.time()) % 5 == 0:
 					# send just the timestamp
 					return line[:cutoff]
-					#return u'\033[{0}H{1}'.format(self.h - self.y_status, hhmmss)  # drops colors
 
 		return u''
 	
@@ -1405,7 +1399,7 @@ class VT100_Client(asyncore.dispatcher):
 						vmsg.unread = False
 						vmsg.apply_markup()
 						v = vmsg.txt[0]
-						if v and not v.startswith(' '):
+						if v and not v.startswith(u' '):
 							ret += u'\033[{0}H{1} '.format(y_pos, v[:v.find(' ')])
 					
 					y_pos += vmsg.cdr - vmsg.car

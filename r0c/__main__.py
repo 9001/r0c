@@ -56,7 +56,7 @@ class Core(object):
 			print()
 			return False
 
-		if ADMIN_PWD == 'hunter2':
+		if ADMIN_PWD == u'hunter2':
 			print()
 			print('\033[1;31m  change the ADMIN_PWD in config.py \033[0m')
 			print()
@@ -191,7 +191,7 @@ class Core(object):
 			if date != last_date:
 				if last_date:
 					world.broadcast_message(
-						"\033[36mday changed to \033[1m{0}".format(date), False)
+						u"\033[36mday changed to \033[1m{0}".format(date), False)
 				last_date = date
 
 			for iface in ifaces:

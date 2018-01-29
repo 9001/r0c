@@ -78,9 +78,6 @@ class World(object):
 			return
 
 		last_msg = nchan.msgs[-1].sno if nchan.msgs else 0
-		#if nchan.uchans[0].alias == 'r0c-status':
-		#	# consider every status message a ping
-		#	nchan.uchans[0].last_ping = last_msg
 		
 		for uchan in nchan.uchans:
 			uchan.update_activity_flags(False, last_msg)
@@ -101,7 +98,7 @@ class World(object):
 			if nchan.name is None and not from_nick.startswith(u'-'):
 				# private chan, check if we have anyone to send to
 				if len(nchan.uchans) == 1:
-					if nchan.uchans[0].alias == 'r0c-status':
+					if nchan.uchans[0].alias == u'r0c-status':
 						if nchan.uchans[0].user.nick == from_nick:
 							self.send_chan_msg(u'-err-', nchan, u'this buffer does not accept messages, only commands\n')
 							return
@@ -369,7 +366,7 @@ class World(object):
 					f.readline()  # discard version info
 					for ln in f:
 						ts, user, txt = \
-							ln.decode('utf-8').rstrip('\n').split(u' ', 2)
+							ln.decode('utf-8').rstrip(u'\n').split(u' ', 2)
 
 						chunk.append(Message(None, int(ts, 16)/8.0, user, txt))
 						

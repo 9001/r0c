@@ -93,7 +93,7 @@ def unrag_1_linear(text, width):
 	j = count
 	while j > 0:
 		i = breaks[j]
-		lines.append(' '.join(words[i:j]))
+		lines.append(u' '.join(words[i:j]))
 		j = i
 	lines.reverse()
 	return lines
@@ -153,7 +153,7 @@ def unrag_2_binary(text, width):
     j = count
     while j > 0:
         i = breaks[j]
-        lines.append(' '.join(words[i:j]))
+        lines.append(u' '.join(words[i:j]))
         j = i
     lines.reverse()
     return lines
@@ -214,7 +214,7 @@ def unrag_3_divide(text, width):
     j = count
     while j > 0:
         i = breaks[j]
-        lines.append(' '.join(words[i:j]))
+        lines.append(u' '.join(words[i:j]))
         j = i
     lines.reverse()
     return lines
@@ -246,7 +246,7 @@ def unrag_4_shortest(text, width):
     j = count
     while j > 0:
         i = breaks[j]
-        lines.append(' '.join(words[i:j]))
+        lines.append(u' '.join(words[i:j]))
         j = i
     lines.reverse()
     return lines

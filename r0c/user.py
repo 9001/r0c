@@ -164,7 +164,7 @@ class User(object):
 				text.append(lipsum1)
 				text.append(lipsum2)
 			for ln in text:
-				nchan.msgs.append(Message(nchan, time.time(), '-nfo-', ln))
+				nchan.msgs.append(Message(nchan, time.time(), u'-nfo-', ln))
 
 		self.new_active_chan = uchan
 		
@@ -177,7 +177,7 @@ class User(object):
 				for n in range(1,200):
 					txt = u'{1}_{0:03}     \\\\\\\\'.format(n,
 						u'_{0:03}     \\\\\\\\\n'.format(n).join(
-							str(v).rjust(v+4, ' ') for v in range(0, 12)))
+							str(v).rjust(v+4, u' ') for v in range(0, 12)))
 					self.world.send_chan_msg(self.nick, nchan, txt)
 
 		if False:
@@ -242,7 +242,7 @@ class User(object):
 			else:
 				self.world.send_chan_msg(u'-err-', inf, u'wrong password')
 
-		elif cmd == 'nick' or cmd == 'n':
+		elif cmd == u'nick' or cmd == u'n':
 			if not arg:
 				self.world.send_chan_msg(u'-err-', inf, u"""[invalid argument]
   usage:     /nick  new_nickname
@@ -269,7 +269,7 @@ class User(object):
 					u"some illegal characters were removed\n")
 				return
 
-			if new_nick.startswith('-'):
+			if new_nick.startswith(u'-'):
 				self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
 					u"nicks cannot start with "-" (dash)\n")
 				return
@@ -311,7 +311,7 @@ class User(object):
 
 
 
-		elif cmd == 'topic' or cmd == 't':
+		elif cmd == u'topic' or cmd == u't':
 			if not arg:
 				self.world.send_chan_msg(u'-err-', inf, u"""[invalid argument]
   usage:     /topic  the_new_topic
@@ -335,7 +335,7 @@ class User(object):
 
 
 
-		elif cmd == 'join' or cmd == 'j':
+		elif cmd == u'join' or cmd == u'j':
 			if not arg or len(arg) < 2:
 				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /join  #channel_name
@@ -343,7 +343,7 @@ class User(object):
 """)
 				return
 			
-			if not arg.startswith('#'):
+			if not arg.startswith(u'#'):
 				self.world.send_chan_msg(u'-err-', inf, u"""[error]
   illegal channel name:  {0}
   channel names must start with #
@@ -366,7 +366,7 @@ class User(object):
 
 
 
-		elif cmd == 'part' or cmd == 'p':
+		elif cmd == u'part' or cmd == u'p':
 			if self.active_chan.alias == u'r0c-status':
 				self.world.send_chan_msg(u'-err-', inf, u"""[error]
   cannot part the status channel
@@ -393,7 +393,7 @@ class User(object):
 
 
 
-		elif cmd == 'msg' or cmd == 'm':
+		elif cmd == u'msg' or cmd == u'm':
 			if not arg1 or not arg2:
 				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
   usage:     /msg   nickname   your message text
@@ -414,18 +414,18 @@ class User(object):
 
 
 
-		elif cmd == 'up' or cmd == 'u':
+		elif cmd == u'up' or cmd == u'u':
 			self.client.scroll_cmd = -(self.client.h - 4)
 		
-		elif cmd == 'down' or cmd == 'd':
+		elif cmd == u'down' or cmd == u'd':
 			self.client.scroll_cmd = +(self.client.h - 4)
 		
-		elif cmd == 'latest' or cmd == 'l':
+		elif cmd == u'latest' or cmd == u'l':
 			self.active_chan.lock_to_bottom = True
 			self.client.need_full_redraw = True
 			self.client.refresh(False)
 
-		elif cmd == 'redraw' or cmd == 'r':
+		elif cmd == u'redraw' or cmd == u'r':
 			if self.client.request_terminal_size('redraw'):
 				# returns true if event was scheduled for later
 				return
@@ -435,18 +435,18 @@ class User(object):
 
 
 
-		elif cmd == 'fill':
+		elif cmd == u'fill':
 			if not self.admin_test(cmd, arg):
 				return
 
 			for n in range(int(arg1)):
 				self.world.send_chan_msg(
 					self.nick, self.active_chan.nchan,
-					'{0} {1}'.format(arg2, n))
+					u'{0} {1}'.format(arg2, n))
 
 
 
-		elif cmd == 'names' or cmd == 'na':
+		elif cmd == u'names' or cmd == u'na':
 			self.world.send_chan_msg(u'--', inf, u"{1} users in {0}: {2}".format(
 				self.active_chan.nchan.get_name(),
 				len(self.active_chan.nchan.uchans),
@@ -455,7 +455,7 @@ class User(object):
 
 
 
-		elif cmd == 'status' or cmd == 'st':
+		elif cmd == u'status' or cmd == u'st':
 			n_wizard = sum(1 for x in self.world.users if not x.active_chan)
 			n_users = len(self.world.users) - n_wizard
 			n_pub = len(self.world.pub_ch)
@@ -488,7 +488,7 @@ class User(object):
 					self.world.send_chan_msg(
 						u'--', inf, u'{0} {1} {2}'.format(
 						user.client.addr[0].ljust(15),
-						'ok ' if user.active_chan else 'wiz',
+						u'ok ' if user.active_chan else u'wiz',
 						user.nick))
 				self.world.send_chan_msg(u'--', inf, u'----- chans -----')
 				for chan in sorted(self.world.pub_ch):
@@ -499,7 +499,7 @@ class User(object):
 
 
 
-		elif cmd == 'a':
+		elif cmd == u'a':
 			activity = {}
 			for uchan in self.chans:
 				if uchan.hilights and uchan != self.active_chan:
@@ -536,7 +536,7 @@ class User(object):
 
 
 
-		elif cmd == 'goto' or cmd == 'g':
+		elif cmd == u'goto' or cmd == u'g':
 			ch = self.active_chan
 			nch = self.active_chan.nchan
 			if not arg:
@@ -570,19 +570,19 @@ class User(object):
 
 				m = re.match('(^[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2})$', arg)
 				if m:
-					ht = '{0}T{1}:00'.format(*m.groups())
+					ht = u'{0}T{1}:00'.format(*m.groups())
 					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
 					return
 
 				m = re.match('(^[0-9]{4}-[0-9]{2}-[0-9]{2})$', arg)
 				if m:
-					ht = '{0}T00:00:00'.format(m.group(1))
+					ht = u'{0}T00:00:00'.format(m.group(1))
 					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
 					return
 
 				m = re.match('(^[0-9]{2}:[0-9]{2})$', arg)
 				if m:
-					ht = '{0}T{1}:00'.format(time.strftime('%Y-%m-%d'), m.group(1))
+					ht = u'{0}T{1}:00'.format(time.strftime('%Y-%m-%d'), m.group(1))
 					ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
 					return
 
@@ -592,7 +592,7 @@ class User(object):
 
 
 
-		elif cmd == 'search' or cmd == 'srch' or cmd == 's':
+		elif cmd == u'search' or cmd == u'srch' or cmd == u's':
 			ch = self.active_chan
 			nch = self.active_chan.nchan
 			if not arg:
@@ -606,7 +606,7 @@ class User(object):
 
 
 
-		elif cmd == 'sw':
+		elif cmd == u'sw':
 			try: arg = int(arg)
 			except: pass
 			
@@ -623,7 +623,7 @@ class User(object):
 
 
 
-		elif cmd == 'sh':
+		elif cmd == u'sh':
 			try: arg = int(arg)
 			except: pass
 			
@@ -640,8 +640,8 @@ class User(object):
 
 
 
-		elif cmd == 'ss':
-			if arg == '0':
+		elif cmd == u'ss':
+			if arg == u'0':
 				arg = '100%'
 
 			int_arg = None
@@ -649,7 +649,7 @@ class User(object):
 			except: pass
 
 			perc_arg = None
-			if arg and arg.endswith('%'):
+			if arg and arg.endswith(u'%'):
 				try: perc_arg = int(arg[:-1])
 				except: pass
 
@@ -684,19 +684,19 @@ class User(object):
 
 
 
-		elif cmd == 'by':
+		elif cmd == u'by':
 			self.client.bell = True
 			self.world.send_chan_msg(u'--', inf,
 				u'Audible alerts enabled. Disable with /bn', False)
 
-		elif cmd == 'bn':
+		elif cmd == u'bn':
 			self.client.bell = False
 			self.world.send_chan_msg(u'--', inf,
 				u'Audible alerts disabled. Enable with /by', False)
 
 
 
-		elif cmd == 'cmap':
+		elif cmd == u'cmap':
 			msg = u"All foreground colours (0 to f) on default background,\n"
 			msg += u"each code wrapped in [brackets] for readability:\n  "
 			for n in range(0, 16):
@@ -718,18 +718,18 @@ class User(object):
 				msg += u'\033[4{0}m f,{0} '.format(n)
 			
 			msg += u"\033[0m\n"
-			self.world.send_chan_msg('-nfo-', inf, msg)
+			self.world.send_chan_msg(u'-nfo-', inf, msg)
 
 
 
-		elif cmd == 'cls':
+		elif cmd == u'cls':
 			msg = Message(
 				self.active_chan.nchan, time.time(), u'-nfo-',
 				u'\033[1;36m{0}\033[22m wiped the chat'.format(self.nick))
 			#msg.sno = 0  # what was i thinking
 			self.active_chan.nchan.msgs = [msg]
 			
-		elif cmd == 'sd':
+		elif cmd == u'sd':
 			if not self.admin_test(cmd, arg):
 				return
 			
@@ -744,7 +744,7 @@ class User(object):
 			thr.daemon = True
 			thr.start()
 
-		elif cmd == 'mem':
+		elif cmd == u'mem':
 			if not self.admin_test(cmd, arg):
 				return
 			
@@ -752,7 +752,7 @@ class User(object):
 			memory_dump()
 			print('memdump done')
 
-		elif cmd == 'repl':
+		elif cmd == u'repl':
 			if not self.admin_test(cmd, arg):
 				return
 			
@@ -761,13 +761,13 @@ class User(object):
 			code.InteractiveConsole(locals=globals()).interact()
 			print('left repl')
 
-		elif cmd == 'gc':
+		elif cmd == u'gc':
 			if not self.admin_test(cmd, arg):
 				return
 			
 			gc.collect()
 
-		elif cmd == 'quit' or cmd == 'q' or cmd == 'exit':
+		elif cmd == u'quit' or cmd == u'q' or cmd == u'exit':
 			self.client.host.part(self.client)
 
 
