@@ -6,6 +6,7 @@
 
 ![screenshot of telnet connected to a r0c server](doc/r0c.png)
 
+
 ## summary
 
 imagine being stuck on ancient gear, in the middle of nowhere, on a slow connection between machines that are even more archaic than the toaster you're trying to keep from falling apart
