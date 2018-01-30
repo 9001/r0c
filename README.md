@@ -2,11 +2,9 @@
 
 * retr0chat, irc-like chat service for superthin clients
 * MIT-Licensed, 2018-01-07, ed @ irc.rizon.net
-* https://github.com/9001/r0c
+* **[windows telnet 360 noscope](https://ocv.me/r0c.webm)** <- good video
 
 ![screenshot of telnet connected to a r0c server](doc/r0c.png)
-
-**[windows telnet 360 noscope](https://ocv.me/r0c.webm)** <- good video
 
 ## summary
 
