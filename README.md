@@ -6,6 +6,7 @@
 
 ![screenshot of telnet connected to a r0c server](doc/r0c.png)
 
+**[windows telnet 360 noscope](https://ocv.me/r0c.webm)** <- good video
 
 ## summary
 
