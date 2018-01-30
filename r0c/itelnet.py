@@ -166,7 +166,7 @@ class TelnetClient(VT100_Client):
 	def handle_read(self):
 		with self.world.mutex:
 			if self.dead:
-				print('XXX reading when dead')
+				print('\033[1;31mXXX reading when dead\033[0m')
 				return
 
 			data = self.recv(8192)
@@ -208,7 +208,7 @@ class TelnetClient(VT100_Client):
 					
 					if is_inband or is_partial:
 						
-						if is_partial:
+						if DBG and is_partial and not is_inband:
 							print('need more data to parse unicode codepoint at {0} in {1}/{2}'.format(
 								uee.start, decode_until, len(self.in_bytes)))
 							hexdump(self.in_bytes[max(0,decode_until-8):decode_until], 'XXX ')
@@ -223,7 +223,7 @@ class TelnetClient(VT100_Client):
 					else:
 						
 						# it can't be helped
-						print('warning: unparseable data at {0} in {1}/{2}:'.format(
+						print('unparseable client data at {0} in {1}/{2}:'.format(
 							uee.start, decode_until, len(self.in_bytes)))
 
 						hexdump(self.in_bytes, 'XXX ')

@@ -4,7 +4,7 @@ if __name__ == '__main__':
 
 ADMIN_PWD = u'hunter2'
 
-BUILD_DATE = u'2018-01-29'  # felt like a good idea at the time
+BUILD_DATE = u'2018-01-30'  # felt like a good idea at the time
 
 # two example values are listed for each config attribute;
 # the first for debug purposes, the second for regular use
