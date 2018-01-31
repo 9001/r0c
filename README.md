@@ -44,7 +44,7 @@ you can even `exec 147<>/dev/tcp/r0c.int/531;cat<&147 &while read -rN1 x;do prin
 
 ## firewall rules
 
-you'll want to port-forward `23` to `2323` for telnet and `531` to `1531` for plaintext:
+telnet uses port 23 by default, so on the server you'll want to port-forward `23` to `2323` (and `531` to `1531` for plaintext):
 
 ```bash
 iptables -A INPUT -p tcp --dport 23 -m state --state NEW -j ACCEPT
