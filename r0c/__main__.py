@@ -4,7 +4,7 @@ from __future__ import print_function
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
-__version__   = "0.9"
+__version__   = "1.0"
 __author__    = "ed <a@ocv.me>"
 __credits__   = ["stackoverflow.com"]
 __license__   = "MIT"
@@ -17,11 +17,7 @@ import signal
 if sys.version_info[0] == 2:
 	sys.dont_write_bytecode = True
 
-fail = False
-if __name__ != '__main__':
-	fail = True
-
-if fail or not 'r0c' in sys.modules:
+if not 'r0c' in sys.modules:
 	print('\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python -m r0c\r\n')
 	sys.exit(1)
 

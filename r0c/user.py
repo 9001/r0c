@@ -117,36 +117,38 @@ class User(object):
 			# the simple version
 			text = u"""\
 `1;30m________ ___ ________
-`1;30m░▒▓█▀▀▀▀`37m █▀█ `30m▀▀▀▀█▓▒░   `0;36m┌──[`0mretr0chat 0.9`36m]──┐
+`1;30m░▒▓█▀▀▀▀`37m █▀█ `30m▀▀▀▀█▓▒░   `0;36m┌──[`0mretr0chat r0c_ver`36m]──┐
 `1;30m ░▒▓`36m █▀█ █ █ █▀▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
 `1;30m  ░▒`34m █   █▄█ █▄▄ `30m▒░     `0;36m╘═══════════════════╛
-                             `34m  b. build_date `0m
+                             `34m  b. r0c_build `0m
 """
 			# the messy version
 			text = u"""\
 `1;30m________ `37m__`36m_ `30m________
-`1;30m░▒▓█▀▀▀▀`37m █▀`46m▓`0;1;30m ▀▀▀▀█▓▒░   `0;36m┌──[`0mret`1mr0c`22mhat 0.9`36m]──┐
+`1;30m░▒▓█▀▀▀▀`37m █▀`46m▓`0;1;30m ▀▀▀▀█▓▒░   `0;36m┌──[`0mret`1mr0c`22mhat r0c_ver`36m]──┐
 `1;30m ░▒▓ `34;46m▒`0;1;36m▀█ `37;46m▓`0m `1;37;46m▓`0m `1;36m█▀`34m▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
 `1;30m  ░▒ `34m█   `36m█▄█ `34;46m▒`0;1;34m▄▄ `30m▒░     `0;36m╘═══════════════════╛
-                             `34m  b. build_date `0m
+                             `34m  b. r0c_build `0m
 """
 			
 		else:
 			# the simple version
 			text = u"""
-  `1;37m     /^\\           `0mretr0chat 0.9 `36m-----
+  `1;37m     /^\\           `0mretr0chat r0c_ver `36m-----
   `1;36m/^^  | |  /^^      `0mgithub.com/9001/r0c
-  `1;34m|    \\_/  \\__      `0;36m------b. build_date `0m
+  `1;34m|    \\_/  \\__      `0;36m------b. r0c_build `0m
 """
 
 			# the messy version
 			text = u"""`1;30m______    `37m_`30m    ______
-`1;30m\\\\\\\\\\\\\\  `37m/ \\  `30m///////   `0mret`1mr0c`22mhat 0.9 `36m-----
+`1;30m\\\\\\\\\\\\\\  `37m/ \\  `30m///////   `0mret`1mr0c`22mhat r0c_ver `36m-----
  `1;30m\\\\ `36m/`37m^^  | |  `36m/^`0;36m^`1;30m //    `0mgithub.com/9001/r0c
-  `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. build_date `0m
+  `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. r0c_build `0m
 """
 
-		text = text.replace(u'`', u'\033[').replace('build_date', BUILD_DATE)
+		text = text.replace(u'`', u'\033[').\
+			replace('r0c_build', BUILD_DT).\
+			replace('r0c_ver', VERSION)
 		text += HELP_INTRO
 
 		uchan = self.world.join_priv_chan(self, u'r0c-status')
