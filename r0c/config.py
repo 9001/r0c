@@ -6,8 +6,8 @@ if __name__ == '__main__':
 ADMIN_PWD = u'hunter2'
 
 
-VERSION  = u'1.0'
-BUILD_DT = u'2018-01-31'
+VERSION  = u'1.0.1'
+BUILD_DT = u'2018-02-05'
 
 # two example values are listed for each config attribute;
 # the first for debug purposes, the second for regular use

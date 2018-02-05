@@ -75,7 +75,7 @@ def hexdump(pk, prefix='', file=None):
 	hexlen = 0
 	hexstr = ''
 	ascstr = ''
-	ascstr_width = int(hex_width * 100 / 32 + 0.5)  # 32h = 100a, 16h = 50a
+	ascstr_width = int(hex_width * 100 / 32.0 + 0.5)  # 32h = 100a, 16h = 50a
 	while ofs < lpk:
 		hexstr += b2hex(pk[ofs:ofs+blk_width])
 		hexstr += '  '

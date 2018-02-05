@@ -117,7 +117,7 @@ class User(object):
 			# the simple version
 			text = u"""\
 `1;30m________ ___ ________
-`1;30m░▒▓█▀▀▀▀`37m █▀█ `30m▀▀▀▀█▓▒░   `0;36m┌──[`0mretr0chat r0c_ver`36m]──┐
+`1;30m░▒▓█▀▀▀▀`37m █▀█ `30m▀▀▀▀█▓▒░   `0;36m┌pad1[`0mretr0chat r0c_ver`36m]pad2┐
 `1;30m ░▒▓`36m █▀█ █ █ █▀▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
 `1;30m  ░▒`34m █   █▄█ █▄▄ `30m▒░     `0;36m╘═══════════════════╛
                              `34m  b. r0c_build `0m
@@ -125,7 +125,7 @@ class User(object):
 			# the messy version
 			text = u"""\
 `1;30m________ `37m__`36m_ `30m________
-`1;30m░▒▓█▀▀▀▀`37m █▀`46m▓`0;1;30m ▀▀▀▀█▓▒░   `0;36m┌──[`0mret`1mr0c`22mhat r0c_ver`36m]──┐
+`1;30m░▒▓█▀▀▀▀`37m █▀`46m▓`0;1;30m ▀▀▀▀█▓▒░   `0;36m┌pad1[`0mret`1mr0c`22mhat r0c_ver`36m]pad2┐
 `1;30m ░▒▓ `34;46m▒`0;1;36m▀█ `37;46m▓`0m `1;37;46m▓`0m `1;36m█▀`34m▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
 `1;30m  ░▒ `34m█   `36m█▄█ `34;46m▒`0;1;34m▄▄ `30m▒░     `0;36m╘═══════════════════╛
                              `34m  b. r0c_build `0m
@@ -146,9 +146,17 @@ class User(object):
   `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. r0c_build `0m
 """
 
+		pad1 = pad2 = u'──'
+		if len(VERSION) > 3: pad1 = pad1[1:]
+		if len(VERSION) > 4: pad2 = pad2[1:]
+		if len(VERSION) > 5: pad1 = pad1[1:]
+		if len(VERSION) > 6: pad2 = pad2[1:]
+
 		text = text.replace(u'`', u'\033[').\
 			replace('r0c_build', BUILD_DT).\
-			replace('r0c_ver', VERSION)
+			replace('r0c_ver', VERSION).\
+			replace('pad1', pad1).\
+			replace('pad2', pad2)
 		text += HELP_INTRO
 
 		uchan = self.world.join_priv_chan(self, u'r0c-status')
