@@ -328,7 +328,7 @@ class World(object):
 		#print('  chan hist:  scanning files')
 		t1 = time.time()
 
-		log_dir = u'log/{0}'.format(nchan.name)
+		log_dir = u'log/chan/{0}'.format(nchan.name)
 		try: os.makedirs(log_dir)
 		except: pass
 
@@ -414,11 +414,10 @@ class World(object):
 
 	def start_logging(self, nchan, chat_backlog=None):
 		if nchan.name is not None:
-			log_dir = 'log/{0}'.format(nchan.name)
+			log_dir = 'log/chan/{0}'.format(nchan.name)
 		else:
-			log_dir = 'log/pm/{0}/{1}'.format(
-				'/'.join([x.user.nick for x in nchan.uchans]),
-				id(nchan.name))
+			log_dir = 'log/pm/{0}'.format(
+				'/'.join([x.user.nick for x in nchan.uchans]))
 
 		if nchan.log_fh:
 			nchan.log_fh.close()

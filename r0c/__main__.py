@@ -54,12 +54,15 @@ class Core(object):
 
 		if ADMIN_PWD == u'hunter2':
 			print()
-			print('\033[1;31m  change the ADMIN_PWD in config.py \033[0m')
+			print('\033[1;31m  change the ADMIN_PWD in r0c/config.py \033[0m')
 			print()
 			return False
 
-		try: os.makedirs('log/pm')
-		except: pass
+		for d in ['pm','chan','wire']:
+			try: os.makedirs('log/' + d)
+			except: pass
+
+		compat_chans_in_root()
 
 		print('  *  py {0}'.format(host_os()))
 
