@@ -12,6 +12,14 @@ BUILD_DT = u'2018-01-31'
 # two example values are listed for each config attribute;
 # the first for debug purposes, the second for regular use
 
+# log incoming traffic from clients
+LOG_RX = True
+LOG_RX = False
+
+# log outgoing traffic to clients
+LOG_TX = True
+LOG_TX = False
+
 # show negotiations etc
 DBG = True
 DBG = False

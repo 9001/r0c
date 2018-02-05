@@ -177,6 +177,11 @@ class TelnetClient(VT100_Client):
 			
 			if HEXDUMP_IN:
 				hexdump(data, '-->>')
+
+			if self.wire_log and LOG_RX:
+				self.wire_log.write('{0:.0f}\n'.format(
+					time.time()*1000).encode('utf-8'))
+				hexdump(data, '>', self.wire_log)
 			
 			self.in_bytes += data
 			

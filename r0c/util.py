@@ -59,29 +59,43 @@ def b2hex(data):
 		else:
 			return ' '.join(map(lambda b: format(b, "02x"), data))
 
-def hexdump(pk, prefix=''):
+def hexdump(pk, prefix='', file=None):
+	if file is not None:
+		line_fmt = u'{0} {2}{3}{4}'
+		hex_width = 4
+		blk_width = 4
+	else:
+		line_fmt = u'{0}{1:8x}  {2}{3}{4}'
+		hex_width = HEX_WIDTH
+		blk_width = 8
+
 	lpk = len(pk)
 	ofs = 0
 	hexofs = 0
 	hexlen = 0
 	hexstr = ''
 	ascstr = ''
-	ascstr_width = int(HEX_WIDTH * 100 / 32)  # 32h = 100a, 16h = 50a
+	ascstr_width = int(hex_width * 100 / 32 + 0.5)  # 32h = 100a, 16h = 50a
 	while ofs < lpk:
-		hexstr += b2hex(pk[ofs:ofs+8])
+		hexstr += b2hex(pk[ofs:ofs+blk_width])
 		hexstr += '  '
 		if PY2:
-			ascstr += ''.join(map(lambda b: b if ord(b) >= 0x20 and ord(b) < 0x7f else '.', pk[ofs:ofs+8]))
+			ascstr += ''.join(map(lambda b: b if ord(b) >= 0x20 and ord(b) < 0x7f else '.', pk[ofs:ofs+blk_width]))
 		else:
-			ascstr += ''.join(map(lambda b: chr(b) if b >= 0x20 and b < 0x7f else '.', pk[ofs:ofs+8]))
+			ascstr += ''.join(map(lambda b: chr(b) if b >= 0x20 and b < 0x7f else '.', pk[ofs:ofs+blk_width]))
 		ascstr += ' '
-		hexlen += 8
-		ofs += 8
+		hexlen += blk_width
+		ofs += blk_width
 		
-		if hexlen >= HEX_WIDTH or ofs >= lpk:
-			print('{0}{1:8x}  {2}{3}{4}'.format(
-				prefix, hexofs, hexstr,
-				' '*(ascstr_width-len(hexstr)), ascstr))
+		if hexlen >= hex_width or ofs >= lpk:
+			txt = line_fmt.format(prefix, hexofs, hexstr,
+				u' '*(ascstr_width-len(hexstr)), ascstr)
+			
+			if file is not None:
+				file.write((txt + u'\n').encode('utf-8'))
+			else:
+				print(txt)
+
 			hexofs = ofs
 			hexstr = ''
 			hexlen = 0

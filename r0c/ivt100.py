@@ -60,15 +60,16 @@ class VT100_Server(asyncore.dispatcher):
 		whoops()
 
 	def handle_accept(self):
-		socket, addr = self.accept()
-		user = User(self.world, addr)
-		remote = self.gen_remote(socket, addr, user)
-		self.world.add_user(user)
-		self.clients.append(remote)
-		remote.conf_wizard()
-		print('client join:  {0}  {1}  {2}'.format(
-			remote.user.nick,  *list(remote.addr)))
-	
+		with self.world.mutex:
+			socket, addr = self.accept()
+			user = User(self.world, addr)
+			remote = self.gen_remote(socket, addr, user)
+			self.world.add_user(user)
+			self.clients.append(remote)
+			remote.conf_wizard()
+			print('client join:  {0}  {1}  {2}'.format(
+				remote.user.nick,  *list(remote.addr)))
+		
 	def part(self, remote):
 		remote.dead = True
 		with self.world.mutex:
@@ -90,6 +91,10 @@ class VT100_Server(asyncore.dispatcher):
 				self.world.part_chan(uchan)
 			if remote.user and remote.user in self.world.users:
 				self.world.users.remove(remote.user)
+			if remote.wire_log is not None:
+				remote.wire_log.write('{0:.0f}\n'.format(
+					time.time()*1000).encode('utf-8'))
+				remote.wire_log.close()
 
 	def load_configs(self):
 		with self.world.mutex:
@@ -156,6 +161,18 @@ class VT100_Client(asyncore.dispatcher):
 		self.world = world
 		self.user = user
 		self.dead = False      # set true at disconnect (how does asyncore work)
+
+		self.wire_log = None
+		if LOG_RX or LOG_TX:
+			log_fn = 'log/wire/{0}_{1}_{2}'.format(
+				int(time.time()), *list(self.addr))
+			
+			while os.path.isfile(log_fn):
+				log_fn += '_'
+			
+			self.wire_log = open(log_fn, 'wb')
+			self.wire_log.write('{0:.0f}\n'.format(
+				time.time()*1000).encode('utf-8'))
 
 		# outgoing data
 		self.outbox = Queue()
@@ -496,6 +513,11 @@ class VT100_Client(asyncore.dispatcher):
 				hexdump(msg, '<<--')
 			else:
 				print('<<--       :  [{0} byte]'.format(len(msg)))
+
+		if self.wire_log and LOG_TX:
+			self.wire_log.write('{0:.0f}\n'.format(
+				time.time()*1000).encode('utf-8'))
+			hexdump(msg, '<', self.wire_log)
 		
 		if self.slowmo_tx:
 			end_pos = next((i for i, ch in enumerate(msg) \
