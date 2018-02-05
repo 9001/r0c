@@ -31,7 +31,7 @@ function connect()
 	cat <&147 & cat_pid=$!
 
 	# read keyboard and send each key to the socket
-	while read -rN1 x
+	while IFS= read -rN1 x
 	do
 		[[ $debug ]] &&
 		{
