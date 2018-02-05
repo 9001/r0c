@@ -42,6 +42,19 @@ most to least recommended
 
 you can even `exec 147<>/dev/tcp/r0c.int/531;cat<&147 &while IFS= read -rN1 x;do printf '%s' "$x">&147;done` (disconnect using `exec 147<&-; killall cat #sorry`)
 
+## firewall rules
+
+telnet uses port 23 by default, so on the server you'll want to port-forward `23` to `2323` (and `531` to `1531` for plaintext):
+
+```bash
+iptables -A INPUT -p tcp --dport 23 -m state --state NEW -j ACCEPT
+iptables -A INPUT -p tcp --dport 531 -m state --state NEW -j ACCEPT
+iptables -A INPUT -p tcp --dport 2323 -m state --state NEW -j ACCEPT
+iptables -A INPUT -p tcp --dport 1531 -m state --state NEW -j ACCEPT
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 23 -j REDIRECT --to-port 2323
+iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 531 -j REDIRECT --to-port 1531
+```
+
 ## documentation
 
 not really but there is a [list of commands](doc/help-commands.md) and a [list of hotkeys](doc/help-hotkeys.md)
