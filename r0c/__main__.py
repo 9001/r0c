@@ -200,9 +200,24 @@ class Core(object):
 
 			nth_iter += 1
 			if nth_iter % 600 == 0:
+
+				# flush client configs
 				for iface in ifaces:
 					iface.save_configs()
-		
+
+					# flush wire logs
+					if LOG_RX or LOG_TX:
+						for client in iface.clients:
+							if client.wire_log:
+								try: client.wire_log.flush()
+								except: whoops()
+
+				# flush chan logs
+				for ch in [x for x in [world.pub_ch, world.priv_ch]]:
+					if ch.log_fh:
+						try: ch.log_fh.flush()
+						except: whoops()
+
 		self.pushthr_alive = False
 
 
