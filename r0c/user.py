@@ -732,13 +732,6 @@ class User(object):
 
 
 
-		elif cmd == u'cls':
-			msg = Message(
-				self.active_chan.nchan, time.time(), u'-nfo-',
-				u'\033[1;36m{0}\033[22m wiped the chat'.format(self.nick))
-			#msg.sno = 0  # what was i thinking
-			self.active_chan.nchan.msgs = [msg]
-			
 		elif cmd == u'sd':
 			if not self.admin_test(cmd, arg):
 				return

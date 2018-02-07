@@ -73,8 +73,6 @@
 **`/fill`** floods the channel with messages  
 `/fill 30 desu`
 
-**`/cls`** blanks the channel
-
 **`/sd`** shuts down the server
 
 **`/mem`** dumps server memory to file
