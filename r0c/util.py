@@ -65,7 +65,7 @@ def hexdump(pk, prefix='', file=None):
 		hex_width = 4
 		blk_width = 4
 	else:
-		line_fmt = u'{0}{1:8x}  {2}{3}{4}'
+		line_fmt = u'{0}{1:8x}  {2}{3} {4}'
 		hex_width = HEX_WIDTH
 		blk_width = 8
 
@@ -75,15 +75,14 @@ def hexdump(pk, prefix='', file=None):
 	hexlen = 0
 	hexstr = ''
 	ascstr = ''
-	ascstr_width = int(hex_width * 100 / 32.0 + 0.5)  # 32h = 100a, 16h = 50a
+	ascstr_width = int(hex_width * 100 / 32.0 - 0.5)  # 32h = 100a, 16h = 50a
 	while ofs < lpk:
 		hexstr += b2hex(pk[ofs:ofs+blk_width])
-		hexstr += '  '
+		hexstr += ' '
 		if PY2:
 			ascstr += ''.join(map(lambda b: b if ord(b) >= 0x20 and ord(b) < 0x7f else '.', pk[ofs:ofs+blk_width]))
 		else:
 			ascstr += ''.join(map(lambda b: chr(b) if b >= 0x20 and b < 0x7f else '.', pk[ofs:ofs+blk_width]))
-		ascstr += ' '
 		hexlen += blk_width
 		ofs += blk_width
 		
@@ -100,6 +99,30 @@ def hexdump(pk, prefix='', file=None):
 			hexstr = ''
 			hexlen = 0
 			ascstr = ''
+		else:
+			hexstr += ' '
+			ascstr += ' '
+
+def test_hexdump():
+	try: from StringIO import StringIO as bio
+	except: from io import BytesIO as bio
+	
+	v = b''
+	for n in range(5):
+		print()
+		v += b'a'
+		fobj = bio()
+		hexdump(v, '>', fobj)
+		print(fobj.getvalue().decode('utf-8').rstrip('\n') + '$')
+		fobj.close()
+	
+	v = b''
+	for n in range(18):
+		print()
+		v += b'a'
+		hexdump(v, '>')
+	
+	sys.exit(0)
 
 
 

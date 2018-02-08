@@ -213,10 +213,11 @@ class Core(object):
 								except: whoops()
 
 				# flush chan logs
-				for ch in [x for x in [world.pub_ch, world.priv_ch]]:
-					if ch.log_fh:
-						try: ch.log_fh.flush()
-						except: whoops()
+				for chan_list in [world.pub_ch, world.priv_ch]:
+					for chan in chan_list:
+						if chan.log_fh:
+							try: chan.log_fh.flush()
+							except: whoops()
 
 		self.pushthr_alive = False
 
@@ -252,6 +253,7 @@ mode = 'normal'
 #mode = 'unrag-layout-test-v1'
 #mode = 'unrag-layout-test-interactive'
 #mode = 'test-ansi-annotation'
+#test_hexdump()
 
 
 if mode == 'normal':
