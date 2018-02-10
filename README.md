@@ -40,7 +40,7 @@ most to least recommended
 | bash   | [mostly internals](clients/bash.sh) |
 | netcat | `nc r0c.int 531` |
 
-you can even `exec 147<>/dev/tcp/r0c.int/531;cat<&147 &while IFS= read -rN1 x;do printf '%s' "$x">&147;done` (disconnect using `exec 147<&-; killall cat #sorry`)
+you can even `exec 147<>/dev/tcp/r0c.int/531;cat<&147 &while IFS= read -rn1 x;do [[ "x$x" == "x" ]] && x=$'\n'; printf '%s' "$x">&147;done` (disconnect using `exec 147<&-; killall cat #sorry`)
 
 ## firewall rules
 
