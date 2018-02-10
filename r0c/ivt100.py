@@ -77,7 +77,7 @@ class VT100_Server(asyncore.dispatcher):
 			print('client join:  {0}  {1}  {2}'.format(
 				remote.user.nick,  *list(remote.addr)))
 		
-	def part(self, remote):
+	def part(self, remote, announce=True):
 		remote.dead = True
 		with self.world.mutex:
 			#print('==[part]' + '='*72)
@@ -85,8 +85,9 @@ class VT100_Server(asyncore.dispatcher):
 			#print('==[part]' + '='*71)
 			
 			remote.close()
-			print('client part:  {0}  {1}  {2}'.format(
-				remote.user.nick,  *list(remote.addr)))
+			if announce:
+				print('client part:  {0}  {1}  {2}'.format(
+					remote.user.nick,  *list(remote.addr)))
 			self.clients.remove(remote)
 			try:
 				remote.user.active_chan = None
@@ -1501,11 +1502,11 @@ class VT100_Client(asyncore.dispatcher):
 		self.is_bot = True
 		time.sleep(69)
 		try:
-			self.host.part(self)
-		except:
-			print('botkick err:  {0}  {1}'.format(
+			self.host.part(self, False)
+			print('    botkick:  {0}  {1}'.format(
 				self.user.nick, self.addr[0]))
-
+		except:
+			pass
 
 
 	def conf_wizard(self):
