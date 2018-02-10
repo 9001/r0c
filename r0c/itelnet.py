@@ -241,6 +241,10 @@ class TelnetClient(VT100_Client):
 				
 				self.in_text += src
 				
+				if self.wizard_stage is not None \
+				and len(self.in_text_full) < 1024:
+					self.in_text_full += src
+				
 				if self.in_bytes and self.in_bytes[0] == xff:
 					#cmd = b''.join([self.in_bytes[:3]])
 					cmd = self.in_bytes[:3]

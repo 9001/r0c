@@ -39,6 +39,13 @@ class VT100_Server(asyncore.dispatcher):
 		self.user_config = {}
 		self.user_config_path = None
 		self.user_config_changed = False
+		self.re_bot = re.compile(
+			'root|Admin|admin|default|support|user|password|telnet|' + \
+			'guest|operator|supervisor|daemon|service|enable|system|' + \
+			'manager|baby|netman|telecom|volition|davox|sysadm|busybox|' + \
+			'tech|888888|666666|mg3500|merlin|nmspw|super|setup|vizxv|' + \
+			'HTTP/1|222222|xxyyzz|synnet|PlcmSpIp|Glo')
+
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		if PY2:
 			self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -161,6 +168,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.world = world
 		self.user = user
 		self.dead = False      # set true at disconnect (how does asyncore work)
+		self.is_bot = False
 
 		self.wire_log = None
 		if LOG_RX or LOG_TX:
@@ -183,6 +191,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.backlog = None
 		self.in_bytes = b''
 		self.in_text = u''
+		self.in_text_full = u''
 		self.num_telnet_negotiations = 0
 		self.slowmo_tx = SLOW_MOTION_TX
 		self.set_codec('utf-8')
@@ -1485,11 +1494,34 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
+	def kick_bot(self):
+		print('     is bot:  {0}  {1}'.format(
+			self.user.nick, self.addr[0]))
+		
+		self.is_bot = True
+		time.sleep(69)
+		try:
+			self.host.part(self)
+		except:
+			print('botkick err:  {0}  {1}'.format(
+				self.user.nick, self.addr[0]))
+
+
+
 	def conf_wizard(self):
 		#print('conf_wizard:  {0}'.format(self.wizard_stage))
 		if self.addr[0] == '127.0.0.1':
 			if u'\x03' in self.in_text:
 				self.world.core.shutdown()
+
+		if self.is_bot:
+			return
+
+		if self.host.re_bot.match(self.in_text_full):
+			thr = threading.Thread(target=self.kick_bot, name='kick_bot')
+			thr.daemon = True
+			thr.start()
+			return
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
 		ftop = u'\n'*20 + u'\033[H\033[J'
@@ -1909,6 +1941,7 @@ class VT100_Client(asyncore.dispatcher):
 
 			self.wizard_stage = None
 			self.in_text = u''
+			self.in_text_full = u''
 			self.user.create_channels()
 
 

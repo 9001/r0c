@@ -28,3 +28,15 @@ ps ax | grep -E 'python[23]? .{0,2}stress\.py' | awk '{print $1}' | xargs kill
 cat radio.log | awk '{print length($0)}' | sort -n | uniq -c | awk '{print $2, $1}' | sort -n | awk '{ printf "%s: %" ($2/512) "s#\n", $1, "" }'
 cat radio.log | awk 'length($0) > 30 && length($0) < 200 {print $0}' > radio.long
 
+
+# statistics for attempted usernames / passwords
+./format-wire-logs.sh | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
+
+
+# check the accuracy for a set of badwords
+./format-wire-logs.sh > /dev/shm/fwl1
+bwds="root admin default support user password telnet vizxv Admin guest operator supervisor daemon service enable system manager baby netman telecom volition davox sysadm busybox tech 888888 666666 tech mg3500 merlin nmspw super setup HTTP/1 222222 xxyyzz synnet PlcmSpIp Glo"
+#head -c 300 /dev/zero | tr '\0' '\n';  cp /dev/shm/fwl1 /dev/shm/fwl2; for bw in $bwds ; do ex="$(printf '\033\[0m  \.*P?\.*([^\.]+\.+)?'"${bw}")"; printf '%s\n' "$ex"; grep -vE "$ex" < /dev/shm/fwl2 > /dev/shm/fwl3 ; mv /dev/shm/fwl3 /dev/shm/fwl2 ; done; cat /dev/shm/fwl2 | tee /dev/stderr | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
+head -c 300 /dev/zero | tr '\0' '\n';  cp /dev/shm/fwl1 /dev/shm/fwl2; for bw in $bwds ; do grep -vE "$bw" < /dev/shm/fwl2 > /dev/shm/fwl3 ; mv /dev/shm/fwl3 /dev/shm/fwl2 ; done; cat /dev/shm/fwl2 | tee /dev/stderr | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
+
+

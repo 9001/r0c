@@ -10,7 +10,7 @@ do
 	for n in 2 3
 	do
 		printf '\n\033[0;1;33mstarting py%s\033[0m\n\n' $n
-		sleep 0.3 || break
+		sleep 0.5 || break
 
 		python$n -m r0c $ports
 		

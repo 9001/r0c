@@ -91,6 +91,10 @@ class NetcatClient(VT100_Client):
 					self.in_bytes = self.in_bytes[0:0]  # todo: is this correct?
 			
 			self.in_text += src
+
+			if self.wizard_stage is not None \
+			and len(self.in_text_full) < 1024:
+				self.in_text_full += src
 			
 			self.read_cb(False)
 

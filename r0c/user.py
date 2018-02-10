@@ -739,11 +739,11 @@ class User(object):
 			msg = u"\033[31mserver shutdown requested by \033[1m{0}".format(self.nick)
 			self.world.broadcast_message(msg, 2)
 			
-			def killer():
+			def delayed_shutdown():
 				time.sleep(0.5)
 				self.world.core.shutdown()
 			
-			thr = threading.Thread(target=killer, name='shutd')
+			thr = threading.Thread(target=delayed_shutdown, name='shutd')
 			thr.daemon = True
 			thr.start()
 

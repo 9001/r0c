@@ -81,6 +81,7 @@ chmod 755 \
   start-r0c.sh \
   clients/bash.sh \
   scripts/py.sh \
+  scripts/format-wire-logs.sh \
   test/run-stress.sh
 
 find -type f -exec md5sum '{}' \+ |

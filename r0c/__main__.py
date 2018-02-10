@@ -4,7 +4,7 @@ from __future__ import print_function
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
-__version__   = "1.0.1"
+__version__   = "1.0.2"
 __author__    = "ed <a@ocv.me>"
 __credits__   = ["stackoverflow.com"]
 __license__   = "MIT"
@@ -160,7 +160,13 @@ class Core(object):
 
 		timeout = 0.05
 		while not self.stopping:
-			asyncore.loop(timeout, count=0.5/timeout)
+			try:
+				asyncore.loop(timeout, count=0.5/timeout)
+			except Exception as ex:
+				if 'Bad file descriptor' in str(ex):
+					#print('osx bug ignored')
+					continue
+				whoops()
 
 		self.asyncore_alive = False
 
