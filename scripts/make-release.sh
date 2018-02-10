@@ -4,6 +4,7 @@ echo
 
 sed=$( which gsed  2>/dev/null || which sed)
 find=$(which gfind 2>/dev/null || which find)
+sort=$(which gsort 2>/dev/null || which sort)
 
 which md5sum 2>/dev/null >/dev/null &&
 	md5sum=md5sum ||
@@ -92,8 +93,9 @@ chmod 755 \
   test/run-stress.sh
 
 $find -type f -exec $md5sum '{}' \+ |
-$sed -r 's/(.{32})(.*)/\2\1/' | sort |
-$sed -r 's/(.*)(.{32})/\2\1/' > ../.sums.md5
+$sed -r 's/(.{32})(.*)/\2\1/' | $sort |
+$sed -r 's/(.*)(.{32})/\2\1/' |
+$sed -r 's/^(.{32}) \./\1  ./' > ../.sums.md5
 mv ../.sums.md5 .
 
 cd ..
