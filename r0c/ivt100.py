@@ -1499,7 +1499,6 @@ class VT100_Client(asyncore.dispatcher):
 		print('     is bot:  {0}  {1}'.format(
 			self.user.nick, self.addr[0]))
 		
-		self.is_bot = True
 		time.sleep(69)
 		try:
 			self.host.part(self, False)
@@ -1515,13 +1514,36 @@ class VT100_Client(asyncore.dispatcher):
 			if u'\x03' in self.in_text:
 				self.world.core.shutdown()
 
-		if self.is_bot:
-			return
+		if not self.is_bot:
+			if self.host.re_bot.search(self.in_text_full):
+				self.wizard_stage = 'bot1'
+				self.in_text = u''
+				self.is_bot = True
+				thr = threading.Thread(target=self.kick_bot, name='kick_bot')
+				thr.daemon = True
+				thr.start()
 
-		if self.host.re_bot.match(self.in_text_full):
-			thr = threading.Thread(target=self.kick_bot, name='kick_bot')
-			thr.daemon = True
-			thr.start()
+		if self.wizard_stage == 'bot1':
+			if u'\x0d' in self.in_text \
+			or u'\x0a' in self.in_text:
+				self.say('\r\nSEGMENTATION FAULT\r\n\r\nroot@IBM_3090:/# '.encode('utf-8'))
+				self.in_text = u''
+				self.wizard_stage = 'bot2'
+
+		if self.wizard_stage == 'bot2':
+			if u'\x0d' in self.in_text \
+			or u'\x0a' in self.in_text:
+				try:
+					self.say('\r\nSYNTAX ERROR: {0}\r\n\r\nroot@IBM_3090:/# '.format(
+						self.in_text.strip(u'\x0d\x0a\x00 ')).encode('utf-8'))
+				except:
+					self.say('\r\nSYNTAX ERROR\r\n\r\nroot@IBM_3090:/# '.encode('utf-8'))
+				self.in_text = u''
+			else:
+				try:
+					self.say(self.in_text[-1:].encode('utf-8'))
+				except:
+					pass
 			return
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
