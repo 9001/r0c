@@ -93,7 +93,7 @@ chmod 755 \
   test/run-stress.sh
 
 $find -type f -exec $md5sum '{}' \+ |
-$sed -r 's/(.{32})(.*)/\2\1/' | $sort |
+$sed -r 's/(.{32})(.*)/\2\1/' | LC_COLLATE=c $sort |
 $sed -r 's/(.*)(.{32})/\2\1/' |
 $sed -r 's/^(.{32}) \./\1  ./' > ../.sums.md5
 mv ../.sums.md5 .
