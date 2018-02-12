@@ -40,3 +40,10 @@ bwds="root admin default support user password telnet vizxv Admin guest operator
 head -c 300 /dev/zero | tr '\0' '\n';  cp /dev/shm/fwl1 /dev/shm/fwl2; for bw in $bwds ; do grep -vE "$bw" < /dev/shm/fwl2 > /dev/shm/fwl3 ; mv /dev/shm/fwl3 /dev/shm/fwl2 ; done; cat /dev/shm/fwl2 | tee /dev/stderr | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
 
 
+# log r0c stdout to file
+cd ~/dev/r0c; stdbuf -oL python2 -um r0c 2323 1531 | tee log/sys-$(date +%Y-%m%d-%H%M%S)
+
+
+# upgrade r0c
+cd ~/dev/r0c; git checkout r0c/config.py; git pull origin; sed -ri 's/hunter2/amiga/;s/^(LOG_RX = False)/#\1/' r0c/config.py
+

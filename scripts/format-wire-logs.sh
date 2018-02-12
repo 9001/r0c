@@ -1,12 +1,18 @@
 #!/bin/bash
 set -e
+
 w=$(tput cols)
 [[ $w -gt 48 ]] ||
 {
 	echo "screen 2 smol"
 	exit 1
 }
-cd ../log/wire
+
+[[ -e r0c/__main__.py ]] || cd ..
+[[ -e r0c/__main__.py ]] || cd ~/dev/r0c
+[[ -e r0c/__main__.py ]] || exit 1
+cd log/wire
+
 while read ts ip port
 do
 	printf '\033[36m%19s \033[33m%-15s \033[1;30m%-5s\033[0m  ' \

@@ -1,5 +1,7 @@
+#!/bin/bash
 [[ -e r0c/__main__.py ]] || cd ..
 [[ -e r0c/__main__.py ]] || cd ~/dev/r0c
+[[ -e r0c/__main__.py ]] || exit 1
 
 port=2323
 [[ $(id -u) -eq 0 ]] &&

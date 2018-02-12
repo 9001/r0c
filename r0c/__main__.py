@@ -4,7 +4,7 @@ from __future__ import print_function
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
-__version__   = "1.0.2"
+__version__   = "1.0.3"
 __author__    = "ed <a@ocv.me>"
 __credits__   = ["stackoverflow.com"]
 __license__   = "MIT"
