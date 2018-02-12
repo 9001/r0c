@@ -184,9 +184,9 @@ class TelnetClient(VT100_Client):
 				hexdump(data, '>', self.wire_log)
 			
 			self.in_bytes += data
-			
+			text_len = len(self.in_text)
 			full_redraw = False
-			
+
 			while self.in_bytes:
 				
 				len_at_start = len(self.in_bytes)
@@ -330,5 +330,5 @@ class TelnetClient(VT100_Client):
 					self.in_bytes = self.in_bytes[0:0]
 					break
 			
-			self.read_cb(full_redraw)
+			self.read_cb(full_redraw, len(self.in_text) - text_len)
 

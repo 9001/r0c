@@ -191,39 +191,66 @@ class Core(object):
 				else:
 					time.sleep(0.01)
 
-			#ts = (ts - 1516554584) * 10000
-			date = datetime.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
-			if date != last_date:
-				if last_date:
-					world.broadcast_message(
-						u"\033[36mday changed to \033[1m{0}".format(date), False)
-				last_date = date
+			with world.mutex:
+				#ts = (ts - 1516554584) * 10000
+				date = datetime.datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+				if date != last_date:
+					if last_date:
+						world.broadcast_message(
+							u"\033[36mday changed to \033[1m{0}".format(date), False)
+					last_date = date
 
-			for iface in ifaces:
-				for client in iface.clients:
-					if client.handshake_sz:
-						client.refresh(False)
-
-			nth_iter += 1
-			if nth_iter % 600 == 0:
-
-				# flush client configs
 				for iface in ifaces:
-					iface.save_configs()
+					for client in iface.clients:
+						if client.handshake_sz:
+							client.refresh(False)
 
-					# flush wire logs
-					if LOG_RX or LOG_TX:
-						for client in iface.clients:
-							if client.wire_log:
-								try: client.wire_log.flush()
+					#print('next scheduled kick: {0}'.format('x' if iface.next_scheduled_kick is None else iface.next_scheduled_kick - ts))
+
+					if iface.next_scheduled_kick is not None \
+					and iface.next_scheduled_kick <= ts:
+						to_kick = []
+						next_min = None
+						for sch in iface.scheduled_kicks:
+							if sch[0] <= ts:
+								to_kick.append(sch)
+							else:
+								if next_min is None \
+								or next_min > sch[0]:
+									next_min = sch[0]
+						
+						for sch in to_kick:
+							timeout, remote, msg = sch
+							iface.scheduled_kicks.remove(sch)
+							if remote in iface.clients:
+								if msg is None:
+									iface.part(remote)
+								else:
+									iface.part(remote, False)
+									print(msg)
+
+						iface.next_scheduled_kick = next_min
+
+				nth_iter += 1
+				if nth_iter % 600 == 0:
+
+					# flush client configs
+					for iface in ifaces:
+						iface.save_configs()
+
+						# flush wire logs
+						if LOG_RX or LOG_TX:
+							for client in iface.clients:
+								if client.wire_log:
+									try: client.wire_log.flush()
+									except: whoops()
+
+					# flush chan logs
+					for chan_list in [world.pub_ch, world.priv_ch]:
+						for chan in chan_list:
+							if chan.log_fh:
+								try: chan.log_fh.flush()
 								except: whoops()
-
-				# flush chan logs
-				for chan_list in [world.pub_ch, world.priv_ch]:
-					for chan in chan_list:
-						if chan.log_fh:
-							try: chan.log_fh.flush()
-							except: whoops()
 
 		self.pushthr_alive = False
 

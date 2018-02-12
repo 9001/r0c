@@ -96,5 +96,5 @@ class NetcatClient(VT100_Client):
 			and len(self.in_text_full) < 1024:
 				self.in_text_full += src
 			
-			self.read_cb(False)
+			self.read_cb(False, len(src))
 

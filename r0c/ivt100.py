@@ -45,6 +45,8 @@ class VT100_Server(asyncore.dispatcher):
 			'manager|baby|netman|telecom|volition|davox|sysadm|busybox|' + \
 			'tech|888888|666666|mg3500|merlin|nmspw|super|setup|vizxv|' + \
 			'HTTP/1|222222|xxyyzz|synnet|PlcmSpIp|Glo')
+		self.scheduled_kicks = []
+		self.next_scheduled_kick = None
 
 		self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
 		if PY2:
@@ -73,7 +75,7 @@ class VT100_Server(asyncore.dispatcher):
 			remote = self.gen_remote(socket, addr, user)
 			self.world.add_user(user)
 			self.clients.append(remote)
-			remote.conf_wizard()
+			remote.conf_wizard(0)
 			print('client join:  {0}  {1}  {2}'.format(
 				remote.user.nick,  *list(remote.addr)))
 		
@@ -103,6 +105,13 @@ class VT100_Server(asyncore.dispatcher):
 				remote.wire_log.write('{0:.0f}\n'.format(
 					time.time()*1000).encode('utf-8'))
 				remote.wire_log.close()
+
+	def schedule_kick(self, remote, timeout, msg=None):
+		timeout += time.time()
+		self.scheduled_kicks.append([timeout, remote, msg])
+		if self.next_scheduled_kick is None \
+		or self.next_scheduled_kick > timeout:
+			self.next_scheduled_kick = timeout
 
 	def load_configs(self):
 		with self.world.mutex:
@@ -1495,56 +1504,57 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
-	def kick_bot(self):
-		print('     is bot:  {0}  {1}'.format(
-			self.user.nick, self.addr[0]))
-		
-		time.sleep(69)
-		try:
-			self.host.part(self, False)
-			print('    botkick:  {0}  {1}'.format(
-				self.user.nick, self.addr[0]))
-		except:
-			pass
-
-
-	def conf_wizard(self):
+	def conf_wizard(self, growth):
 		#print('conf_wizard:  {0}'.format(self.wizard_stage))
 		if self.addr[0] == '127.0.0.1':
 			if u'\x03' in self.in_text:
 				self.world.core.shutdown()
 
+		#print('{0:8s} {1:12s} {2}'.format(self.wizard_stage, self.in_text, self.in_text_full).replace('\r','.').replace('\n','.'))
+
 		if not self.is_bot:
 			if self.host.re_bot.search(self.in_text_full):
 				self.wizard_stage = 'bot1'
-				self.in_text = u''
 				self.is_bot = True
-				thr = threading.Thread(target=self.kick_bot, name='kick_bot')
-				thr.daemon = True
-				thr.start()
 
-		if self.wizard_stage == 'bot1':
-			if u'\x0d' in self.in_text \
-			or u'\x0a' in self.in_text:
-				self.say('\r\nSEGMENTATION FAULT\r\n\r\nroot@IBM_3090:/# '.encode('utf-8'))
-				self.in_text = u''
-				self.wizard_stage = 'bot2'
+				print('     is bot:  {0}  {1}'.format(
+					self.user.nick, self.addr[0]))
+				
+				self.host.schedule_kick(self, 69,
+					'    botkick:  {0}  {1}'.format(
+					self.user.nick, self.addr[0]))
 
-		if self.wizard_stage == 'bot2':
-			if u'\x0d' in self.in_text \
-			or u'\x0a' in self.in_text:
-				try:
-					self.say('\r\nSYNTAX ERROR: {0}\r\n\r\nroot@IBM_3090:/# '.format(
-						self.in_text.strip(u'\x0d\x0a\x00 ')).encode('utf-8'))
-				except:
-					self.say('\r\nSYNTAX ERROR\r\n\r\nroot@IBM_3090:/# '.encode('utf-8'))
-				self.in_text = u''
-			else:
-				try:
-					self.say(self.in_text[-1:].encode('utf-8'))
-				except:
-					pass
+		if self.wizard_stage.startswith('bot'):
+			nline = u'\x0d\x0a\x00'
+			while True:
+				nl = next((i for i, ch in enumerate(self.in_text) if ch in nline), None)
+				if nl is None:
+					break
+				
+				growth = 0
+				part1 = self.in_text[:nl]
+				self.in_text = self.in_text[nl+1:].lstrip(nline)
+				#print(b2hex(self.in_text.encode('utf-8')))
+				
+				if self.wizard_stage == 'bot1':
+					self.say('\r\nSEGMENTATION FAULT\r\n\r\nroot@IBM_3090:/# '.encode('utf-8'))
+					self.wizard_stage = 'bot2'
+
+				elif self.wizard_stage == 'bot2':
+					try:
+						self.say('\r\nSYNTAX ERROR: {0}\r\n\r\nroot@IBM_3090:/# '.format(
+							part1.strip(u'\x0d\x0a\x00 ')).encode('utf-8'))
+					except:
+						self.say('\r\nSYNTAX ERROR\r\n\r\nroot@IBM_3090:/# '.encode('utf-8'))
+
+				else:
+					whoops('bad bot stage: {0}'.format(self.wizard_stage))
+			
+			if self.wizard_stage == 'bot2':
+				self.say(self.in_text[-growth:].encode('utf-8'))
+
 			return
+
 
 		sep = u'{0}{1}{0}\033[2A'.format(u'\n', u'/'*71)
 		ftop = u'\n'*20 + u'\033[H\033[J'
@@ -1553,7 +1563,7 @@ class VT100_Client(asyncore.dispatcher):
 		if self.wizard_stage == 'start':
 			if not self.load_config():
 				self.wizard_stage = 'qwer_prompt'
-				return self.conf_wizard()
+				return self.conf_wizard(growth)
 			
 			self.wizard_stage = 'config_reuse'
 			self.in_text = u''
@@ -1571,7 +1581,7 @@ class VT100_Client(asyncore.dispatcher):
 			
 			if not enc_ascii:
 				self.wizard_stage = 'qwer_prompt'
-				return self.conf_wizard()
+				return self.conf_wizard(growth)
 
 
 
@@ -2027,13 +2037,13 @@ class VT100_Client(asyncore.dispatcher):
 
 
 
-	def read_cb(self, full_redraw):
+	def read_cb(self, full_redraw, growth):
 		# only called by (telnet|netcat).py:handle_read,
 		# only called within locks on self.world.mutex
 
 		#self.wizard_stage = None
 		if self.wizard_stage is not None:
-			self.conf_wizard()
+			self.conf_wizard(growth)
 			
 			if self.wizard_stage is not None:
 				return
