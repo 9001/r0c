@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+
+import r0c
+
+if __name__ == '__main__':
+	r0c.main()
+

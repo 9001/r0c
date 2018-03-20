@@ -2,6 +2,12 @@
 __pycache__/
 *.py[cod]
 *$py.class
+MANIFEST.in
+MANIFEST
+r0c.egg-info/
+buildenv/
+build/
+dist/
 
 # sublime
 *.sublime-workspace

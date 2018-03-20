@@ -20,9 +20,6 @@ from .chat   import *
 from .user   import *
 from .unrag  import *
 
-PY2 = (sys.version_info[0] == 2)
-WINDOWS = platform.system() == 'Windows'
-
 if PY2:
 	from Queue import Queue
 else:

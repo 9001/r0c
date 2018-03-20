@@ -4,11 +4,12 @@ from __future__ import print_function
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
-__version__   = "1.0.3"
 __author__    = "ed <a@ocv.me>"
 __credits__   = ["stackoverflow.com"]
 __license__   = "MIT"
 __copyright__ = 2018
+
+from .__version__ import *
 
 
 import os
@@ -21,14 +22,14 @@ if not 'r0c' in sys.modules:
 	print('\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python -m r0c\r\n')
 	sys.exit(1)
 
-from .config   import *
-from .util     import *
-from .ivt100   import *
-from .inetcat  import *
-from .itelnet  import *
-from .chat     import *
-from .user     import *
-from .world    import *
+from .config      import *
+from .util        import *
+from .ivt100      import *
+from .inetcat     import *
+from .itelnet     import *
+from .chat        import *
+from .user        import *
+from .world       import *
 
 if not PY2:
 	from .diag import *
@@ -38,25 +39,50 @@ class Core(object):
 	def __init__(self):
 		pass
 
-	def start(self):
-		if len(sys.argv) != 3:
+	def start(self, args=None):
+		if args is None:
+			args = sys.argv
+		
+		if len(args) < 3:
 			print()
 			print('  need argument 1:  Telnet port  (or 0 to disable)')
 			print('  need argument 2:  NetCat port  (or 0 to disable)')
+			print('  optional arg. 3:  Password')
 			print()
 			print('  example 1:')
-			print('    python -m r0c 2323 1531')
+			print('    python -m r0c 2323 1531 hunter2')
 			print()
 			print('  example 2:')
 			print('    python -m r0c 23 531')
 			print()
 			return False
 
-		if ADMIN_PWD == u'hunter2':
-			print()
-			print('\033[1;31m  change the ADMIN_PWD in r0c/config.py \033[0m')
-			print()
-			return False
+		self.password = ADMIN_PWD
+		
+		# password as argument overrides all others
+		if len(args) > 3:
+			self.password = args[3]
+			print('password from arg: ' + self.password)
+		
+		else:
+			# password file in home directory overrides config
+			pwd_file = APP_ROOT + 'password.txt'
+			if os.path.isfile(pwd_file):
+				with open(pwd_file, 'rb') as f:
+					self.password = f.read().decode('utf-8').strip()
+					print('password from file: ' + self.password)
+
+			# fallback to config.py, disallow the default
+			elif self.password == u'hunter2':
+				print()
+				print('\033[1;31m  change the ADMIN_PWD in r0c/config.py \033[0m')
+				print('\033[1;31m  or provide your password as an argument \033[0m')
+				print('\033[1;31m  or save it here: ' + pwd_file + '\033[0m')
+				print()
+				print('btw doc dir is ' + DOC_ROOT)
+				return False
+
+		print('password: ' + self.password)
 
 		for d in ['pm','chan','wire']:
 			try: os.makedirs('log/' + d)
@@ -66,8 +92,8 @@ class Core(object):
 
 		print('  *  py {0}'.format(host_os()))
 
-		self.telnet_port = int(sys.argv[1])
-		self.netcat_port = int(sys.argv[2])
+		self.telnet_port = int(args[1])
+		self.netcat_port = int(args[2])
 
 		print('  *  Telnet server on port ' + str(self.telnet_port))
 		print('  *  NetCat server on port ' + str(self.netcat_port))
@@ -270,65 +296,70 @@ class Core(object):
 			self.shutdown()
 
 
-def run():
+def start_r0c(args):
 	core = Core()
 	try:
-		if core.start():
+		if core.start(args):
 			core.run()
 	except:
 		whoops()
 		os._exit(1)
 
 
-mode = 'normal'
-#mode = 'profiler'
-#mode = 'unrag-speedtest'
-#mode = 'unrag-layout-test-v1'
-#mode = 'unrag-layout-test-interactive'
-#mode = 'test-ansi-annotation'
-#test_hexdump()
+def main(args=None):
+	mode = 'normal'
+	#mode = 'profiler'
+	#mode = 'unrag-speedtest'
+	#mode = 'unrag-layout-test-v1'
+	#mode = 'unrag-layout-test-interactive'
+	#mode = 'test-ansi-annotation'
+	#test_hexdump()
 
 
-if mode == 'normal':
-	run()
+	if mode == 'normal':
+		start_r0c(args)
 
-if mode == 'profiler':
-	print('  *  PROFILER ENABLED')
-	statfile = 'profiler-results'
-	import yappi
-	yappi.start()
-	run()
-	yappi.stop()
-	
-	fn_stats = yappi.get_func_stats()
-	thr_stats = yappi.get_thread_stats()
+	if mode == 'profiler':
+		print('  *  PROFILER ENABLED')
+		statfile = 'profiler-results'
+		import yappi
+		yappi.start()
+		start_r0c(args)
+		yappi.stop()
+		
+		fn_stats = yappi.get_func_stats()
+		thr_stats = yappi.get_thread_stats()
 
-	print()
-	for ext in ['pstat','callgrind','ystat']:
-		print('writing {0}.{1}'.format(statfile, ext))
-		fn_stats.save('{0}.{1}'.format(statfile, ext), type=ext)
+		print()
+		for ext in ['pstat','callgrind','ystat']:
+			print('writing {0}.{1}'.format(statfile, ext))
+			fn_stats.save('{0}.{1}'.format(statfile, ext), type=ext)
 
-	with open('{0}.func'.format(statfile), 'w') as f:
-		fn_stats.print_all(out=f)
+		with open('{0}.func'.format(statfile), 'w') as f:
+			fn_stats.print_all(out=f)
 
-	with open('{0}.thr'.format(statfile), 'w') as f:
-		thr_stats.print_all(out=f)
+		with open('{0}.thr'.format(statfile), 'w') as f:
+			thr_stats.print_all(out=f)
 
-	print('\n\n{0}\n  func stats\n{0}\n'.format('-'*72))
-	fn_stats.print_all()
-	
-	print('\n\n{0}\n  thread stats\n{0}\n'.format('-'*72))
-	thr_stats.print_all()
+		print('\n\n{0}\n  func stats\n{0}\n'.format('-'*72))
+		fn_stats.print_all()
+		
+		print('\n\n{0}\n  thread stats\n{0}\n'.format('-'*72))
+		thr_stats.print_all()
 
 
-if mode == 'unrag-speedtest':
-	bench_unrag('../radio.long')
+	if mode == 'unrag-speedtest':
+		bench_unrag('../radio.long')
 
-if mode == 'unrag-layout-test-v1':
-	unrag_layout_test_dump()
+	if mode == 'unrag-layout-test-v1':
+		unrag_layout_test_dump()
 
-if mode == 'unrag-layout-test-interactive':
-	unrag_layout_test_interactive()
+	if mode == 'unrag-layout-test-interactive':
+		unrag_layout_test_interactive()
 
-if mode == 'test-ansi-annotation':
-	test_ansi_annotation()
+	if mode == 'test-ansi-annotation':
+		test_ansi_annotation()
+
+
+if __name__ == '__main__':
+	main()

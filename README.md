@@ -4,7 +4,7 @@
 * MIT-Licensed, 2018-01-07, ed @ irc.rizon.net
 * **[windows telnet 360 noscope](https://ocv.me/r0c.webm)** <- good video
 
-![screenshot of telnet connected to a r0c server](doc/r0c.png)
+![screenshot of telnet connected to a r0c server](docs/r0c.png)
 
 ## summary
 
@@ -57,4 +57,4 @@ iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 531 -j REDIRECT --to-port 1
 
 ## documentation
 
-not really but there is a [list of commands](doc/help-commands.md) and a [list of hotkeys](doc/help-hotkeys.md)
+not really but there is a [list of commands](docs/help-commands.md) and a [list of hotkeys](docs/help-hotkeys.md)

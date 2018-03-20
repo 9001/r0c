@@ -84,3 +84,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * print nick on connect and disconnect
 * admin auth
 * write documentation orz
+
+* check pwd dir
+* check we're in $PATH

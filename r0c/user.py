@@ -9,8 +9,9 @@ import hashlib
 import code
 import gc
 
-from .util import *
-from .chat import *
+from .__version__ import *
+from .util        import *
+from .chat        import *
 
 PY2 = (sys.version_info[0] == 2)
 
@@ -147,14 +148,14 @@ class User(object):
 """
 
 		pad1 = pad2 = u'──'
-		if len(VERSION) > 3: pad1 = pad1[1:]
-		if len(VERSION) > 4: pad2 = pad2[1:]
-		if len(VERSION) > 5: pad1 = pad1[1:]
-		if len(VERSION) > 6: pad2 = pad2[1:]
+		if len(S_VERSION) > 3: pad1 = pad1[1:]
+		if len(S_VERSION) > 4: pad2 = pad2[1:]
+		if len(S_VERSION) > 5: pad1 = pad1[1:]
+		if len(S_VERSION) > 6: pad2 = pad2[1:]
 
 		text = text.replace(u'`', u'\033[').\
-			replace('r0c_build', BUILD_DT).\
-			replace('r0c_ver', VERSION).\
+			replace('r0c_build', S_BUILD_DT).\
+			replace('r0c_ver', S_VERSION).\
 			replace('pad1', pad1).\
 			replace('pad2', pad2)
 		text += HELP_INTRO
@@ -246,7 +247,7 @@ class User(object):
 				u'\033[1m{0}\033[22m {1}'.format(self.nick, arg))
 
 		elif cmd == u'auth':
-			if arg == ADMIN_PWD:
+			if arg == self.world.core.password:
 				self.admin = True
 				self.world.send_chan_msg(u'-nfo-', inf, u"please don't break anything")
 			else:
@@ -823,7 +824,7 @@ class User(object):
 				if ch in legit_chars:
 					page += ch
 			try:
-				with open('doc/help-{0}.md'.format(page), 'rb') as f:
+				with open('docs/help-{0}.md'.format(page), 'rb') as f:
 					txt = f.read().decode('utf-8')
 			except:
 				self.world.send_chan_msg(u'-err-', inf, u'that help page does not exist')
