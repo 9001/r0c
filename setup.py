@@ -21,19 +21,23 @@ if 'bdist_wheel' in sys.argv and not setuptools_available:
 	print('cannot build wheel without setuptools')
 	sys.exit(1)
 
+def mglob(dirname, extensions):
+	ret = []
+	for ext in extensions:
+		ret.extend(glob(dirname + '/*.' + ext))
+	return ret
+
 
 NAME        = 'r0c'
 VERSION     = None
-
-
-manifest = ''
-data_files = [
-	('share/doc/r0c',         ['README.md','LICENSE']),
-	('share/doc/r0c/help',    glob('docs/*.md')),
+data_files  = [
+	('share/doc/r0c',         ['README.md','README.rst','LICENSE']),
+	('share/doc/r0c/help',    mglob('docs', ['md','rst'])),
 	('share/doc/r0c/clients', glob('clients/*'))
 ]
-
+manifest = ''
 for dontcare, files in data_files:
+	print(dontcare)
 	for fn in files:
 		manifest += "include {0}\n".format(fn)
 
@@ -42,8 +46,14 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(here + '/MANIFEST.in', 'wb') as f:
 	f.write(manifest.encode('utf-8'))
 
-with open(here + '/README.md', 'rb') as f:
-	LONG_DESCRIPTION = '\n' + f.read().decode('utf-8')
+
+try:
+	LONG_DESCRIPTION = ''
+	with open(here + '/README.rst', 'rb') as f:
+		LONG_DESCRIPTION = '\n' + f.read().decode('utf-8')
+except:
+	print('\n### could not open README.rst ###\n')
+
 
 about = {}
 if not VERSION:
@@ -53,10 +63,75 @@ else:
 	about['__version__'] = VERSION
 
 
+class clean2(Command):
+	description = 'Cleans the source tree'
+	user_options = []
+	
+	def initialize_options(self):
+		pass
+	
+	def finalize_options(self):
+		pass
+	
+	def run(self):
+		os.system('{0} setup.py clean --all'.format(sys.executable))
+		
+		rmtree('./dist')
+		rmtree('./r0c.egg-info')
+		
+		nuke = []
+		for (dirpath, dirnames, filenames) in os.walk('.'):
+			for fn in filenames:
+				if fn.endswith('.rst') \
+				or fn.startswith('MANIFEST'):
+					nuke.append(dirpath + '/' + fn)
+		
+		for fn in nuke:
+			os.unlink(fn)
+
+
+class rstconv(Command):
+	description = 'Converts markdown to rst'
+	user_options = []
+	
+	def initialize_options(self):
+		pass
+	
+	def finalize_options(self):
+		pass
+	
+	def run(self):
+		self.proc_dir('.')
+		self.proc_dir('docs')
+	
+	def proc_dir(self, path):
+		import m2r
+		for (dirpath, dirnames, filenames) in os.walk(path):
+			
+			dirnames.sort()
+			for fn in sorted(filenames):
+				
+				fn = dirpath + '/' + fn
+				if not fn.endswith('.md'):
+					continue
+				
+				rst_fn = fn[:-3] + '.rst'
+				with open(fn, 'rb') as f:
+					md = f.read().decode('utf-8')
+				
+				for kw in ['docs','clients']:
+					md = md.replace('({0}/'.format(kw),
+						'(https://ocv.me/static/r0c/{0}/'.format(kw))
+				
+				rst = m2r.convert(md)
+				with open(rst_fn, 'wb') as f:
+					f.write(rst.encode('utf-8'))
+
+
 if False:
 	data_files = {}
 	for dest, src, masks in [
-		['share/doc/r0c/help',    'docs',    ['.md']],
+		['share/doc/r0c/help',    'docs',    ['.md','.rst']],
 		['share/doc/r0c/clients', 'clients', ['']]]:
 		
 		files = []
@@ -102,7 +177,11 @@ args = {
 		'Programming Language :: Python :: Implementation :: PyPy',
 		'Environment :: Console',
 		'Topic :: Communications :: Chat'
-	]
+	],
+	'cmdclass' : {
+		'rstconv': rstconv,
+		'clean2': clean2
+	}
 }
 
 

@@ -24,12 +24,16 @@ cd ~/dev/r0c &&
 virtualenv buildenv
 
 # build and release
+function have() { python -c "import $1; $1; $1.__version__"; }
 deactivate;
 cd ~/dev/r0c &&
 rm -rf dist r0c.egg-info/ build/ MANIFEST* &&
 . buildenv/bin/activate &&
-python -c 'import setuptools; setuptools; setuptools.__version__' &&
-python -c 'import wheel; wheel; wheel.__version__' &&
+have setuptools &&
+have wheel &&
+have m2r &&
+./setup.py clean2 &&
+./setup.py rstconv &&
 ./setup.py sdist bdist_wheel --universal &&
 ./setup.py sdist upload -r pypi &&
 deactivate &&

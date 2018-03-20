@@ -65,14 +65,22 @@ grep -qE "ADMIN_PWD *= *u'hunter2'" r0c/config.py ||
 	exit 1
 }
 
-bad=''
-grep -qE "^VERSION *= *u'$ver'" r0c/config.py || bad="$bad [config]"
-grep -qE "^__version__ *= *\"$ver\"" r0c/__main__.py || bad="$bad [main]"
+commaver="$(
+	printf '%s\n' "$ver" |
+	sed -r 's/\./,/g'
+)"
 
-[[ "x$bad" == "x" ]] ||
+grep -qE "^VERSION *= \(${commaver}\)$" r0c/__version__.py ||
 {
 	echo "$tmp"
-	echo "bad version in$bad"
+	echo "bad version"
+	echo
+	echo " arg: $commaver"
+	echo "code: $(
+		cat r0c/__version__.py |
+		grep -E '^VERSION'
+	)"
+	echo
 	echo "continue?"
 	read -u1
 }
