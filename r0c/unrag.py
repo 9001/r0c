@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
@@ -253,15 +254,15 @@ def unrag_4_shortest(text, width):
 
 
 
-def bench_unrag(file):
+def bench_unrag(fname):
 	t0 = time.time()
 	n_lines = 0
 	trend = {}
-	with open(file, 'rb') as f:
+	with open(fname, 'rb') as f:
 		for ln in f:
 			n_lines += 1
 
-	with open(file, 'rb') as f:
+	with open(fname, 'rb') as f:
 		for n, ln in enumerate(f):
 			if n % 8192 == 8191:
 				t = time.time()

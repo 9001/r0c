@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
@@ -9,11 +10,8 @@ import hashlib
 import code
 import gc
 
-from .__version__ import *
-from .util        import *
-from .chat        import *
-
-PY2 = (sys.version_info[0] == 2)
+from .util import *
+from .chat import *
 
 
 
@@ -93,7 +91,7 @@ class User(object):
 					yield ch1 + ch2
 
 	def set_rand_nick(self):
-		plain_base = u'lammo/{0}'.format(self.client.addr[0])
+		plain_base = NICK_SALT + u'{0}'.format(self.client.addr[0])
 		for suffix in self.pattern_gen():
 			plain = plain_base + suffix
 			nv = hashlib.sha256(plain.encode('utf-8')).digest()
@@ -824,7 +822,7 @@ class User(object):
 				if ch in legit_chars:
 					page += ch
 			try:
-				with open('docs/help-{0}.md'.format(page), 'rb') as f:
+				with open(EP.doc + 'help-{0}.md'.format(page), 'rb') as f:
 					txt = f.read().decode('utf-8')
 			except:
 				self.world.send_chan_msg(u'-err-', inf, u'that help page does not exist')

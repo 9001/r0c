@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
@@ -9,7 +10,6 @@ import calendar
 
 from .util import *
 
-PY2 = (sys.version_info[0] == 2)
 
 
 class NChannel(object):

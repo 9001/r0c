@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
@@ -12,6 +13,8 @@ import os
 import platform
 
 from .config import *
+
+
 
 print_mutex = threading.Lock()
 if PY2:
@@ -533,13 +536,14 @@ def host_os():
 def compat_chans_in_root():
 	bad_dirs = []
 	good_dirs = ['pm','chan','wire']
-	for (dirpath, dirnames, filenames) in os.walk('log'):
+	for (dirpath, dirnames, filenames) in os.walk(EP.log):
 		for d in dirnames:
 			if d not in good_dirs:
 				bad_dirs.append(d)
 		break
 
 	if bad_dirs:
+		print()
 		print('== performing upgrade in 5 seconds ==')
 		print()
 		print('Will move the following directories from [log] to [log/chan]:')
@@ -552,8 +556,8 @@ def compat_chans_in_root():
 	
 		for d in bad_dirs:
 			os.rename(
-				'log/{0}'.format(d),
-				'log/chan/{0}'.format(d))
+				'{0}{1}'.format(EP.log, d),
+				'{0}chan/{1}'.format(EP.log, d))
 
 		print('upgrade done \\o/')
 		print()

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
@@ -9,8 +10,6 @@ import datetime
 
 from .util import *
 from .chat import *
-
-PY2 = (sys.version_info[0] == 2)
 
 if PY2:
 	from Queue import Queue
@@ -328,7 +327,7 @@ class World(object):
 		#print('  chan hist:  scanning files')
 		t1 = time.time()
 
-		log_dir = u'log/chan/{0}'.format(nchan.name)
+		log_dir = u'{0}chan/{1}'.format(EP.log, nchan.name)
 		try: os.makedirs(log_dir)
 		except: pass
 
@@ -414,9 +413,9 @@ class World(object):
 
 	def start_logging(self, nchan, chat_backlog=None):
 		if nchan.name is not None:
-			log_dir = 'log/chan/{0}'.format(nchan.name)
+			log_dir = '{0}chan/{1}'.format(EP.log, nchan.name)
 		else:
-			log_dir = 'log/pm/{0}'.format(
+			log_dir = '{0}pm/{1}'.format(EP.log,
 				'/'.join([x.user.nick for x in nchan.uchans]))
 
 		if nchan.log_fh:

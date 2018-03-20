@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 VERSION      = (1,0,3)
 BUILD_DT     = (2018,3,20)
 

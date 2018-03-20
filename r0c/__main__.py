@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
@@ -9,27 +10,23 @@ __credits__   = ["stackoverflow.com"]
 __license__   = "MIT"
 __copyright__ = 2018
 
-from .__version__ import *
-
 
 import os
 import sys
 import signal
-if sys.version_info[0] == 2:
-	sys.dont_write_bytecode = True
 
 if not 'r0c' in sys.modules:
 	print('\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python -m r0c\r\n')
 	sys.exit(1)
 
-from .config      import *
-from .util        import *
-from .ivt100      import *
-from .inetcat     import *
-from .itelnet     import *
-from .chat        import *
-from .user        import *
-from .world       import *
+from .config   import *
+from .util     import *
+from .ivt100   import *
+from .inetcat  import *
+from .itelnet  import *
+from .chat     import *
+from .user     import *
+from .world    import *
 
 if not PY2:
 	from .diag import *
@@ -57,38 +54,9 @@ class Core(object):
 			print()
 			return False
 
-		self.password = ADMIN_PWD
-		
-		# password as argument overrides all others
-		if len(args) > 3:
-			self.password = args[3]
-			print('password from arg: ' + self.password)
-		
-		else:
-			# password file in home directory overrides config
-			pwd_file = APP_ROOT + 'password.txt'
-			if os.path.isfile(pwd_file):
-				with open(pwd_file, 'rb') as f:
-					self.password = f.read().decode('utf-8').strip()
-					print('password from file: ' + self.password)
-
-			# fallback to config.py, disallow the default
-			elif self.password == u'hunter2':
-				print()
-				print('\033[1;31m  change the ADMIN_PWD in r0c/config.py \033[0m')
-				print('\033[1;31m  or provide your password as an argument \033[0m')
-				print('\033[1;31m  or save it here: ' + pwd_file + '\033[0m')
-				print()
-				print('btw doc dir is ' + DOC_ROOT)
-				return False
-
-		print('password: ' + self.password)
-
 		for d in ['pm','chan','wire']:
-			try: os.makedirs('log/' + d)
+			try: os.makedirs(EP.log + d)
 			except: pass
-
-		compat_chans_in_root()
 
 		print('  *  py {0}'.format(host_os()))
 
@@ -97,6 +65,12 @@ class Core(object):
 
 		print('  *  Telnet server on port ' + str(self.telnet_port))
 		print('  *  NetCat server on port ' + str(self.netcat_port))
+
+		if not self.read_password(args):
+			return False
+		
+		print('  *  Logs at ' + EP.log)
+		compat_chans_in_root()
 
 		self.stopping = 0
 		self.threadmon = False
@@ -130,6 +104,37 @@ class Core(object):
 		self.asyncore_thr.start()
 
 		return True
+
+
+	def read_password(self, args):
+		self.password = ADMIN_PWD
+		
+		# password as argument overrides all others
+		if len(args) > 3:
+			self.password = args[3]
+			print('  *  Password from argument')
+			return True
+		
+		# password file in home directory overrides config
+		pwd_file = EP.app + 'password.txt'
+		if os.path.isfile(pwd_file):
+			print('  *  Password from ' + pwd_file)
+			with open(pwd_file, 'rb') as f:
+				self.password = f.read().decode('utf-8').strip()
+				return True
+
+		# fallback to config.py
+		print('  *  Password from ' + EP.src + 'config.py')
+		if self.password != u'hunter2':
+			return True
+		
+		# default password is verboten
+		print()
+		print('\033[1;31m  change the ADMIN_PWD in the path above \033[0m')
+		print('\033[1;31m  or provide your password as an argument \033[0m')
+		print('\033[1;31m  or save it here: ' + pwd_file + '\033[0m')
+		print()
+		return False
 
 
 	def run(self):

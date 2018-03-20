@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
+from .__init__ import *
 if __name__ == '__main__':
 	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
 
@@ -24,6 +25,7 @@ if PY2:
 	from Queue import Queue
 else:
 	from queue import Queue
+
 
 
 class VT100_Server(asyncore.dispatcher):
@@ -136,7 +138,7 @@ class VT100_Server(asyncore.dispatcher):
 							print('     i messed up the serialization in an older version of r0c sorry')
 							print('     please run these oneliners to fix them:\n')
 							for fn in 'telnet', 'netcat':
-								print(r"sed -ri 's/([0-9\.]+ [0-9a-f]+ [^ ]+ [01] [01] [01] [^ ]+ [^ ]+ [01])/\1\n/g' log/cfg.{0}".format(fn))
+								print(r"sed -ri 's/([0-9\.]+ [0-9a-f]+ [^ ]+ [01] [01] [01] [^ ]+ [^ ]+ [01])/\1\n/g' {0}cfg.{1}".format(EP.log, fn))
 								print()
 				except:
 					print(' /!\\ invalid config line')
@@ -179,8 +181,10 @@ class VT100_Client(asyncore.dispatcher):
 
 		self.wire_log = None
 		if LOG_RX or LOG_TX:
-			log_fn = 'log/wire/{0}_{1}_{2}'.format(
-				int(time.time()), *list(self.addr))
+			log_fn = '{0}wire/{1}_{2}_{3}'.format(
+				EP.log,
+				int(time.time()),
+				*list(self.addr))
 			
 			while os.path.isfile(log_fn):
 				log_fn += '_'
