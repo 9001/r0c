@@ -26,7 +26,7 @@ virtualenv buildenv
 # build and release
 deactivate;
 cd ~/dev/r0c &&
-rm -rf dist &&
+rm -rf dist r0c.egg-info/ build/ MANIFEST* &&
 . buildenv/bin/activate &&
 python -c 'import setuptools; setuptools; setuptools.__version__' &&
 python -c 'import wheel; wheel; wheel.__version__' &&

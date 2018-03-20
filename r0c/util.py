@@ -13,9 +13,6 @@ import platform
 
 from .config import *
 
-PY2 = (sys.version_info[0] == 2)
-WINDOWS = platform.system() == 'Windows'
-
 print_mutex = threading.Lock()
 if PY2:
 	import __builtin__

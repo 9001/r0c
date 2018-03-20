@@ -110,7 +110,7 @@ if setuptools_available:
 	args.update({
 		'install_requires'     : [],
 		'include_package_data' : True,
-		'py_modules'           : ['r0c'],
+		'packages'             : ['r0c'],
 		'entry_points'         : {
 			'console_scripts'  : [
 				'r0c = r0c.__main__:main'
