@@ -116,7 +116,7 @@ class Core(object):
 			return True
 		
 		# password file in home directory overrides config
-		pwd_file = EP.app + 'password.txt'
+		pwd_file = os.path.join(EP.app, 'password.txt')
 		if os.path.isfile(pwd_file):
 			print('  *  Password from ' + pwd_file)
 			with open(pwd_file, 'rb') as f:
@@ -124,7 +124,7 @@ class Core(object):
 				return True
 
 		# fallback to config.py
-		print('  *  Password from ' + EP.src + 'config.py')
+		print('  *  Password from ' + os.path.join(EP.src, 'config.py'))
 		if self.password != u'hunter2':
 			return True
 		

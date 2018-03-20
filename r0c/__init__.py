@@ -28,39 +28,50 @@ class Pod(object):
 
 EP = Pod()
 
-# look for our documentation in PYTHONPATH
-for env_root in sys.path:
-	doc_rel = 'share/doc/r0c/help/'
-	if env_root.endswith('/site-packages'):
-		dirname = os.path.realpath(env_root + '/../../../') + '/'
-		if os.path.isfile(dirname + doc_rel + 'help-topics.md'):
-			EP.env = dirname
-			EP.doc = dirname + doc_rel
-			EP.src = env_root + '/r0c/'
+def init_envpaths():
+	# look for our documentation in PYTHONPATH
+	found = False
+	for env_root in sys.path:
+		doc_rel = 'share/doc/r0c/help/'
+		if env_root.endswith(os.sep + 'site-packages'):
+			for n in range(4):
+				dirname = os.path.realpath(env_root + '/' + ('../'*n)) + '/'
+				if os.path.isfile(dirname + doc_rel + 'help-topics.md'):
+					EP.env = dirname
+					EP.doc = dirname + doc_rel
+					EP.src = env_root + '/r0c/'
+					found = True
+					break
+			
+			if found:
+				break
 
-# did we find it?
-if hasattr(EP, 'env'):
-	if WINDOWS:
-		EP.app = os.environ['APPDATA'] + '/r0c/'
+	if found:
+		if WINDOWS:
+			EP.app = os.environ['APPDATA'] + '/r0c/'
+		else:
+			EP.app = os.path.expanduser("~") + '/.r0c/'
+
 	else:
-		EP.app = os.path.expanduser("~") + '/.r0c/'
+		# check if we're running from source tree
+		if os.path.isfile('./docs/help-topics.md'):
+			EP.env = '/'
+			EP.doc = './docs/'
+			EP.src = './r0c/'
+			EP.app = './'
+		else:
+			raise RuntimeError('\n\n   could not find "help-topics.md", your r0c is broken\n')
 
-else:
-	# nope, check if we're running from source tree
-	if os.path.isfile('./docs/help-topics.md'):
-		EP.env = '/'
-		EP.doc = './docs/'
-		EP.src = './r0c/'
-		EP.app = './'
-	else:
-		raise RuntimeError('\n\n   could not find "help-topics.md", your r0c is broken\n')
+	# frequently used paths derived from those detected above
+	EP.log = os.path.realpath(EP.app + '/log')
 
-# frequently used paths derived from those detected above
-EP.log = os.path.realpath(EP.app + '/log')
+	# ensure they're all absolute
+	for key in 'env doc src app log'.split(' '):
+		path = os.path.realpath(getattr(EP, key))
+		setattr(EP, key, path.rstrip('/\\') + os.sep)
 
-# ensure they're all absolute
-for key in 'env doc src app log'.split(' '):
-	setattr(EP, key, os.path.realpath(getattr(EP, key)).rstrip('/') + '/')
+	# what seems to be the officer problem
+	# raise RuntimeError('\n' + '\n'.join(key + ': ' + getattr(EP, key) for key in 'env src app doc log'.split(' ')) + '\n')
 
-# what seems to be the officer problem
-# raise RuntimeError('\n' + '\n'.join(key + ': ' + getattr(EP, key) for key in 'env src app doc log'.split(' ')) + '\n')
+
+init_envpaths()
