@@ -86,6 +86,9 @@ class clean2(Command):
 		for (dirpath, dirnames, filenames) in os.walk('.'):
 			for fn in filenames:
 				if fn.endswith('.rst') \
+				or fn.endswith('.pyc') \
+				or fn.endswith('.pyo') \
+				or fn.endswith('.pyd') \
 				or fn.startswith('MANIFEST'):
 					nuke.append(dirpath + '/' + fn)
 		

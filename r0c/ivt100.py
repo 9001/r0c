@@ -70,6 +70,56 @@ class VT100_Server(asyncore.dispatcher):
 	def handle_accept(self):
 		with self.world.mutex:
 			socket, addr = self.accept()
+
+			### https://github.com/9001/r0c/issues/1
+			##
+			# accept(): The return value can be either None or a pair
+			#    (conn, address) [...] When None is returned it means
+			#    the connection didn’t take place, in which case the
+			#    server should just ignore this event
+			#
+			# in the linked issue, the accept call /did/ return a pair,
+			# however accessing getpeername()[0] failed later on
+			#
+			# apparently reproducible with nmap (TODO),
+			# for now let's go full overkill
+			
+			ok = True
+			a = 'a=NG'
+			b = 'b=NG'
+			c = 'c=NG'
+			d = 'd=NG'
+			e = 'e=NG'
+			
+			try: a=str(addr)
+			except: ok=False
+			
+			try: b=str(addr[0])
+			except: ok=False
+			
+			try: c=str(socket)
+			except: ok=False
+			
+			try: d=str(socket.getpeername())
+			except: ok=False
+			
+			try: e=str(socket.getpeername()[0])
+			except: ok=False
+			
+			try:
+				if socket is None \
+				or socket.getpeername() is None:
+					print('aaa')
+					ok = False
+			except:
+				print('bbb')
+				ok = False
+			
+			if not ok:
+				whoops('\n  '.join(str(x) for x in enumerate(
+					['issue#1',a,b,c,d,e])))
+				return
+
 			user = User(self.world, addr)
 			remote = self.gen_remote(socket, addr, user)
 			self.world.add_user(user)
@@ -178,7 +228,7 @@ class VT100_Client(asyncore.dispatcher):
 		self.user = user
 		self.dead = False      # set true at disconnect (how does asyncore work)
 		self.is_bot = False
-
+		
 		self.wire_log = None
 		if LOG_RX or LOG_TX:
 			log_fn = '{0}wire/{1}_{2}_{3}'.format(
