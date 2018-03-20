@@ -76,8 +76,11 @@ class clean2(Command):
 	def run(self):
 		os.system('{0} setup.py clean --all'.format(sys.executable))
 		
-		rmtree('./dist')
-		rmtree('./r0c.egg-info')
+		try: rmtree('./dist')
+		except: pass
+		
+		try: rmtree('./r0c.egg-info')
+		except: pass
 		
 		nuke = []
 		for (dirpath, dirnames, filenames) in os.walk('.'):
