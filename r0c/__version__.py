@@ -1,4 +1,4 @@
-VERSION      = (1,1,0)
+VERSION      = (1,1,1)
 BUILD_DT     = (2018,3,21)
 
 S_VERSION    = '.'.join(map(str, VERSION))

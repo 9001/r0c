@@ -69,8 +69,7 @@ class VT100_Server(asyncore.dispatcher):
 
 	def handle_accept(self):
 		with self.world.mutex:
-			socket, addr = self.accept()
-
+			
 			### https://github.com/9001/r0c/issues/1
 			##
 			# accept(): The return value can be either None or a pair
@@ -84,6 +83,15 @@ class VT100_Server(asyncore.dispatcher):
 			# apparently reproducible with nmap (TODO),
 			# for now let's go full overkill
 			
+			try:
+				socket, addr = self.accept()
+				if addr is None:
+					print('[!] addr was None')
+					return
+			except:
+				print('[!] accept exception')
+				return
+
 			ok = True
 			a = 'a=NG'
 			b = 'b=NG'
