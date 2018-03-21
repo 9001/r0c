@@ -31,13 +31,13 @@ def mglob(dirname, extensions):
 NAME        = 'r0c'
 VERSION     = None
 data_files  = [
-	('share/doc/r0c',         ['README.md','README.rst','LICENSE']),
+	('share/doc/r0c',         ['README.rst','README.md','LICENSE']),
 	('share/doc/r0c/help',    mglob('docs', ['md','rst'])),
 	('share/doc/r0c/clients', glob('clients/*'))
 ]
 manifest = ''
 for dontcare, files in data_files:
-	print(dontcare)
+	#print(dontcare)
 	for fn in files:
 		manifest += "include {0}\n".format(fn)
 
@@ -49,10 +49,18 @@ with open(here + '/MANIFEST.in', 'wb') as f:
 
 try:
 	LONG_DESCRIPTION = ''
+	LDCT = ''
 	with open(here + '/README.rst', 'rb') as f:
-		LONG_DESCRIPTION = '\n' + f.read().decode('utf-8')
+		txt = f.read().decode('utf-8')
+		txt = txt[txt.find('`'):]
+		LONG_DESCRIPTION = txt
+		LDCT = 'text/x-rst'
 except:
 	print('\n### could not open README.rst ###\n')
+	with open(here + '/README.md', 'rb') as f:
+		txt = f.read().decode('utf-8')
+		LONG_DESCRIPTION = txt
+		LDCT = 'text/markdown'
 
 
 about = {}
@@ -125,11 +133,19 @@ class rstconv(Command):
 				with open(fn, 'rb') as f:
 					md = f.read().decode('utf-8')
 				
+				for kw in ['docs/help-']:
+					md = md.replace('({0}'.format(kw),
+						'(https://github.com/9001/r0c/blob/master/{0}'.format(kw))
+				
 				for kw in ['docs','clients']:
 					md = md.replace('({0}/'.format(kw),
 						'(https://ocv.me/static/r0c/{0}/'.format(kw))
 				
+				md = md.replace('* **[', '* [').replace(')** <-', ') <-')
 				rst = m2r.convert(md)
+				rst = rst.replace(':raw-html-m2r:`<del>', ':sub:`')
+				rst = rst.replace('</del>`', '`')
+
 				with open(rst_fn, 'wb') as f:
 					f.write(rst.encode('utf-8'))
 
@@ -158,6 +174,7 @@ args = {
 	'version'          : about['__version__'],
 	'description'      : 'retr0chat telnet/vt100 chat server',
 	'long_description' : LONG_DESCRIPTION,
+	'long_description_content_type' : LDCT,
 	'author'           : 'ed',
 	'author_email'     : 'r0c@ocv.me',
 	'url'              : 'https://github.com/9001/r0c',

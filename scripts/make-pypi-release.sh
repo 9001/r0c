@@ -55,6 +55,10 @@ EOF
 	# setup build env
 	cd ~/dev/r0c &&
 	virtualenv buildenv
+	
+	# test rst
+	pip install docutils
+	./setup.py --long-description | tee ~/Desktop/rst | rst2html.py > ~/Desktop/rst.html
 }
 
 
@@ -82,7 +86,7 @@ have m2r
 ./setup.py rstconv
 ./setup.py sdist bdist_wheel --universal
 [[ "x$mode" == "xu" ]] &&
-	./setup.py sdist upload -r pypi
+	./setup.py sdist bdist_wheel upload -r pypi
 
 cat <<EOF
 
