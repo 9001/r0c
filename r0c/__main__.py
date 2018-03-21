@@ -58,7 +58,7 @@ class Core(object):
 			try: os.makedirs(EP.log + d)
 			except: pass
 
-		print('  *  py {0}'.format(host_os()))
+		print('  *  r0c {0}, py {1}'.format(S_VERSION, host_os()))
 
 		self.telnet_port = int(args[1])
 		self.netcat_port = int(args[2])

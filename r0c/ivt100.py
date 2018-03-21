@@ -80,54 +80,37 @@ class VT100_Server(asyncore.dispatcher):
 			# in the linked issue, the accept call /did/ return a pair,
 			# however accessing getpeername()[0] failed later on
 			#
-			# apparently reproducible with nmap (TODO),
-			# for now let's go full overkill
+			# a similar issue (maybe not the same) can be reproduced:
+			# yes 127.0.0.1 | nmap -v -iL - -Pn -sT -p 2323,1531 -T 5
 			
-			try:
-				socket, addr = self.accept()
-				if addr is None:
-					print('[!] addr was None')
-					return
+			try: socket, addr = self.accept()
 			except:
 				print('[!] accept exception')
 				return
-
-			ok = True
-			a = 'a=NG'
-			b = 'b=NG'
-			c = 'c=NG'
-			d = 'd=NG'
-			e = 'e=NG'
 			
-			try: a=str(addr)
-			except: ok=False
-			
-			try: b=str(addr[0])
-			except: ok=False
-			
-			try: c=str(socket)
-			except: ok=False
-			
-			try: d=str(socket.getpeername())
-			except: ok=False
-			
-			try: e=str(socket.getpeername()[0])
-			except: ok=False
-			
-			try:
-				if socket is None \
-				or socket.getpeername() is None:
-					print('aaa')
-					ok = False
-			except:
-				print('bbb')
-				ok = False
-			
-			if not ok:
-				whoops('\n  '.join(str(x) for x in enumerate(
-					['issue#1',a,b,c,d,e])))
+			if addr is None:
+				print('[!] addr was None')
 				return
-
+			
+			if socket is None:
+				print('[!] socket was None')
+				return
+			
+			try: v = addr[0]
+			except:
+				print('[!] addr was bad')
+				return
+			
+			try: v = socket.getpeername()
+			except:
+				print('[!] getpeername failed')
+				return
+			
+			try: v = v[0]
+			except:
+				print('[!] getpeername is bad')
+				return
+			
 			user = User(self.world, addr)
 			remote = self.gen_remote(socket, addr, user)
 			self.world.add_user(user)
@@ -552,11 +535,22 @@ class VT100_Client(asyncore.dispatcher):
 		#		return False
 		#	#print('ooo')
 		
-		return not self.dead and (
-			self.backlog or
-			not self.replies.empty() or
-			not self.outbox.empty()
-		)
+		# looks like we might end up here after all,
+		# TODO: safeguard against similar issues (thanks asyncore)
+		try:
+			return not self.dead and (
+				self.backlog or
+				not self.replies.empty() or
+				not self.outbox.empty()
+			)
+		except:
+			# terrible print-once guard
+			try: self.crash_case_1 += 1
+			except:
+				self.crash_case_1 = 1
+				whoops()
+			if not self.dead:
+				self.host.part(self)
 
 
 	def handle_close(self):

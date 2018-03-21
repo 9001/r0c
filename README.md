@@ -1,6 +1,6 @@
 # `r0c` telnet server
 
-* retr0chat, irc-like chat service for superthin clients
+* retr0chat, irc-like chat service for superthin clients [(on PyPI)](https://pypi.org/project/r0c/)
 * MIT-Licensed, 2018-01-07, ed @ irc.rizon.net
 * **[windows telnet 360 noscope](https://ocv.me/r0c.webm)** <- good video
 
