@@ -280,7 +280,7 @@ class User(object):
 
 			if new_nick.startswith(u'-'):
 				self.world.send_chan_msg(u'-err-', inf, u"[invalid argument]\n  " +
-					u"nicks cannot start with "-" (dash)\n")
+					u"nicks cannot start with \"-\" (dash)\n")
 				return
 
 			if len(new_nick) > 32:
