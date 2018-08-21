@@ -254,6 +254,8 @@ class TelnetClient(VT100_Client):
 					self.num_telnet_negotiations += 1
 					
 					if verbs.get(cmd[1]):
+						self.in_bytes = self.in_bytes[3:]
+					
 						if not subjects.get(cmd[2]):
 							print('[X] subject not implemented: '.format(b2hex(cmd)))
 							continue
@@ -283,8 +285,6 @@ class TelnetClient(VT100_Client):
 									b2hex(cmd[:3]), verbs.get(cmd[1]), verbs.get(response[0])))
 							self.replies.put(b''.join([b'\xff', response, cmd[2:3]]))
 							self.neg_done.append(cmd)
-					
-						self.in_bytes = self.in_bytes[3:]
 					
 					elif cmd[1] == b'\xfa'[0] and len(self.in_bytes) >= 3:
 						eon = self.in_bytes.find(b'\xff\xf0')
