@@ -41,9 +41,9 @@
 
 | | |
 |-|-|
-| `/sh 0`   | entire screen
-| `/sh 10`  | 10 lines
-| `/sh 50%` | half the screen
+| `/ss 0`   | entire screen
+| `/ss 10`  | 10 lines
+| `/ss 50%` | half the screen
 
 # navigation
 

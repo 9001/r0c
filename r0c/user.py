@@ -617,7 +617,7 @@ class User(object):
 
 		elif cmd == u'sw':
 			try: arg = int(arg)
-			except: pass
+			except: arg = None
 			
 			if not arg:
 				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
@@ -634,7 +634,7 @@ class User(object):
 
 		elif cmd == u'sh':
 			try: arg = int(arg)
-			except: pass
+			except: arg = None
 			
 			if not arg:
 				self.world.send_chan_msg(u'-err-', inf, u"""[invalid arguments]
@@ -653,9 +653,8 @@ class User(object):
 			if arg == u'0':
 				arg = '100%'
 
-			int_arg = None
 			try: int_arg = int(arg)
-			except: pass
+			except: int_arg = None
 
 			perc_arg = None
 			if arg and arg.endswith(u'%'):
