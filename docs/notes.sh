@@ -30,7 +30,7 @@ cat radio.log | awk 'length($0) > 30 && length($0) < 200 {print $0}' > radio.lon
 
 
 # statistics for attempted usernames / passwords
-./format-wire-logs.sh | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
+./format-wire-logs.sh | tee /dev/shm/wirefmt | tee /dev/stderr | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
 
 
 # check the accuracy for a set of badwords

@@ -43,7 +43,11 @@ class VT100_Server(asyncore.dispatcher):
 			'guest|operator|supervisor|daemon|service|enable|system|' + \
 			'manager|baby|netman|telecom|volition|davox|sysadm|busybox|' + \
 			'tech|888888|666666|mg3500|merlin|nmspw|super|setup|vizxv|' + \
-			'HTTP/1|222222|xxyyzz|synnet|PlcmSpIp|Glo')
+			'HTTP/1|222222|xxyyzz|synnet|PlcmSpIp|Glo|e8ehome|xc3511|' + \
+			'taZz@|aquario|1001chin|Oxhlw|S2fGq|Zte521|ttnet|tlJwp|' + \
+			't0tal|gpon|anko|changeme|hi3518|antslq|juantech|zlxx|' + \
+			'xmhdipc|ipcam|cat10|synnet|ezdvr|vstarcam|klv123|' + \
+			'ubnt|hunt57|Alphanet|epicrout|annie20|realtek|netscreen')
 		self.scheduled_kicks = []
 		self.next_scheduled_kick = None
 
