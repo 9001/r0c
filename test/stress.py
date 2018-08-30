@@ -14,11 +14,11 @@ __copyright__ = 2018
 # config
 #
 
-NUM_CLIENTS = 1
-#NUM_CLIENTS = 4
+#NUM_CLIENTS = 1
+NUM_CLIENTS = 4
 
-CHANNELS = ['#1']
-#CHANNELS = ['#1','#2','#3','#4']
+#CHANNELS = ['#1']
+CHANNELS = ['#1','#2','#3','#4']
 
 EVENT_DELAY = 0.01
 EVENT_DELAY = 0.001
@@ -668,9 +668,9 @@ class Core(object):
 
 		signal.signal(signal.SIGINT, self.signal_handler)
 
-		#behaviors = ['jump_channels'] * (NUM_CLIENTS)
+		behaviors = ['jump_channels'] * (NUM_CLIENTS)
 		#behaviors.append('reconnect_loop')
-		behaviors = ['split_utf8_runes'] * (NUM_CLIENTS)
+		#behaviors = ['split_utf8_runes'] * (NUM_CLIENTS)
 		self.clients = []
 		for behavior in behaviors:
 			cmd_q = multiprocessing.Queue()
@@ -709,12 +709,12 @@ class Core(object):
 
 		print('\r\n  *  subcores stopping')
 		for subcore in self.clients:
-			subcore[1].put('x')
+			subcore.cmd_q.put('x')
 		
 		for n in range(0, 40):  # 2sec
 			clean_shutdown = True
 			for subcore in self.clients:
-				if not subcore[1].empty():
+				if not subcore.cmd_q.empty():
 					clean_shutdown = False
 					break
 			if clean_shutdown:

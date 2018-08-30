@@ -33,6 +33,9 @@ def init_envpaths():
 	found = False
 	for env_root in sys.path:
 		doc_rel = 'share/doc/r0c/help/'
+		if env_root.endswith('/test/..'):
+			return
+		
 		if env_root.endswith(os.sep + 'site-packages'):
 			for n in range(4):
 				dirname = os.path.realpath(env_root + '/' + ('../'*n)) + '/'
