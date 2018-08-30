@@ -55,6 +55,9 @@ EOF
 	# setup build env
 	cd ~/dev/r0c &&
 	virtualenv buildenv
+	. buildenv/bin/activate
+	pip install m2r
+	deactivate
 	
 	# test rst
 	pip install docutils
