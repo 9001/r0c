@@ -13,7 +13,7 @@ if len(sys.argv) < 2:
 fn = sys.argv[1]
 
 # 1516048842.772  j 3324  p 3301  m 220488  d 168,167,9966
-fmt_in = re.compile(r'^([0-9\.]+)  j ([0-9]+)  p ([0-9]+)  m ([0-9]+)  d ([0-9]+),([0-9]+),([0-9]+)$')
+fmt_in = re.compile(r'^[0-9]{6} ([0-9\.]+)  j ([0-9]+)  p ([0-9]+)  m ([0-9]+)  d ([0-9]+),([0-9]+),([0-9]+)$')
 
 rows = []
 with open(fn, 'rb') as f:
@@ -22,6 +22,22 @@ with open(fn, 'rb') as f:
 		if not m:
 			continue
 		rows.append([float(x) for x in m.groups()])
+
+n = -2
+rows2 = []
+for r2, r in zip(rows[:-1], rows[1:]):
+	n += 1
+	diff = 0
+	for col in range(NUM_INPUT_COLS):
+		if r[col] - r2[col] > 10:
+			rows2 = rows[n:]
+	if rows2:
+		break
+
+rows = rows2
+if not rows:
+	print('\n\n  too slow my dude\n', file=sys.stderr)
+	sys.exit(1)
 
 def resample(rows):
 	ret = []
@@ -83,4 +99,4 @@ for n in range(len(rows)):
 	rows[n][0] = int(round(rows[n][0]) - epoch)
 
 for row in rows:
-	print('{0}  {1:8.2f}  {2:8.2f}  {3:8.2f}'.format(*row))
+	print('{0:<6d}  {1:8.2f}  {2:8.2f}  {3:8.2f}'.format(*row))

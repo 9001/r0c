@@ -23,7 +23,7 @@ names="joins parts messages"
 	echo "set x2tics 60"
 	echo "set mxtics 2"
 	echo "set mx2tics 2"
-	echo "set format y '%t'"
+	echo "set format y '%.0f'"
 	
 	n=1
 	echo -n "plot "

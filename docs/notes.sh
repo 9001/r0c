@@ -47,3 +47,9 @@ cd ~/dev/r0c; stdbuf -oL python2 -um r0c 2323 1531 | tee log/sys-$(date +%Y-%m%d
 # upgrade r0c
 cd ~/dev/r0c; git checkout r0c/config.py; git pull origin; sed -ri 's/hunter2/amiga/;s/^(LOG_RX = False)/#\1/' r0c/config.py
 
+
+# performance analysis
+config.py: BENCHMARK = True
+stdbuf -oL python2 -m r0c 2323 1531 memes | tee /dev/shm/r0c.log
+bash run-stress.sh 2323
+python resample-log.py /dev/shm/r0c.log | bash plot.sh
