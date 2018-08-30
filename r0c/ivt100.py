@@ -70,54 +70,32 @@ class VT100_Server(asyncore.dispatcher):
 	def handle_accept(self):
 		with self.world.mutex:
 			
-			### https://github.com/9001/r0c/issues/1
-			##
-			# accept(): The return value can be either None or a pair
-			#    (conn, address) [...] When None is returned it means
-			#    the connection didn’t take place, in which case the
-			#    server should just ignore this event
+			# https://github.com/9001/r0c/issues/1
+			#    self.addr becomes None when a client disconnects,
+			#    and socket.getpeername()[0] will raise exceptions
 			#
-			# in the linked issue, the accept call /did/ return a pair,
-			# however accessing getpeername()[0] failed later on
-			#
-			# a similar issue (maybe not the same) can be reproduced:
+			# smoke test:
 			# yes 127.0.0.1 | nmap -v -iL - -Pn -sT -p 2323,1531 -T 5
 			
-			try: socket, addr = self.accept()
+			try:
+				socket, addr = self.accept()
+				adr = [addr[0], addr[1]]
+				if len(socket.getpeername()[0]) < 3:
+					raise Exception
 			except:
-				print('[!] accept exception')
+				print('[!] handshake error (probably a port scanner)')
 				return
 			
-			if addr is None:
-				print('[!] addr was None')
-				return
-			
-			if socket is None:
-				print('[!] socket was None')
-				return
-			
-			try: v = addr[0]
-			except:
-				print('[!] addr was bad')
-				return
-			
-			try: v = socket.getpeername()
-			except:
-				print('[!] getpeername failed')
-				return
-			
-			try: v = v[0]
-			except:
-				print('[!] getpeername is bad')
-				return
-			
-			user = User(self.world, addr)
-			remote = self.gen_remote(socket, addr, user)
+			user = User(self.world, adr)
+			remote = self.gen_remote(socket, adr, user)
 			self.world.add_user(user)
 			self.clients.append(remote)
 			remote.conf_wizard(0)
-			print('client join:  {0}  {1}  {2}'.format(
-				remote.user.nick,  *list(remote.addr)))
+			
+			print('client join:  {0}  {2}  {3}  {1}'.format(
+				remote.user.nick,
+				len(self.clients),
+				*list(remote.adr)))
 		
 	def part(self, remote, announce=True):
 		remote.dead = True
@@ -128,8 +106,10 @@ class VT100_Server(asyncore.dispatcher):
 			
 			remote.close()
 			if announce:
-				print('client part:  {0}  {1}  {2}'.format(
-					remote.user.nick,  *list(remote.addr)))
+				print('client part:  {0}  {2}  {3}  {1}'.format(
+					remote.user.nick,
+					len(self.clients)-1,
+					*list(remote.adr)))
 			self.clients.remove(remote)
 			try:
 				remote.user.active_chan = None
@@ -215,6 +195,7 @@ class VT100_Client(asyncore.dispatcher):
 		#self.mutex = threading.RLock()
 		self.host = host
 		self.socket = socket
+		self.adr = address
 		self.world = world
 		self.user = user
 		self.dead = False      # set true at disconnect (how does asyncore work)
@@ -225,7 +206,7 @@ class VT100_Client(asyncore.dispatcher):
 			log_fn = '{0}wire/{1}_{2}_{3}'.format(
 				EP.log,
 				int(time.time()),
-				*list(self.addr))
+				*list(self.adr))
 			
 			while os.path.isfile(log_fn):
 				log_fn += '_'
@@ -355,11 +336,11 @@ class VT100_Client(asyncore.dispatcher):
 		with self.world.mutex:
 			self.default_config()
 			self.user.client = self
-			self.user.admin = (self.addr[0] == '127.0.0.1')  # TODO
+			self.user.admin = (self.adr[0] == '127.0.0.1')  # TODO
 			
 			try:
 				ts, nick, linemode, vt100, echo_on, crlf, codec, bell = \
-					self.host.user_config[self.addr[0]].split(u' ')
+					self.host.user_config[self.adr[0]].split(u' ')
 
 				#print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
 
@@ -411,12 +392,12 @@ class VT100_Client(asyncore.dispatcher):
 				u'1' if self.bell     else u'0'])
 
 			try:
-				if self.host.user_config[self.addr[0]] == conf_str:
+				if self.host.user_config[self.adr[0]] == conf_str:
 					return
 			except:
 				pass
 
-			self.host.user_config[self.addr[0]] = conf_str
+			self.host.user_config[self.adr[0]] = conf_str
 			self.host.user_config_changed = True
 
 			if self.echo_on:
@@ -618,7 +599,7 @@ class VT100_Client(asyncore.dispatcher):
 
 			if self.dead:
 				whoops('refreshing dead client #wow #whoa')
-				try: print('*** i am {0}'.format(self.addr))
+				try: print('*** i am {0}'.format(self.adr))
 				except: pass
 				try: print('*** i am [{0}]'.format(self.user.nick))
 				except: pass
@@ -1559,7 +1540,7 @@ class VT100_Client(asyncore.dispatcher):
 
 	def conf_wizard(self, growth):
 		#print('conf_wizard:  {0}'.format(self.wizard_stage))
-		if self.addr[0] == '127.0.0.1':
+		if self.adr[0] == '127.0.0.1':
 			if u'\x03' in self.in_text:
 				self.world.core.shutdown()
 
@@ -1571,11 +1552,11 @@ class VT100_Client(asyncore.dispatcher):
 				self.is_bot = True
 
 				print('     is bot:  {0}  {1}'.format(
-					self.user.nick, self.addr[0]))
+					self.user.nick, self.adr[0]))
 				
 				self.host.schedule_kick(self, 69,
 					'    botkick:  {0}  {1}'.format(
-					self.user.nick, self.addr[0]))
+					self.user.nick, self.adr[0]))
 
 		if self.wizard_stage.startswith('bot'):
 			nline = u'\x0d\x0a\x00'
@@ -1755,7 +1736,7 @@ class VT100_Client(asyncore.dispatcher):
 				# acceptable if delta is exactly 2
 				# and the final characters are newline-ish
 				print('client burst  {0}  {1}  {2}'.format(
-					self.user.nick, self.addr[0], delta))
+					self.user.nick, self.adr[0], delta))
 
 				if delta > 2 or btext[-1] not in nline:
 					if self.wizard_maxdelta < delta:
@@ -1773,7 +1754,7 @@ class VT100_Client(asyncore.dispatcher):
 					nl = btext[nl_a:nl_b+1]
 					self.reassign_retkey(nl.decode('utf-8'))
 					print('client crlf:  {0}  {1}  {2}'.format(
-						self.user.nick, self.addr[0], b2hex(nl)))
+						self.user.nick, self.adr[0], b2hex(nl)))
 
 				if self.wizard_maxdelta >= nl_a / 2:
 					self.echo_on = True
@@ -2003,13 +1984,13 @@ class VT100_Client(asyncore.dispatcher):
 					u'n' if self.linemode else u'Y',
 					u'Y' if self.vt100    else u'n',
 					u'n' if self.echo_on  else u'Y',
-					self.codec, self.user.nick, self.addr[0]))
+					self.codec, self.user.nick, self.adr[0]))
 			else:
 				print('client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}\n           :  {4}  {5}'.format(
 					u'\033[1;31m' if self.linemode else u'\033[1;32m',
 					u'\033[32m'   if self.vt100    else u'\033[31m',
 					u'\033[31m'   if self.echo_on  else u'\033[32m',
-					self.codec, self.user.nick, self.addr[0]))
+					self.codec, self.user.nick, self.adr[0]))
 
 			if self.num_telnet_negotiations == 0:
 				self.request_terminal_size()

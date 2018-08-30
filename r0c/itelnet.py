@@ -170,8 +170,7 @@ class TelnetClient(VT100_Client):
 
 			data = self.recv(8192)
 			if not data:
-				if not self.dead:
-					self.host.part(self)
+				self.handle_close()
 				return
 			
 			if HEXDUMP_IN:

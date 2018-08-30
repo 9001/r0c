@@ -69,13 +69,13 @@ class User(object):
 		self.nick_len = None         # visible segment for self
 
 	def __unicode__(self):
-		return u'User {0} {1}'.format(self.nick, self.client.addr[0])
+		return u'User {0} {1}'.format(self.nick, self.client.adr[0])
 
 	def __str__(self):
-		return 'User {0} {1}'.format(self.nick, self.client.addr[0])
+		return 'User {0} {1}'.format(self.nick, self.client.adr[0])
 
 	def __repr__(self):
-		return 'User({0}, {1})'.format(repr(self.nick), repr(self.client.addr[0]))
+		return 'User({0}, {1})'.format(repr(self.nick), repr(self.client.adr[0]))
 
 	def __lt__(self, other):
 		return self.nick < other.nick
@@ -91,7 +91,7 @@ class User(object):
 					yield ch1 + ch2
 
 	def set_rand_nick(self):
-		plain_base = NICK_SALT + u'{0}'.format(self.client.addr[0])
+		plain_base = NICK_SALT + u'{0}'.format(self.client.adr[0])
 		for suffix in self.pattern_gen():
 			plain = plain_base + suffix
 			nv = hashlib.sha256(plain.encode('utf-8')).digest()
@@ -205,7 +205,7 @@ class User(object):
 			return True
 
 		print('denied exec:  /{0} {1} from {2} ({3})'.format(
-			cmd, arg, self.nick, self.client.addr))
+			cmd, arg, self.nick, self.client.adr))
 
 		inf = self.world.get_priv_chan(self, u'r0c-status').nchan
 		
@@ -296,7 +296,7 @@ class User(object):
 					return
 
 				print('nick change:  {2} {0} -> {1}'.format(
-					self.nick, new_nick, self.client.addr[0]))
+					self.nick, new_nick, self.client.adr[0]))
 				
 				for uchan in self.chans:
 					self.world.send_chan_msg(u'--', uchan.nchan,
@@ -496,7 +496,7 @@ class User(object):
 				for user in sorted(self.world.users):
 					self.world.send_chan_msg(
 						u'--', inf, u'{0} {1} {2}'.format(
-						user.client.addr[0].ljust(15),
+						user.client.adr[0].ljust(15),
 						u'ok ' if user.active_chan else u'wiz',
 						user.nick))
 				self.world.send_chan_msg(u'--', inf, u'----- chans -----')
