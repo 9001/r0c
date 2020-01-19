@@ -1,6 +1,11 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from . import util as Util
+from .util import print
+
+from datetime import datetime
+import calendar
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -8,12 +13,6 @@ if __name__ == "__main__":
             "*" * 72
         )
     )
-
-import threading
-import datetime
-import calendar
-
-from .util import *
 
 
 class NChannel(object):
@@ -128,9 +127,9 @@ class VisMessage(object):
         self.vt100 = ch.user.client.vt100
 
         if not msg or not msg.user:
-            whoops("msg bad")
+            Util.whoops("msg bad")
         if not ch or not ch.user:
-            whoops("user bad")
+            Util.whoops("user bad")
 
         self.unformatted = txt[0]
         self.hilight = bool(ch.user.nick_re.search(msg.txt))
@@ -204,13 +203,13 @@ class Message(object):
             self.sno = 0
 
     def __unicode__(self):
-        hhmmss = datetime.datetime.utcfromtimestamp(self.ts).strftime("%Y-%m%d-%H%M%S")
+        hhmmss = datetime.utcfromtimestamp(self.ts).strftime("%Y-%m%d-%H%M%S")
         return u"Message {0:x} time({1},{2}) from({3}) body({4})".format(
             id(self), self.ts, hhmmss, self.user, self.txt
         )
 
     def __str__(self):
-        hhmmss = datetime.datetime.utcfromtimestamp(self.ts).strftime("%Y-%m%d-%H%M%S")
+        hhmmss = datetime.utcfromtimestamp(self.ts).strftime("%Y-%m%d-%H%M%S")
         return "Message {0:x} time({1},{2}) from({3}) body({4})".format(
             id(self), self.ts, hhmmss, self.user, self.txt
         )

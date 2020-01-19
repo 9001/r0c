@@ -1,6 +1,24 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from .__version__ import S_VERSION, S_BUILD_DT
+from .__init__ import EP, PY2
+from . import config as Config
+from . import util as Util
+from .util import print
+from . import chat as Chat
+from . import world as World
+from . import diag as Diag
+
+import re
+import time
+import hashlib
+import threading
+from datetime import datetime
+
+# debug imports
+import code
+import gc
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -8,16 +26,6 @@ if __name__ == "__main__":
             "*" * 72
         )
     )
-
-import re
-import hashlib
-
-# debug imports
-import code
-import gc
-
-from .util import *
-from .chat import *
 
 
 HELP_INTRO = u"""\
@@ -95,7 +103,7 @@ class User(object):
                     yield ch1 + ch2
 
     def set_rand_nick(self):
-        plain_base = NICK_SALT + u"{0}".format(self.client.adr[0])
+        plain_base = Config.NICK_SALT + u"{0}".format(self.client.adr[0])
         for suffix in self.pattern_gen():
             plain = plain_base + suffix
             nv = hashlib.sha256(plain.encode("utf-8")).digest()
@@ -104,7 +112,7 @@ class User(object):
             else:
                 nv = int.from_bytes(nv, "big")
 
-            nv = b35enc(nv)[:6]
+            nv = Util.b35enc(nv)[:6]
 
             if not self.world.find_user(nv):
                 self.set_nick(nv)
@@ -170,7 +178,7 @@ class User(object):
         nchan = uchan.nchan
         nchan.topic = u"r0c readme (and status info)"
 
-        msg = Message(nchan, time.time(), u"-nfo-", text)
+        msg = Chat.Message(nchan, time.time(), u"-nfo-", text)
         nchan.msgs.append(msg)
 
         if False:
@@ -181,7 +189,7 @@ class User(object):
                 text.append(lipsum1)
                 text.append(lipsum2)
             for ln in text:
-                nchan.msgs.append(Message(nchan, time.time(), u"-nfo-", ln))
+                nchan.msgs.append(Chat.Message(nchan, time.time(), u"-nfo-", ln))
 
         self.new_active_chan = uchan
 
@@ -280,10 +288,9 @@ class User(object):
                 return
 
             # TODO: make this more lenient?
-            legit_chars = azAZ
+            legit_chars = Util.azAZ
             legit_chars += u"0123456789_-"
             new_nick = u""
-            nick_re = u""
             for ch in arg:
                 if ch in legit_chars:
                     new_nick += ch
@@ -320,7 +327,6 @@ class User(object):
                 )
                 return
 
-            other_user = None
             with self.world.mutex:
                 if self.world.find_user(new_nick):
                     self.world.send_chan_msg(
@@ -643,7 +649,7 @@ class User(object):
                     inf,
                     u"""[goto]
   {1} msgs since {2} in {0}
-  
+
   command usage:
     /g 19:47             jump to time
     /g 2018-01-21        jump to date
@@ -654,7 +660,7 @@ class User(object):
 """.format(
                         nch.get_name(),
                         len(nch.msgs),
-                        datetime.datetime.utcfromtimestamp(nch.msgs[0].ts).strftime(
+                        datetime.utcfromtimestamp(nch.msgs[0].ts).strftime(
                             "%Y-%m-%d, %H:%M"
                         ),
                     ),
@@ -676,19 +682,19 @@ class User(object):
                 m = re.match("(^[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2})$", arg)
                 if m:
                     ht = u"{0}T{1}:00".format(*m.groups())
-                    ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
+                    ch.jump_to_time(datetime.strptime(ht, tfmt))
                     return
 
                 m = re.match("(^[0-9]{4}-[0-9]{2}-[0-9]{2})$", arg)
                 if m:
                     ht = u"{0}T00:00:00".format(m.group(1))
-                    ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
+                    ch.jump_to_time(datetime.strptime(ht, tfmt))
                     return
 
                 m = re.match("(^[0-9]{2}:[0-9]{2})$", arg)
                 if m:
                     ht = u"{0}T{1}:00".format(time.strftime("%Y-%m-%d"), m.group(1))
-                    ch.jump_to_time(datetime.datetime.strptime(ht, tfmt))
+                    ch.jump_to_time(datetime.strptime(ht, tfmt))
                     return
 
                 self.world.send_chan_msg(
@@ -875,7 +881,7 @@ class User(object):
                 return
 
             print("memdump started")
-            memory_dump()
+            Diag.memory_dump()
             print("memdump done")
 
         elif cmd == u"repl":
@@ -913,7 +919,7 @@ class User(object):
         # re.IGNORECASE doesn't work
         # this is dumb
         for ch in re.escape(new_nick):
-            if not ch in azAZ:
+            if ch not in Util.azAZ:
                 nick_re += ch
             else:
                 nick_re += u"[{0}{1}]".format(ch.lower(), ch.upper())
@@ -936,7 +942,7 @@ class User(object):
         if arg == u"intro":
             txt = HELP_INTRO
         else:
-            legit_chars = azAZ
+            legit_chars = Util.azAZ
             page = ""
             for ch in arg:
                 if ch in legit_chars:

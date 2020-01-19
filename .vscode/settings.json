@@ -33,7 +33,8 @@
     "python.linting.flake8Enabled": true,
     "python.linting.banditEnabled": true,
     "python.linting.flake8Args": [
-        "--max-line-length=120"
+        "--max-line-length=120",
+        "--ignore=E501,E203,E722,W503"
     ],
     "python.linting.banditArgs": [],
     "python.formatting.provider": "black",

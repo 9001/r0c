@@ -1,6 +1,14 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from .__init__ import EP, PY2
+from . import config as Config
+from . import util as Util
+from .util import print
+from . import ivt100 as Ivt100
+
+import time
+import struct
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -9,12 +17,6 @@ if __name__ == "__main__":
         )
     )
 
-import asyncore
-import struct
-import sys
-
-from .util import *
-from .ivt100 import *
 
 # from net::telnet (telnet.rb) doc by William Webber and Wakou Aoyama
 # OPT_([^ ]*) .*("\\x..") # (.*)
@@ -69,7 +71,7 @@ xff = b"\xff"
 xf0 = b"\xf0"
 
 
-if not FORCE_LINEMODE:
+if not Config.FORCE_LINEMODE:
     # standard operation procedure;
     # we'll handle all rendering
 
@@ -127,18 +129,18 @@ if not PY2:
     neg_wont = list_2to3(neg_wont)
 
 
-class TelnetServer(VT100_Server):
+class TelnetServer(Ivt100.VT100_Server):
     def __init__(self, host, port, world, other_if):
-        VT100_Server.__init__(self, host, port, world, other_if)
+        Ivt100.VT100_Server.__init__(self, host, port, world, other_if)
         self.user_config_path = EP.log + "cfg.telnet"
 
     def gen_remote(self, socket, addr, user):
         return TelnetClient(self, socket, addr, self.world, user)
 
 
-class TelnetClient(VT100_Client):
+class TelnetClient(Ivt100.VT100_Client):
     def __init__(self, host, socket, address, world, user):
-        VT100_Client.__init__(self, host, socket, address, world, user)
+        Ivt100.VT100_Client.__init__(self, host, socket, address, world, user)
 
         # if FORCE_LINEMODE:
         # 	self.y_input, self.y_status = self.y_status, self.y_input
@@ -157,14 +159,14 @@ class TelnetClient(VT100_Client):
                 self.handle_close()
                 return
 
-            if HEXDUMP_IN:
-                hexdump(data, "-->>")
+            if Config.HEXDUMP_IN:
+                Util.hexdump(data, "-->>")
 
-            if self.wire_log and LOG_RX:
+            if self.wire_log and Config.LOG_RX:
                 self.wire_log.write(
                     "{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
                 )
-                hexdump(data, ">", self.wire_log)
+                Util.hexdump(data, ">", self.wire_log)
 
             self.in_bytes += data
             text_len = len(self.in_text)
@@ -198,13 +200,13 @@ class TelnetClient(VT100_Client):
 
                     if is_inband or is_partial:
 
-                        if DBG and is_partial and not is_inband:
+                        if Config.DBG and is_partial and not is_inband:
                             print(
                                 "need more data to parse unicode codepoint at {0} in {1}/{2}".format(
                                     uee.start, decode_until, len(self.in_bytes)
                                 )
                             )
-                            hexdump(
+                            Util.hexdump(
                                 self.in_bytes[max(0, decode_until - 8) : decode_until],
                                 "XXX ",
                             )
@@ -227,7 +229,7 @@ class TelnetClient(VT100_Client):
                             )
                         )
 
-                        hexdump(self.in_bytes, "XXX ")
+                        Util.hexdump(self.in_bytes, "XXX ")
                         try:
                             src = u"{0}".format(
                                 self.in_bytes[:decode_until].decode(
@@ -257,20 +259,24 @@ class TelnetClient(VT100_Client):
                         self.in_bytes = self.in_bytes[3:]
 
                         if not subjects.get(cmd[2]):
-                            print("[X] subject not implemented: ".format(b2hex(cmd)))
+                            print(
+                                "[X] subject not implemented: ".format(Util.b2hex(cmd))
+                            )
                             continue
 
-                        if DBG:
+                        if Config.DBG:
                             print(
                                 "-->> negote:  {0}  {1} {2}".format(
-                                    b2hex(cmd), verbs.get(cmd[1]), subjects.get(cmd[2])
+                                    Util.b2hex(cmd),
+                                    verbs.get(cmd[1]),
+                                    subjects.get(cmd[2]),
                                 )
                             )
 
                         response = None
                         if cmd in self.neg_done:
-                            if DBG:
-                                print("-><- n.loop:  {0}".format(b2hex(cmd)))
+                            if Config.DBG:
+                                print("-><- n.loop:  {0}".format(Util.b2hex(cmd)))
 
                         elif cmd[:2] == b"\xff\xfe":  # dont
                             response = b"\xfc"  # will not
@@ -283,10 +289,10 @@ class TelnetClient(VT100_Client):
                                 response = b"\xfc"  # will not
 
                         if response is not None:
-                            if DBG:
+                            if Config.DBG:
                                 print(
                                     "<<-- n.resp:  {0}  {1} -> {2}".format(
-                                        b2hex(cmd[:3]),
+                                        Util.b2hex(cmd[:3]),
                                         verbs.get(cmd[1]),
                                         verbs.get(response[0]),
                                     )
@@ -302,7 +308,7 @@ class TelnetClient(VT100_Client):
                             # self.in_bytes = self.in_bytes[0:0]
                             print(
                                 "need more data for sub-negotiation: {0}".format(
-                                    b2hex(self.in_bytes)
+                                    Util.b2hex(self.in_bytes)
                                 )
                             )
                             break
@@ -310,8 +316,8 @@ class TelnetClient(VT100_Client):
                             # cmd = b''.join([self.in_bytes[:12]])  # at least 9
                             cmd = self.in_bytes[:eon]
                             self.in_bytes = self.in_bytes[eon + 2 :]
-                            if DBG:
-                                print("-->> subneg:  {0}".format(b2hex(cmd)))
+                            if Config.DBG:
+                                print("-->> subneg:  {0}".format(Util.b2hex(cmd)))
 
                             if cmd[2] == b"\x1f"[0]:
                                 full_redraw = True
@@ -324,19 +330,19 @@ class TelnetClient(VT100_Client):
                                         break
                                     cmd = cmd[:ofs] + cmd[ofs + 1 :]
 
-                                if DBG:
-                                    print("           :  {0}".format(b2hex(cmd)))
+                                if Config.DBG:
+                                    print("           :  {0}".format(Util.b2hex(cmd)))
 
                                 self.set_term_size(*struct.unpack(">HH", cmd[3:7]))
 
                     else:
                         print("=== invalid negotiation:")
-                        hexdump(self.in_bytes, "XXX ")
+                        Util.hexdump(self.in_bytes, "XXX ")
                         self.in_bytes = self.in_bytes[0:0]
 
                 if len(self.in_bytes) == len_at_start:
                     print("=== unhandled data from client:")
-                    hexdump(self.in_bytes, "XXX ")
+                    Util.hexdump(self.in_bytes, "XXX ")
                     self.in_bytes = self.in_bytes[0:0]
                     break
 

@@ -1,10 +1,10 @@
 #!/bin/bash
-[[ -e r0c/__main__.py ]] || cd ..
-[[ -e r0c/__main__.py ]] || cd ~/dev/r0c
-[[ -e r0c/__main__.py ]] || exit 1
+[ -e r0c/__main__.py ] || cd ..
+[ -e r0c/__main__.py ] || cd ~/dev/r0c
+[ -e r0c/__main__.py ] || exit 1
 
 ports='2323 1531'
-[[ $(id -u) -eq 0 ]] &&
+[ $(id -u) -eq 0 ] &&
 	ports='23 531'
 
 while true
@@ -16,7 +16,7 @@ do
 
 		python$n -m r0c $ports
 		
-		[[ $? -eq 1 ]] &&
+		[ $? -eq 1 ] &&
 			sleep 1
 	done
 done

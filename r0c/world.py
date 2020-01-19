@@ -1,6 +1,22 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from .__init__ import EP, PY2
+from . import config as Config
+from . import util as Util
+from .util import print
+from . import chat as Chat
+
+import os
+import re
+import time
+import threading
+from datetime import datetime
+
+if PY2:
+    from Queue import Queue
+else:
+    from queue import Queue
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -8,18 +24,6 @@ if __name__ == "__main__":
             "*" * 72
         )
     )
-
-import re
-import os
-import datetime
-
-from .util import *
-from .chat import *
-
-if PY2:
-    from Queue import Queue
-else:
-    from queue import Queue
 
 
 class World(object):
@@ -33,7 +37,7 @@ class World(object):
         self.mutex = threading.RLock()
 
         # config
-        self.messages_per_log_file = MESSAGES_PER_LOG_FILE
+        self.messages_per_log_file = Config.MESSAGES_PER_LOG_FILE
 
         # stats for benchmarking
         self.num_joins = 0
@@ -91,8 +95,8 @@ class World(object):
                 uchan.user.client.refresh(False)
 
     def send_chan_msg(self, from_nick, nchan, text, ping_self=True):
-        max_hist_mem = MAX_HIST_MEM
-        msg_trunc_size = MSG_TRUNC_SIZE
+        max_hist_mem = Config.MAX_HIST_MEM
+        msg_trunc_size = Config.MSG_TRUNC_SIZE
         with self.mutex:
             self.num_messages += 1
             if nchan.name is None and not from_nick.startswith(u"-"):
@@ -129,7 +133,7 @@ class World(object):
                             # fallthrough to send message
 
             now = time.time()
-            msg = Message(nchan, now, from_nick, text)
+            msg = Chat.Message(nchan, now, from_nick, text)
             nchan.msgs.append(msg)
             nchan.latest = msg.ts
 
@@ -155,9 +159,9 @@ class World(object):
                     # 	break
                     if PY2:
                         if isinstance(uchan.user.nick, str):
-                            whoops("uchan.user.nick is bytestring")
+                            Util.whoops("uchan.user.nick is bytestring")
                         if isinstance(from_nick, str):
-                            whoops("from_nick is bytestring")
+                            Util.whoops("from_nick is bytestring")
 
                     if uchan.alias == "r0c-status":
                         if ping_self:
@@ -194,7 +198,7 @@ class World(object):
                     return uchan
 
             self.num_joins += 1
-            uchan = UChannel(user, nchan, alias)
+            uchan = Chat.UChannel(user, nchan, alias)
             user.chans.append(uchan)
             nchan.uchans.append(uchan)
             nchan.user_act_ts[user.nick] = time.time()
@@ -224,14 +228,16 @@ class World(object):
             name = name.strip()
             nchan = self.get_pub_chan(name)
             if nchan is None:
-                nchan = NChannel(name, u"#{0} - no topic has been set".format(name))
+                nchan = Chat.NChannel(
+                    name, u"#{0} - no topic has been set".format(name)
+                )
                 nchan.msgs.append(
-                    Message(
+                    Chat.Message(
                         nchan,
                         time.time(),
                         u"--",
                         u"\033[36mchannel created at \033[1m{0}".format(
-                            datetime.datetime.utcnow().strftime("%Y-%m-%d, %H:%M:%SZ")
+                            datetime.utcnow().strftime("%Y-%m-%d, %H:%M:%SZ")
                         ),
                     )
                 )
@@ -248,7 +254,7 @@ class World(object):
         with self.mutex:
             uchan = self.get_priv_chan(user, alias)
             if uchan is None:
-                nchan = NChannel(None, u"DM with [[uch_a]]")
+                nchan = Chat.NChannel(None, u"DM with [[uch_a]]")
                 self.priv_ch.append(nchan)
                 uchan = self.join_chan_obj(user, nchan)
                 uchan.alias = alias
@@ -382,7 +388,7 @@ class World(object):
         ln = u"???"
         t2 = time.time()
         chunks = [nchan.msgs]
-        n_left = MAX_HIST_LOAD - len(nchan.msgs)
+        n_left = Config.MAX_HIST_LOAD - len(nchan.msgs)
         bytes_loaded = 0
         try:
             for fn in reversed(sorted(files)):
@@ -396,7 +402,7 @@ class World(object):
                     for ln in f:
                         ts, user, txt = ln.decode("utf-8").rstrip(u"\n").split(u" ", 2)
 
-                        chunk.append(Message(None, int(ts, 16) / 8.0, user, txt))
+                        chunk.append(Chat.Message(None, int(ts, 16) / 8.0, user, txt))
 
                     bytes_loaded += f.tell()
 
@@ -412,7 +418,7 @@ class World(object):
                 if n_left <= 0:
                     break
         except:
-            whoops(ln)
+            Util.whoops(ln)
 
         # print('  chan hist:  merging {0} chunks'.format(len(chunks)))
         nchan.msgs = []
@@ -428,7 +434,7 @@ class World(object):
         t3 = time.time()
         print(
             "  chan hist:  {0} msgs, {1:.0f} kB, {2:.2f} + {3:.2f} sec, #{5}".format(
-                MAX_HIST_LOAD - n_left,
+                Config.MAX_HIST_LOAD - n_left,
                 bytes_loaded / 1024.0,
                 t2 - t1,
                 t3 - t2,
@@ -459,7 +465,7 @@ class World(object):
             except:
                 pass
 
-        ts = datetime.datetime.utcnow().strftime("%Y-%m%d-%H%M%S")
+        ts = datetime.utcnow().strftime("%Y-%m%d-%H%M%S")
         log_fn = "{0}/{1}".format(log_dir, ts)
 
         while os.path.isfile(log_fn):

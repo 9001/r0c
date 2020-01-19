@@ -13,8 +13,8 @@ __copyright__ = 2018
 
 import os
 import time
-import datetime
 import calendar
+from datetime import datetime
 
 
 te = time.time()
@@ -28,14 +28,14 @@ except:
 with open("../log/g/0000-0000-000000", "wb") as f:
     last_date = None
     while ts < te:
-        ht = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d, %H:%M:%S")
+        ht = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d, %H:%M:%S")
         date = ht[:10]
 
         if date != last_date:
             if last_date:
                 fmt = "%Y-%m-%dT%H:%M:%S"
                 mht = "{0}T00:00:00".format(date)
-                mts = datetime.datetime.strptime(mht, fmt)
+                mts = datetime.strptime(mht, fmt)
                 # mts = mts.timestamp()   # BUG: assumes local time
                 mts = calendar.timegm(mts.timetuple())
                 print(mts)
@@ -52,4 +52,3 @@ with open("../log/g/0000-0000-000000", "wb") as f:
         )
 
         ts += 60 * 32 + 7
-

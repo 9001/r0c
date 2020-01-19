@@ -13,15 +13,15 @@ which md5sum 2>/dev/null >/dev/null &&
 
 mode="$1"
 
-[[ "x$mode" == x ]] &&
+[ "x$mode" == x ] &&
 {
 	echo "need argument 1:  (D)ry or (U)pload"
 	echo
 	exit 1
 }
 
-[[ -e r0c/__main__.py ]] || cd ..
-[[ -e r0c/__main__.py ]] ||
+[ -e r0c/__main__.py ] || cd ..
+[ -e r0c/__main__.py ] ||
 {
 	echo "run me from within the r0c folder"
 	echo
@@ -71,7 +71,7 @@ pydir="$(
 	sed -r 's@[^/]*$@@'
 )"
 
-[[ -e "$pydir/activate" ]] &&
+[ -e "$pydir/activate" ] &&
 {
 	echo '`deactivate` your virtualenv'
 	exit 1
@@ -88,7 +88,7 @@ have m2r
 ./setup.py clean2
 ./setup.py rstconv
 ./setup.py sdist bdist_wheel --universal
-[[ "x$mode" == "xu" ]] &&
+[ "x$mode" == "xu" ] &&
 	./setup.py sdist bdist_wheel upload -r pypi
 
 cat <<EOF

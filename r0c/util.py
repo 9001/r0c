@@ -1,13 +1,7 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
-
-if __name__ == "__main__":
-    raise RuntimeError(
-        "\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}".format(
-            "*" * 72
-        )
-    )
+from .__init__ import EP, PY2, WINDOWS
+from . import config as Config
 
 import traceback
 import threading
@@ -17,7 +11,13 @@ import sys
 import os
 import platform
 
-from .config import *
+
+if __name__ == "__main__":
+    raise RuntimeError(
+        "\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}".format(
+            "*" * 72
+        )
+    )
 
 
 print_mutex = threading.Lock()
@@ -85,7 +85,7 @@ def hexdump(pk, prefix="", file=None):
         blk_width = 4
     else:
         line_fmt = u"{0}{1:8x}  {2}{3} {4}"
-        hex_width = HEX_WIDTH
+        hex_width = Config.HEX_WIDTH
         blk_width = 8
 
     lpk = len(pk)
@@ -447,7 +447,7 @@ def visualize_all_unicode_codepoints_as_utf8():
     print("collecting all codepoints until {0}d, 0x{1:x}".format(nmax, nmax))
 
     if PY2:
-        to_unicode = unichr
+        to_unicode = unichr  # noqa: F821
         from_char = ord
     else:
         to_unicode = chr
@@ -588,3 +588,40 @@ def compat_chans_in_root():
 
         print("upgrade done \\o/")
         print()
+
+
+# ---------------------------------------------------------------------
+# dumping ground for mostly useless code below
+
+
+def test_ansi_annotation():
+    rangetype = range
+    try:
+        rangetype = xrange  # noqa: F405,F821
+    except:
+        pass
+    ansi_txt = (
+        "\033[1;33mHello \033[1;32mWorld\033[0m! This \033[7mis\033[0m a test.\033[A"
+    )
+    ansi_txt = "\033[mf\033[s\033[w\033[has\033[3451431613gt\033[m \033[s\033[g\033[s\033[g\033[s\033[gcod\033[me\033[x"
+    rv = visual_indices(ansi_txt)
+    print(" ".join(ansi_txt.replace("\033", "*")))
+    print(" ".join([str(x % 10) for x in rangetype(len(ansi_txt))]))
+    print(" ".join([str(x) for x in rv]))
+    print("{0} {1}".format(visual_length(ansi_txt), len(rv)))
+    visual = ""
+    for ofs in rv:
+        visual += ansi_txt[ofs]
+    print("[{0}]".format(visual))
+
+    for outer_n in rangetype(3):
+
+        t0 = time.time()
+        for n in rangetype(100000):
+            rv = visual_indices(ansi_txt)
+        print(str(time.time() - t0))
+
+        t0 = time.time()
+        for n in rangetype(100000):
+            rv = visual_length(ansi_txt)
+        print(str(time.time() - t0))

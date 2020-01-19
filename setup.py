@@ -2,7 +2,6 @@
 # coding: utf-8
 from __future__ import print_function
 
-import io
 import os
 import sys
 from glob import glob
@@ -19,8 +18,6 @@ except ImportError:
     from distutils.core import setup, Command
 
     setuptools_available = False
-
-from distutils.spawn import spawn
 
 if "bdist_wheel" in sys.argv and not setuptools_available:
     print("cannot build wheel without setuptools")

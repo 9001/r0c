@@ -2,15 +2,15 @@
 set -e
 
 w=$(tput cols)
-[[ $w -gt 48 ]] ||
+[ $w -gt 48 ] ||
 {
 	echo "screen 2 smol"
 	exit 1
 }
 
-[[ -e r0c/__main__.py ]] || cd ..
-[[ -e r0c/__main__.py ]] || cd ~/dev/r0c
-[[ -e r0c/__main__.py ]] || exit 1
+[ -e r0c/__main__.py ] || cd ..
+[ -e r0c/__main__.py ] || cd ~/dev/r0c
+[ -e r0c/__main__.py ] || exit 1
 cd log/wire
 
 while read ts ip port

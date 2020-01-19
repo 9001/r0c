@@ -12,15 +12,15 @@ which md5sum 2>/dev/null >/dev/null &&
 
 ver="$1"
 
-[[ "x$ver" == x ]] &&
+[ "x$ver" == x ] &&
 {
 	echo "need argument 1:  version"
 	echo
 	exit 1
 }
 
-[[ -e r0c/__main__.py ]] || cd ..
-[[ -e r0c/__main__.py ]] ||
+[ -e r0c/__main__.py ] || cd ..
+[ -e r0c/__main__.py ] ||
 {
 	echo "run me from within the r0c folder"
 	echo
@@ -31,8 +31,8 @@ out_dir="$(pwd | $sed -r 's@/[^/]+$@@')"
 zip_path="$out_dir/r0c-$ver.zip"
 tgz_path="$out_dir/r0c-$ver.tar.gz"
 
-[[ -e "$zip_path" ]] ||
-[[ -e "$tgz_path" ]] &&
+[ -e "$zip_path" ] ||
+[ -e "$tgz_path" ] &&
 {
 	echo "found existing archives for this version"
 	echo "  $zip_path"

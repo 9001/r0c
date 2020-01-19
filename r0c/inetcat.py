@@ -1,6 +1,13 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from .__init__ import EP
+from . import config as Config
+from . import util as Util
+from .util import print
+from . import ivt100 as Ivt100
+
+import time
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -9,25 +16,19 @@ if __name__ == "__main__":
         )
     )
 
-import asyncore
-import sys
 
-from .util import *
-from .ivt100 import *
-
-
-class NetcatServer(VT100_Server):
+class NetcatServer(Ivt100.VT100_Server):
     def __init__(self, host, port, world, other_if):
-        VT100_Server.__init__(self, host, port, world, other_if)
+        Ivt100.VT100_Server.__init__(self, host, port, world, other_if)
         self.user_config_path = EP.log + "cfg.netcat"
 
     def gen_remote(self, socket, addr, user):
         return NetcatClient(self, socket, addr, self.world, user)
 
 
-class NetcatClient(VT100_Client):
+class NetcatClient(Ivt100.VT100_Client):
     def __init__(self, host, socket, address, world, user):
-        VT100_Client.__init__(self, host, socket, address, world, user)
+        Ivt100.VT100_Client.__init__(self, host, socket, address, world, user)
 
         self.looks_like_telnet = {
             b"\xff\xfe": 1,
@@ -51,14 +52,14 @@ class NetcatClient(VT100_Client):
                     self.host.part(self)
                 return
 
-            if HEXDUMP_IN:
-                hexdump(data, "-->>")
+            if Config.HEXDUMP_IN:
+                Util.hexdump(data, "-->>")
 
-            if self.wire_log and LOG_RX:
+            if self.wire_log and Config.LOG_RX:
                 self.wire_log.write(
                     "{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
                 )
-                hexdump(data, ">", self.wire_log)
+                Util.hexdump(data, ">", self.wire_log)
 
             self.in_bytes += data
 
@@ -82,13 +83,13 @@ class NetcatClient(VT100_Client):
                             uee.start, len(self.in_bytes)
                         )
                     )
-                    hexdump(self.in_bytes[-8:], "XXX ")
+                    Util.hexdump(self.in_bytes[-8:], "XXX ")
                     src = u"{0}".format(self.in_bytes[: uee.start].decode(self.codec))
                     self.in_bytes = self.in_bytes[uee.start :]
                 else:
                     # it can't be helped
                     print("warning: unparseable data:")
-                    hexdump(self.in_bytes, "XXX ")
+                    Util.hexdump(self.in_bytes, "XXX ")
                     src = u"{0}".format(
                         self.in_bytes[: uee.start].decode(
                             self.codec, "backslashreplace"

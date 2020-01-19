@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-
-# print('### hello from __init__.py #################################')
 
 import platform
 import sys
@@ -12,10 +10,8 @@ PY2 = sys.version_info[0] == 2
 if PY2:
     sys.dont_write_bytecode = True
 
-from .__version__ import *
 
-###
-### determine runtime environment
+# [ determine runtime environment ]
 #
 # setting the following members:
 # env: top of the python environment

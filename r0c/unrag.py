@@ -1,6 +1,11 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from . import util as Util
+from .util import print
+
+import time
+from collections import deque
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -8,8 +13,6 @@ if __name__ == "__main__":
             "*" * 72
         )
     )
-
-from .util import *
 
 
 # copied from  http://xxyxyz.org/line-breaking/
@@ -27,7 +30,7 @@ def unrag_1_linear(text, width):
     count = len(words)
     offsets = [0]
     for w in words:
-        offsets.append(offsets[-1] + visual_length(w))
+        offsets.append(offsets[-1] + Util.visual_length(w))
 
     minima = [0] + [10 ** 20] * count
     breaks = [0] * (count + 1)
@@ -103,15 +106,12 @@ def unrag_1_linear(text, width):
     return lines
 
 
-from collections import deque
-
-
 def unrag_2_binary(text, width):
     words = text.split()
     count = len(words)
     offsets = [0]
     for w in words:
-        offsets.append(offsets[-1] + visual_length(w))
+        offsets.append(offsets[-1] + Util.visual_length(w))
 
     minima = [0] * (count + 1)
     breaks = [0] * (count + 1)
@@ -168,7 +168,7 @@ def unrag_3_divide(text, width):
     count = len(words)
     offsets = [0]
     for w in words:
-        offsets.append(offsets[-1] + visual_length(w))
+        offsets.append(offsets[-1] + Util.visual_length(w))
 
     minima = [0] + [10 ** 20] * count
     breaks = [0] * (count + 1)
@@ -228,7 +228,7 @@ def unrag_4_shortest(text, width):
     count = len(words)
     offsets = [0]
     for w in words:
-        offsets.append(offsets[-1] + visual_length(w))
+        offsets.append(offsets[-1] + Util.visual_length(w))
 
     minima = [0] + [10 ** 20] * count
     breaks = [0] * (count + 1)
@@ -299,7 +299,7 @@ def unrag_layout_test_dump():
         print(msgw)
         results = []
         for wrapper in wrappers:
-            results.append(wrapper(" ".join(prewrap(msg, msgw)), msgw))
+            results.append(wrapper(" ".join(Util.prewrap(msg, msgw)), msgw))
             # results[-1].insert(0, '{0} {1}'.format(msgw, wrapper.__name__))
         txt = u""
         for row in range(0, 1000):
@@ -324,14 +324,16 @@ def unrag_layout_test_dump():
 
 def unrag_layout_test_interactive():
     try:
-        input = raw_input
+        input = raw_input  # noqa: F841
     except NameError:
         pass
 
     try:
         import msvcrt
     except:
-        import sys, tty, termios
+        import sys
+        import tty
+        import termios
 
     def getch():
         try:
@@ -357,7 +359,7 @@ def unrag_layout_test_interactive():
         if iwrapper >= len(wrappers):
             iwrapper = 0
 
-        pwrap = " ".join(prewrap(msg, msgw))
+        pwrap = " ".join(Util.prewrap(msg, msgw))
         wraps = []
         uniq_wraps = []
         for wrapper in wrappers:
@@ -470,5 +472,4 @@ unrag_4_shortest
 # unrag = unrag_1_linear    # 166sec
 # unrag = unrag_2_binary    # 150sec
 # unrag = unrag_3_divide    # 102sec
-unrag = unrag_4_shortest  #  82sec
-
+unrag = unrag_4_shortest  # 82sec

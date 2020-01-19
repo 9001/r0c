@@ -2,6 +2,21 @@
 # coding: utf-8
 from __future__ import print_function
 
+import builtins
+import multiprocessing
+import threading
+import asyncore
+import socket
+import struct
+import signal
+import random
+import time
+import sys
+import os
+
+sys.path.insert(1, os.path.join(sys.path[0], ".."))
+from r0c import util  # noqa: E402
+
 
 """stress.py: retr0chat stress tester"""
 __version__ = "0.9"
@@ -40,22 +55,8 @@ TELNET = True
 # config end
 
 
-import multiprocessing
-import threading
-import asyncore
-import socket
-import signal
-import random
-import time
-import sys
-import os
-
-sys.path.insert(1, os.path.join(sys.path[0], ".."))
-from r0c.util import *
-import builtins
-
 try:
-    print = __builtin__.print
+    print = __builtin__.print  # noqa: F821
 except:
     print = builtins.print
 
@@ -69,9 +70,9 @@ else:
 
 def get_term_size():
     """
-	https://github.com/chrippa/backports.shutil_get_terminal_size
-	MIT licensed
-	"""
+    https://github.com/chrippa/backports.shutil_get_terminal_size
+    MIT licensed
+    """
     import struct
 
     try:
@@ -183,7 +184,6 @@ class Client(asyncore.dispatcher):
         self.status_q.put(txt)
 
     def actor(self):
-        print_stages = False
         self.actor_active = True
         print("actor going up")
         while not self.stopping:
@@ -342,7 +342,7 @@ class Client(asyncore.dispatcher):
     def await_continue(self):
         self.in_text = u""
         t0 = time.time()
-        while not self.stopping and not "zxc mkl" in self.in_text:
+        while not self.stopping and "zxc mkl" not in self.in_text:
             time.sleep(0.1)
             if time.time() - t0 > 10:
                 break
@@ -590,7 +590,7 @@ class Client(asyncore.dispatcher):
         self.dead = True
 
     def handle_error(self):
-        whoops()
+        util.whoops()
 
     def tx(self, bv):
         self.txb(bv.encode("utf-8"))
@@ -666,6 +666,7 @@ class SubCore(object):
 
         self.client.close()
         self.stopped = True
+        return clean_shutdown
 
 
 class ClientAPI(object):
@@ -769,4 +770,3 @@ if __name__ == "__main__":
     core.run()
 
 # cat log | grep -E ' adding msg ' | awk '{printf "%.3f\n", $1-v; v=$1}' | sed -r 's/\.//;s/^0*//;s/^$/0/' | awk 'BEGIN {sum=0} $1<10000 {sum=sum+$1} NR%10==0 {v=sum/32; sum=0; printf "%" v "s\n", "" }' | tr ' ' '#'
-

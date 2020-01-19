@@ -1,6 +1,23 @@
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from .__init__ import EP, PY2, WINDOWS
+from . import config as Config
+from . import util as Util
+from .util import print
+from . import unrag as Unrag
+from . import chat as Chat
+from . import user as User
+
+import os
+import re
+import time
+import socket
+import asyncore
+import threading
+import binascii
+from datetime import datetime
+import operator
+
 
 if __name__ == "__main__":
     raise RuntimeError(
@@ -9,22 +26,6 @@ if __name__ == "__main__":
         )
     )
 
-import traceback
-import threading
-import asyncore
-import socket
-import binascii
-import datetime
-import operator
-import platform
-import sys
-import os
-
-from .config import *
-from .util import *
-from .chat import *
-from .user import *
-from .unrag import *
 
 if PY2:
     from Queue import Queue
@@ -72,11 +73,11 @@ class VT100_Server(asyncore.dispatcher):
             )
         )
 
-    def gen_remote(self, socket, addr, user):
+    def gen_remote(self, socket, addr, usr):
         raise RuntimeError("inherit me")
 
     def handle_error(self):
-        whoops()
+        Util.whoops()
 
     def handle_accept(self):
         with self.world.mutex:
@@ -97,9 +98,9 @@ class VT100_Server(asyncore.dispatcher):
                 print("[!] handshake error (probably a port scanner)")
                 return
 
-            user = User(self.world, adr)
-            remote = self.gen_remote(socket, adr, user)
-            self.world.add_user(user)
+            usr = User.User(self.world, adr)
+            remote = self.gen_remote(socket, adr, usr)
+            self.world.add_user(usr)
             self.clients.append(remote)
             remote.conf_wizard(0)
 
@@ -214,19 +215,19 @@ class VT100_Server(asyncore.dispatcher):
 
 
 class VT100_Client(asyncore.dispatcher):
-    def __init__(self, host, socket, address, world, user):
+    def __init__(self, host, socket, address, world, usr):
         asyncore.dispatcher.__init__(self, socket)
         # self.mutex = threading.RLock()
         self.host = host
         self.socket = socket
         self.adr = address
         self.world = world
-        self.user = user
+        self.user = usr
         self.dead = False  # set true at disconnect (how does asyncore work)
         self.is_bot = False
 
         self.wire_log = None
-        if LOG_RX or LOG_TX:
+        if Config.LOG_RX or Config.LOG_TX:
             log_fn = "{0}wire/{1}_{2}_{3}".format(
                 EP.log, int(time.time()), *list(self.adr)
             )
@@ -248,7 +249,7 @@ class VT100_Client(asyncore.dispatcher):
         self.in_text = u""
         self.in_text_full = u""
         self.num_telnet_negotiations = 0
-        self.slowmo_tx = SLOW_MOTION_TX
+        self.slowmo_tx = Config.SLOW_MOTION_TX
         self.set_codec("utf-8")
 
         # incoming requests
@@ -464,7 +465,7 @@ class VT100_Client(asyncore.dispatcher):
     def set_term_size(self, w, h):
         self.w = w
         self.h = h
-        if DBG:
+        if Config.DBG:
             print("terminal sz:  {0}x{1}".format(self.w, self.h))
 
         if self.w >= 512:
@@ -481,12 +482,12 @@ class VT100_Client(asyncore.dispatcher):
         self.handshake_sz = True
 
     def handshake_timeout(self):
-        if DBG:
+        if Config.DBG:
             print("handshake_sz  init")
 
         time.sleep(1)
 
-        if DBG:
+        if Config.DBG:
             if self.handshake_sz:
                 print("handshake_sz  timeout")
             else:
@@ -503,14 +504,14 @@ class VT100_Client(asyncore.dispatcher):
             if hist in self.esc_tab and self.esc_tab[hist]:
                 raise RuntimeError(
                     "partial escape code [{0}] matching fully defined escape code for [{1}]".format(
-                        b2hex(hist), act
+                        Util.b2hex(hist), act
                     )
                 )
             self.esc_tab[hist] = False
         if key in self.esc_tab and self.esc_tab[key] != act:
             raise RuntimeError(
                 "fully defined escape code [{0}] for [{1}] matches other escape code for [{2}]".format(
-                    b2hex(key), act, self.esc_tab[key]
+                    Util.b2hex(key), act, self.esc_tab[key]
                 )
             )
         self.esc_tab[key] = act
@@ -561,7 +562,7 @@ class VT100_Client(asyncore.dispatcher):
                 self.crash_case_1 += 1
             except:
                 self.crash_case_1 = 1
-                whoops()
+                Util.whoops()
             if not self.dead:
                 self.host.part(self)
 
@@ -570,7 +571,7 @@ class VT100_Client(asyncore.dispatcher):
             self.host.part(self)
 
     def handle_error(self):
-        whoops()
+        Util.whoops()
         if not self.dead:
             self.host.part(self)
 
@@ -590,15 +591,15 @@ class VT100_Client(asyncore.dispatcher):
         else:
             msg = src.get()
 
-        if HEXDUMP_OUT:
-            if len(msg) < HEXDUMP_TRUNC:
-                hexdump(msg, "<<--")
+        if Config.HEXDUMP_OUT:
+            if len(msg) < Config.HEXDUMP_TRUNC:
+                Util.hexdump(msg, "<<--")
             else:
                 print("<<--       :  [{0} byte]".format(len(msg)))
 
-        if self.wire_log and LOG_TX:
+        if self.wire_log and Config.LOG_TX:
             self.wire_log.write("{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
-            hexdump(msg, "<", self.wire_log)
+            Util.hexdump(msg, "<", self.wire_log)
 
         if self.slowmo_tx:
             end_pos = next(
@@ -632,7 +633,7 @@ class VT100_Client(asyncore.dispatcher):
                 return
 
             if self.dead:
-                whoops("refreshing dead client #wow #whoa")
+                Util.whoops("refreshing dead client #wow #whoa")
                 try:
                     print("*** i am {0}".format(self.adr))
                 except:
@@ -647,11 +648,11 @@ class VT100_Client(asyncore.dispatcher):
                 return
 
             if not self.user:
-                whoops("how did you get here without a user?")
+                Util.whoops("how did you get here without a user?")
                 return
 
             if not self.user.active_chan and not self.user.new_active_chan:
-                whoops(
+                Util.whoops(
                     "how did you get here without a chan? {0} {1}".format(
                         self.user.active_chan, self.user.new_active_chan
                     )
@@ -807,12 +808,12 @@ class VT100_Client(asyncore.dispatcher):
 
         if self.screen[0] != top_bar:
             self.screen[0] = top_bar
-            return trunc(top_bar, self.w)[0]
+            return Util.trunc(top_bar, self.w)[0]
         return u""
 
     def update_status_bar(self, full_redraw):
         preface = u"\033[{0}H\033[0;37;44;48;5;235m".format(self.h - self.y_status)
-        hhmmss = datetime.datetime.utcnow().strftime("%H%M%S")
+        hhmmss = datetime.utcnow().strftime("%H%M%S")
         uchan = self.user.active_chan
 
         # print('@@@ active chan = {0}, other chans {1}'.format(
@@ -859,7 +860,7 @@ class VT100_Client(asyncore.dispatcher):
                 len(nchan.msgs) - uchan.vis[-1].im
             )
 
-        line = trunc(
+        line = Util.trunc(
             u"{0}{1}   {2}: {3}{4}{5}{6}{7}\033[K".format(
                 preface,
                 hhmmss,
@@ -881,20 +882,20 @@ class VT100_Client(asyncore.dispatcher):
                 or (now % 5 == 1)
                 or ((hilights or activity) and now % 2 == 1)
             ):
-                return u"\r{0}   {1}> ".format(strip_ansi(line), self.user.nick)
+                return u"\r{0}   {1}> ".format(Util.strip_ansi(line), self.user.nick)
             return u""
 
         elif full_redraw:
             if self.screen[self.h - (self.y_status + 1)] != line:
                 self.screen[self.h - (self.y_status + 1)] = line
-                return trunc(line, self.w)[0]
+                return Util.trunc(line, self.w)[0]
 
         else:
             old = self.screen[self.h - (self.y_status + 1)]
             self.screen[self.h - (self.y_status + 1)] = line
 
             if len(old) != len(line):
-                return trunc(line, self.w)[0]
+                return Util.trunc(line, self.w)[0]
 
             cutoff = len(preface) + len(hhmmss)
             changed_part1 = old[:cutoff] != line[:cutoff]
@@ -902,7 +903,7 @@ class VT100_Client(asyncore.dispatcher):
 
             if changed_part2:
                 # send all of it
-                return trunc(line, self.w)[0]
+                return Util.trunc(line, self.w)[0]
 
             if changed_part1:
                 if int(time.time()) % 5 == 0:
@@ -929,8 +930,8 @@ class VT100_Client(asyncore.dispatcher):
             return u""
 
         if "\x0b" in self.linebuf or "\x0f" in self.linebuf:
-            ansi = convert_color_codes(self.linebuf, True)
-            chi = visual_indices(ansi)
+            ansi = Util.convert_color_codes(self.linebuf, True)
+            chi = Util.visual_indices(ansi)
         else:
             ansi = self.linebuf
             chi = list(range(len(ansi)))
@@ -974,7 +975,7 @@ class VT100_Client(asyncore.dispatcher):
                 except:
                     # seen in the wild, likely caused by that one guy with
                     # the stupidly long nickname; adding this just in case
-                    whoops("IT HAPPENED")
+                    Util.whoops("IT HAPPENED")
                     print("user     = {0}".format(self.user.nick))
                     try:
                         print(
@@ -987,7 +988,7 @@ class VT100_Client(asyncore.dispatcher):
                     print("linepos  = " + str(self.linepos))
                     print("lineview = " + str(self.lineview))
                     print("chi      = " + ",".join([str(x) for x in chi]))
-                    print("line     = " + b2hex(self.linebuf.encode("utf-8")))
+                    print("line     = " + Util.b2hex(self.linebuf.encode("utf-8")))
                     print("termsize = " + str(self.w) + "x" + str(self.h))
                     print("free_spa = " + str(free_space))
                     print("-" * 72)
@@ -1014,22 +1015,22 @@ class VT100_Client(asyncore.dispatcher):
         return u""
 
     def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
-        ts = datetime.datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
+        ts = datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
 
         txt = []
         for ln in [x.rstrip() for x in msg.txt.split("\n")]:
-            if len(ln) < msg_w or visual_length(ln) < msg_w:
+            if len(ln) < msg_w or Util.visual_length(ln) < msg_w:
                 txt.append(ln)
             else:
-                ln = u" ".join(prewrap(ln.rstrip(), msg_w))
-                txt.extend(unrag(ln, msg_w) or [u" "])
+                ln = u" ".join(Util.prewrap(ln.rstrip(), msg_w))
+                txt.extend(Unrag.unrag(ln, msg_w) or [u" "])
 
         for n, line in enumerate(txt):
             if u"\033" in line:
                 if self.vt100:
                     line += u"\033[0m"
                 else:
-                    line = strip_ansi(line)
+                    line = Util.strip_ansi(line)
 
             if n == 0:
                 c1 = u""
@@ -1058,7 +1059,7 @@ class VT100_Client(asyncore.dispatcher):
 
         if call_depth > 3:
             # the famous "should never happen"
-            whoops("ch={0} usr={1}".format(nch.get_name(), self.user.nick))
+            Util.whoops("ch={0} usr={1}".format(nch.get_name(), self.user.nick))
             return None
 
         debug_scrolling = False
@@ -1197,7 +1198,7 @@ class VT100_Client(asyncore.dispatcher):
                             n_vis = lines_left
                             cdr = n_vis
 
-                    vmsg = VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
+                    vmsg = Chat.VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
                     ch.vis.append(vmsg)
 
                     for ln in vmsg.txt[car:cdr]:
@@ -1231,7 +1232,7 @@ class VT100_Client(asyncore.dispatcher):
                         n_vis = lines_left
                         car = cdr - n_vis
 
-                    vmsg = VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
+                    vmsg = Chat.VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
                     ch.vis.append(vmsg)
 
                     for ln in reversed(vmsg.txt[car:]):
@@ -1316,9 +1317,9 @@ class VT100_Client(asyncore.dispatcher):
                 ref = ch.vis[0]
                 if ref.car != 0:
 
-                    partial = VisMessage().c_segm(ref, 0, ref.car, 0, ref.car, ch)
+                    partial = Chat.VisMessage().c_segm(ref, 0, ref.car, 0, ref.car, ch)
                     partial_org = ref
-                    partial_old = VisMessage().c_segm(
+                    partial_old = Chat.VisMessage().c_segm(
                         ref, ref.car, ref.cdr, 0, ref.cdr - ref.car, ch
                     )
 
@@ -1360,11 +1361,11 @@ class VT100_Client(asyncore.dispatcher):
                                 )
                             )
 
-                    partial = VisMessage().c_segm(
+                    partial = Chat.VisMessage().c_segm(
                         ref, ref.cdr, len(ref.txt), 0, len(ref.txt) - ref.cdr, ch
                     )
                     partial_org = ref
-                    partial_old = VisMessage().c_segm(
+                    partial_old = Chat.VisMessage().c_segm(
                         ref, ref.car, ref.cdr, 0, ref.cdr - ref.car, ch
                     )
 
@@ -1424,7 +1425,7 @@ class VT100_Client(asyncore.dispatcher):
                     msg = nch.msgs[imsg]
                     txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 
-                    vmsg = VisMessage().c_new(msg, txt, imsg, 0, len(txt), ch)
+                    vmsg = Chat.VisMessage().c_new(msg, txt, imsg, 0, len(txt), ch)
 
                 txt = vmsg.txt
                 msg = vmsg.msg
@@ -1701,7 +1702,7 @@ class VT100_Client(asyncore.dispatcher):
                         )
 
                 else:
-                    whoops("bad bot stage: {0}".format(self.wizard_stage))
+                    Util.whoops("bad bot stage: {0}".format(self.wizard_stage))
 
             if self.wizard_stage == "bot2":
                 self.say(self.in_text[-growth:].encode("utf-8"))
@@ -1784,7 +1785,7 @@ class VT100_Client(asyncore.dispatcher):
                     l_c=linemode.ljust(3),
                     c_c=vt100.ljust(3),
                     e_c=echo_on.ljust(3),
-                    r_c=b2hex(self.crlf.encode("utf-8")),
+                    r_c=Util.b2hex(self.crlf.encode("utf-8")),
                     l_g=ok if not self.linemode else ng,
                     c_g=ok if self.vt100 else ng,
                     e_g=ok if not self.echo_on else ng,
@@ -1834,7 +1835,7 @@ class VT100_Client(asyncore.dispatcher):
                     + u"""
  sorry, your config is definitely incorrect.
 
- type the text below, then hit [Enter]:  
+ type the text below, then hit [Enter]:
 
    qwer asdf
 
@@ -1854,7 +1855,7 @@ class VT100_Client(asyncore.dispatcher):
                 (
                     top
                     + u"""
- type the text below, then hit [Enter]:  
+ type the text below, then hit [Enter]:
 
    qwer asdf
 
@@ -1898,7 +1899,7 @@ class VT100_Client(asyncore.dispatcher):
                     self.reassign_retkey(nl.decode("utf-8"))
                     print(
                         "client crlf:  {0}  {1}  {2}".format(
-                            self.user.nick, self.adr[0], b2hex(nl)
+                            self.user.nick, self.adr[0], Util.b2hex(nl)
                         )
                     )
 
@@ -1909,7 +1910,7 @@ class VT100_Client(asyncore.dispatcher):
                         "setting linemode+echo since d{0} and {1}ch; {2}".format(
                             self.wizard_maxdelta,
                             len(self.in_text),
-                            b2hex(self.in_text.encode("utf-8")),
+                            Util.b2hex(self.in_text.encode("utf-8")),
                         )
                     )
 
@@ -1941,12 +1942,12 @@ class VT100_Client(asyncore.dispatcher):
                 # i don't feel bad about this at all
                 if join_ch:
 
-                    def delayed_join(user, chan):
+                    def delayed_join(usr, chan):
                         chan = chan.rstrip("\r\n\0 ")  # \0 ??
                         time.sleep(0.2)
                         if chan:
                             print(" delay join:  [{0}]".format(chan))
-                            user.world.join_pub_chan(user, chan)
+                            usr.world.join_pub_chan(usr, chan)
 
                     threading.Thread(
                         target=delayed_join, name="d_join", args=(self.user, join_ch)
@@ -1997,7 +1998,7 @@ class VT100_Client(asyncore.dispatcher):
                     (
                         top
                         + u"""
- WARNING:  
+ WARNING:
    your client is stuck in line-buffered mode,
    this will cause visual glitches in text input.
    Keys like PgUp and CTRL-Z are also buggy;
@@ -2035,7 +2036,7 @@ class VT100_Client(asyncore.dispatcher):
                 (
                     top
                     + u"""
- does colours work?  
+ does colours work?
  \033[1;31mred, \033[32mgreen, \033[33myellow, \033[34mblue\033[0m
 
  press Y or N&lm
@@ -2062,7 +2063,7 @@ class VT100_Client(asyncore.dispatcher):
                     (
                         sep
                         + u"""
- what did you see instead?  
+ what did you see instead?
 
    A:  "red, green, yellow, blue"
        -- either in just one colour
@@ -2096,15 +2097,15 @@ class VT100_Client(asyncore.dispatcher):
                     (
                         top
                         + u"""
- WARNING:  
+ WARNING:
    your client or terminal is not vt100 compatible!
    I will reduce features to a bare minimum,
    but this is gonna be bad regardless
- 
+
    whenever the screen turns too glitchy
    you can press CTRL-R and Enter to redraw
    or run the command "/r" if that doesn't work
- 
+
  press A to accept or Q to quit&lm
  """
                     )
@@ -2171,7 +2172,6 @@ class VT100_Client(asyncore.dispatcher):
             return
 
         if self.wizard_stage == "codec_answer":
-            found = False
             text = self.in_text.lower()
             for n, letter in enumerate(AZ[: int(2 + len(self.codec_map) / 2)].lower()):
                 if letter in text:
@@ -2244,7 +2244,7 @@ class VT100_Client(asyncore.dispatcher):
                 top
                 + u"""
  your client is not responding to negotiations.
-   
+
    if you are NOT using Telnet,
    please connect to port {0}
 """
@@ -2259,7 +2259,7 @@ class VT100_Client(asyncore.dispatcher):
                 top
                 + u"""
  your client has sent {1} Telnet negotiation{2}.
-   
+
    if you are using Telnet,
    please connect to port {0}
 """
@@ -2320,7 +2320,7 @@ class VT100_Client(asyncore.dispatcher):
                 csi = (aside == u"\033") or aside.startswith(u"\033[")
                 bad_csi = csi and len(aside) > 12
 
-                if not aside in self.esc_tab and (bad_csi or not csi):
+                if aside not in self.esc_tab and (bad_csi or not csi):
 
                     if bad_csi:
                         # escape the ESC and take it from the top:
@@ -2344,7 +2344,7 @@ class VT100_Client(asyncore.dispatcher):
 
                     self.linebuf = (
                         self.linebuf[: self.linepos]
-                        + sanitize_ctl_codes(aside)
+                        + Util.sanitize_ctl_codes(aside)
                         + self.linebuf[self.linepos :]
                     )
                     self.linepos += len(aside)
@@ -2383,8 +2383,8 @@ class VT100_Client(asyncore.dispatcher):
                         aside = aside[len(m.group(0)) :]
                         continue
 
-                    if DBG:
-                        print(" escape seq:  {0} = {1}".format(b2hex(aside), act))
+                    if Config.DBG:
+                        print(" escape seq:  {0} = {1}".format(Util.b2hex(aside), act))
 
                     if self.tc_nicks and act != "tab":
                         self.tabcomplete_end()
@@ -2438,7 +2438,7 @@ class VT100_Client(asyncore.dispatcher):
                                 self.world.send_chan_msg(
                                     self.user.nick,
                                     self.user.active_chan.nchan,
-                                    convert_color_codes(self.linebuf),
+                                    Util.convert_color_codes(self.linebuf),
                                 )
 
                             self.msg_hist_n = None
@@ -2509,9 +2509,11 @@ class VT100_Client(asyncore.dispatcher):
                             self.linebuf = self.msg_hist[self.msg_hist_n]
                         self.linepos = len(self.linebuf)
         if aside:
-            if DBG:
+            if Config.DBG:
                 print(
-                    "need more data for {0} runes: {1}".format(len(aside), b2hex(aside))
+                    "need more data for {0} runes: {1}".format(
+                        len(aside), Util.b2hex(aside)
+                    )
                 )
             self.in_text = aside
         else:
@@ -2543,7 +2545,7 @@ class VT100_Client(asyncore.dispatcher):
             self.size_request_action = None
             full_redraw = True
 
-        if DBG:
+        if Config.DBG:
             if self.dead:
                 print("CANT_ANSWER:  dead")
             if not self.handshake_sz:
@@ -2579,11 +2581,11 @@ class VT100_Client(asyncore.dispatcher):
             prefix = txt.lower()
 
         self.tc_nicks = [prefix]
-        for user, ts in reversed(
+        for usr, ts in reversed(
             sorted(chan.user_act_ts.items(), key=operator.itemgetter(1))
         ):
-            if user != self.user.nick and user.lower().startswith(prefix):
-                self.tc_nicks.append(user)
+            if usr != self.user.nick and usr.lower().startswith(prefix):
+                self.tc_nicks.append(usr)
 
         if len(self.tc_nicks) == 1:
             self.tc_nicks = None

@@ -33,10 +33,10 @@ function connect()
 	# read keyboard and send each key to the socket
 	while IFS= read -rn1 x
 	do
-		[[ "x$x" == "x" ]] &&
+		[ "x$x" == "x" ] &&
 			x=$'\n'
 		
-		[[ $debug ]] &&
+		[ $debug ] &&
 		{
 			printf '%s' "$x" |
 			tee /dev/stderr 2>&1 >&147 |
@@ -46,7 +46,7 @@ function connect()
 	done
 }
 
-[[ "x$2" == "x" ]] &&
+[ "x$2" == x ] &&
 {
 	echo
 	echo "   r0c client (bash edition)"

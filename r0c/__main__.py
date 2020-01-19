@@ -1,7 +1,23 @@
 #!/usr/bin/env python2
-# -*- coding: utf-8 -*-
+# coding: utf-8
 from __future__ import print_function
-from .__init__ import *
+from .__version__ import S_VERSION
+from .__init__ import EP
+from . import config as Config
+from . import util as Util
+from .util import print
+from . import unrag as Unrag
+from . import inetcat as Inetcat
+from . import itelnet as Itelnet
+from . import world as World
+
+import os
+import sys
+import time
+import signal
+import threading
+import asyncore
+from datetime import datetime
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
@@ -11,27 +27,11 @@ __license__ = "MIT"
 __copyright__ = 2018
 
 
-import os
-import sys
-import signal
-
-if not "r0c" in sys.modules:
+if "r0c" not in sys.modules:
     print(
         "\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python -m r0c\r\n"
     )
     sys.exit(1)
-
-from .config import *
-from .util import *
-from .ivt100 import *
-from .inetcat import *
-from .itelnet import *
-from .chat import *
-from .user import *
-from .world import *
-
-if not PY2:
-    from .diag import *
 
 
 class Core(object):
@@ -62,7 +62,7 @@ class Core(object):
             except:
                 pass
 
-        print("  *  r0c {0}, py {1}".format(S_VERSION, host_os()))
+        print("  *  r0c {0}, py {1}".format(S_VERSION, Util.host_os()))
 
         self.telnet_port = int(args[1])
         self.netcat_port = int(args[2])
@@ -74,7 +74,7 @@ class Core(object):
             return False
 
         print("  *  Logs at " + EP.log)
-        compat_chans_in_root()
+        Util.compat_chans_in_root()
 
         self.stopping = 0
         self.threadmon = False
@@ -85,15 +85,15 @@ class Core(object):
         signal.signal(signal.SIGINT, self.signal_handler)
 
         print("  *  Creating world")
-        self.world = World(self)
+        self.world = World.World(self)
 
         print("  *  Starting Telnet server")
-        self.telnet_server = TelnetServer(
+        self.telnet_server = Itelnet.TelnetServer(
             "0.0.0.0", self.telnet_port, self.world, self.netcat_port
         )
 
         print("  *  Starting NetCat server")
-        self.netcat_server = NetcatServer(
+        self.netcat_server = Inetcat.NetcatServer(
             "0.0.0.0", self.netcat_port, self.world, self.telnet_port
         )
 
@@ -117,7 +117,7 @@ class Core(object):
         return True
 
     def read_password(self, args):
-        self.password = ADMIN_PWD
+        self.password = Config.ADMIN_PWD
 
         # password as argument overrides all others
         if len(args) > 3:
@@ -149,7 +149,7 @@ class Core(object):
     def run(self):
         print("  *  r0c is up")
 
-        if not BENCHMARK:
+        if not Config.BENCHMARK:
             while not self.stopping:
                 time.sleep(0.1)
         else:
@@ -211,7 +211,7 @@ class Core(object):
                 if "Bad file descriptor" in str(ex):
                     # print('osx bug ignored')
                     continue
-                whoops()
+                Util.whoops()
 
         self.asyncore_alive = False
 
@@ -237,7 +237,7 @@ class Core(object):
 
             with world.mutex:
                 # ts = (ts - 1516554584) * 10000
-                date = datetime.datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+                date = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
                 if date != last_date:
                     if last_date:
                         world.broadcast_message(
@@ -285,13 +285,13 @@ class Core(object):
                         iface.save_configs()
 
                         # flush wire logs
-                        if LOG_RX or LOG_TX:
+                        if Config.LOG_RX or Config.LOG_TX:
                             for client in iface.clients:
                                 if client.wire_log:
                                     try:
                                         client.wire_log.flush()
                                     except:
-                                        whoops()
+                                        Util.whoops()
 
                     # flush chan logs
                     for chan_list in [world.pub_ch, world.priv_ch]:
@@ -300,7 +300,7 @@ class Core(object):
                                 try:
                                     chan.log_fh.flush()
                                 except:
-                                    whoops()
+                                    Util.whoops()
 
         self.pushthr_alive = False
 
@@ -311,9 +311,9 @@ class Core(object):
             os._exit(1)
 
     def signal_handler(self, signal, frame):
-        if THREADMON and not self.threadmon:
+        if Config.THREADMON and not self.threadmon:
             self.threadmon = True
-            monitor_threads()
+            Util.monitor_threads()
         else:
             self.shutdown()
 
@@ -324,7 +324,7 @@ def start_r0c(args):
         if core.start(args):
             core.run()
     except:
-        whoops()
+        Util.whoops()
         os._exit(1)
 
 
@@ -370,16 +370,16 @@ def main(args=None):
         thr_stats.print_all()
 
     if mode == "unrag-speedtest":
-        bench_unrag("../radio.long")
+        Unrag.bench_unrag("../radio.long")
 
     if mode == "unrag-layout-test-v1":
-        unrag_layout_test_dump()
+        Unrag.unrag_layout_test_dump()
 
     if mode == "unrag-layout-test-interactive":
-        unrag_layout_test_interactive()
+        Unrag.unrag_layout_test_interactive()
 
     if mode == "test-ansi-annotation":
-        test_ansi_annotation()
+        Util.test_ansi_annotation()
 
 
 if __name__ == "__main__":
