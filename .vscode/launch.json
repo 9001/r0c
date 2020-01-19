@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run r0c",
+            "type": "python",
+            "request": "launch",
+            "module": "r0c",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "args": []
+        }
+    ]
+}

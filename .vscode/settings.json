@@ -1,0 +1,51 @@
+{
+    "workbench.colorCustomizations": {
+        // https://ocv.me/dot/bifrost.html
+        "terminal.background": "#1e1e1e",
+        "terminal.foreground": "#d2d2d2",
+        "terminalCursor.background": "#93A1A1",
+        "terminalCursor.foreground": "#93A1A1",
+        "terminal.ansiBlack": "#404040",
+        "terminal.ansiRed": "#f03669",
+        "terminal.ansiGreen": "#b8e346",
+        "terminal.ansiYellow": "#ffa402",
+        "terminal.ansiBlue": "#02a2ff",
+        "terminal.ansiMagenta": "#f65be3",
+        "terminal.ansiCyan": "#3da698",
+        "terminal.ansiWhite": "#d2d2d2",
+        "terminal.ansiBrightBlack": "#606060",
+        "terminal.ansiBrightRed": "#c75b79",
+        "terminal.ansiBrightGreen": "#c8e37e",
+        "terminal.ansiBrightYellow": "#ffbe4a",
+        "terminal.ansiBrightBlue": "#71cbff",
+        "terminal.ansiBrightMagenta": "#b67fe3",
+        "terminal.ansiBrightCyan": "#9cf0ed",
+        "terminal.ansiBrightWhite": "#ffffff",
+    },
+    "python.testing.pytestEnabled": false,
+    "python.testing.nosetestsEnabled": false,
+    "python.testing.unittestEnabled": false,
+    "python.linting.pylintEnabled": true,
+    "python.linting.pylintArgs": [
+        "--disable-msg",
+        "unused-wildcard-import"
+    ],
+    "python.linting.flake8Enabled": true,
+    "python.linting.banditEnabled": true,
+    "python.linting.flake8Args": [
+        "--max-line-length=120"
+    ],
+    "python.linting.banditArgs": [],
+    "python.formatting.provider": "black",
+    "editor.formatOnSave": true,
+    "[html]": {
+        "editor.formatOnSave": false,
+    },
+    "editor.codeActionsOnSaveTimeout": 9001,
+    "editor.formatOnSaveTimeout": 9001,
+    //
+    //  things you may wanna edit:
+    //
+    "python.pythonPath": ".venv/bin/python",
+    "python.linting.enabled": true,
+}

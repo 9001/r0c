@@ -8,7 +8,7 @@ r0c.egg-info/
 buildenv/
 build/
 dist/
-*.rst
+.venv/
 
 # sublime
 *.sublime-workspace
