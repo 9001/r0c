@@ -1,11 +1,15 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 from .__init__ import *
-if __name__ == '__main__':
-	raise RuntimeError('\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}'.format('*'*72))
+
+if __name__ == "__main__":
+    raise RuntimeError(
+        "\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}".format(
+            "*" * 72
+        )
+    )
 
 from .util import *
-
 
 
 # copied from  http://xxyxyz.org/line-breaking/
@@ -18,90 +22,89 @@ from .util import *
 # select which unragger to use at the bottom of this file
 
 
-
 def unrag_1_linear(text, width):
-	words = text.split()
-	count = len(words)
-	offsets = [0]
-	for w in words:
-		offsets.append(offsets[-1] + visual_length(w))
+    words = text.split()
+    count = len(words)
+    offsets = [0]
+    for w in words:
+        offsets.append(offsets[-1] + visual_length(w))
 
-	minima = [0] + [10 ** 20] * count
-	breaks = [0] * (count + 1)
+    minima = [0] + [10 ** 20] * count
+    breaks = [0] * (count + 1)
 
-	def cost(i, j):
-		w = offsets[j] - offsets[i] + j - i - 1
-		if w > width:
-			return 10 ** 10 * (w - width)
-		return minima[i] + (width - w) ** 2
+    def cost(i, j):
+        w = offsets[j] - offsets[i] + j - i - 1
+        if w > width:
+            return 10 ** 10 * (w - width)
+        return minima[i] + (width - w) ** 2
 
-	def smawk(rows, columns):
-		stack = []
-		i = 0
-		while i < len(rows):
-			if stack:
-				c = columns[len(stack) - 1]
-				if cost(stack[-1], c) < cost(rows[i], c):
-					if len(stack) < len(columns):
-						stack.append(rows[i])
-					i += 1
-				else:
-					stack.pop()
-			else:
-				stack.append(rows[i])
-				i += 1
-		rows = stack
+    def smawk(rows, columns):
+        stack = []
+        i = 0
+        while i < len(rows):
+            if stack:
+                c = columns[len(stack) - 1]
+                if cost(stack[-1], c) < cost(rows[i], c):
+                    if len(stack) < len(columns):
+                        stack.append(rows[i])
+                    i += 1
+                else:
+                    stack.pop()
+            else:
+                stack.append(rows[i])
+                i += 1
+        rows = stack
 
-		if len(columns) > 1:
-			smawk(rows, columns[1::2])
+        if len(columns) > 1:
+            smawk(rows, columns[1::2])
 
-		i = j = 0
-		while j < len(columns):
-			if j + 1 < len(columns):
-				end = breaks[columns[j + 1]]
-			else:
-				end = rows[-1]
-			c = cost(rows[i], columns[j])
-			if c < minima[columns[j]]:
-				minima[columns[j]] = c
-				breaks[columns[j]] = rows[i]
-			if rows[i] < end:
-				i += 1
-			else:
-				j += 2
+        i = j = 0
+        while j < len(columns):
+            if j + 1 < len(columns):
+                end = breaks[columns[j + 1]]
+            else:
+                end = rows[-1]
+            c = cost(rows[i], columns[j])
+            if c < minima[columns[j]]:
+                minima[columns[j]] = c
+                breaks[columns[j]] = rows[i]
+            if rows[i] < end:
+                i += 1
+            else:
+                j += 2
 
-	n = count + 1
-	i = 0
-	offset = 0
-	while True:
-		r = min(n, 2 ** (i + 1))
-		edge = 2 ** i + offset
-		smawk(range(0 + offset, edge), range(edge, r + offset))
-		x = minima[r - 1 + offset]
-		for j in range(2 ** i, r - 1):
-			y = cost(j + offset, r - 1 + offset)
-			if y <= x:
-				n -= j
-				i = 0
-				offset += j
-				break
-		else:
-			if r == n:
-				break
-			i = i + 1
+    n = count + 1
+    i = 0
+    offset = 0
+    while True:
+        r = min(n, 2 ** (i + 1))
+        edge = 2 ** i + offset
+        smawk(range(0 + offset, edge), range(edge, r + offset))
+        x = minima[r - 1 + offset]
+        for j in range(2 ** i, r - 1):
+            y = cost(j + offset, r - 1 + offset)
+            if y <= x:
+                n -= j
+                i = 0
+                offset += j
+                break
+        else:
+            if r == n:
+                break
+            i = i + 1
 
-	lines = []
-	j = count
-	while j > 0:
-		i = breaks[j]
-		lines.append(u' '.join(words[i:j]))
-		j = i
-	lines.reverse()
-	return lines
+    lines = []
+    j = count
+    while j > 0:
+        i = breaks[j]
+        lines.append(u" ".join(words[i:j]))
+        j = i
+    lines.reverse()
+    return lines
 
 
+from collections import deque
 
-from collections import deque 
 
 def unrag_2_binary(text, width):
     words = text.split()
@@ -154,11 +157,10 @@ def unrag_2_binary(text, width):
     j = count
     while j > 0:
         i = breaks[j]
-        lines.append(u' '.join(words[i:j]))
+        lines.append(u" ".join(words[i:j]))
         j = i
     lines.reverse()
     return lines
-
 
 
 def unrag_3_divide(text, width):
@@ -188,8 +190,8 @@ def unrag_3_divide(text, width):
                     if c <= minima[j]:
                         minima[j] = c
                         breaks[j] = i
-                stack.append((breaks[j], j+1, i1, j1))
-                stack.append((i0, j0, breaks[j]+1, j))
+                stack.append((breaks[j], j + 1, i1, j1))
+                stack.append((i0, j0, breaks[j] + 1, j))
 
     n = count + 1
     i = 0
@@ -215,11 +217,10 @@ def unrag_3_divide(text, width):
     j = count
     while j > 0:
         i = breaks[j]
-        lines.append(u' '.join(words[i:j]))
+        lines.append(u" ".join(words[i:j]))
         j = i
     lines.reverse()
     return lines
-
 
 
 def unrag_4_shortest(text, width):
@@ -247,130 +248,142 @@ def unrag_4_shortest(text, width):
     j = count
     while j > 0:
         i = breaks[j]
-        lines.append(u' '.join(words[i:j]))
+        lines.append(u" ".join(words[i:j]))
         j = i
     lines.reverse()
     return lines
 
 
-
 def bench_unrag(fname):
-	t0 = time.time()
-	n_lines = 0
-	trend = {}
-	with open(fname, 'rb') as f:
-		for ln in f:
-			n_lines += 1
+    t0 = time.time()
+    n_lines = 0
+    trend = {}
+    with open(fname, "rb") as f:
+        for ln in f:
+            n_lines += 1
 
-	with open(fname, 'rb') as f:
-		for n, ln in enumerate(f):
-			if n % 8192 == 8191:
-				t = time.time()
-				print('{0:7} / {1}  {2:.3f}%  {3:.0f} p/s'.format(
-					n, n_lines, n*100.0/n_lines, n/(t-t0)))
-			ln = ln.decode('utf-8')
-			if len(ln) < 40:
-				ln = ln + ' ' + ln
-			w = unrag(ln, 40)
-			try:
-				trend[len(w)] += 1
-			except:
-				trend[len(w)] = 1
+    with open(fname, "rb") as f:
+        for n, ln in enumerate(f):
+            if n % 8192 == 8191:
+                t = time.time()
+                print(
+                    "{0:7} / {1}  {2:.3f}%  {3:.0f} p/s".format(
+                        n, n_lines, n * 100.0 / n_lines, n / (t - t0)
+                    )
+                )
+            ln = ln.decode("utf-8")
+            if len(ln) < 40:
+                ln = ln + " " + ln
+            w = unrag(ln, 40)
+            try:
+                trend[len(w)] += 1
+            except:
+                trend[len(w)] = 1
 
-	for k, v in sorted(trend.items()):
-		print('{0} lines: {1} occurences'.format(k, v))
+    for k, v in sorted(trend.items()):
+        print("{0} lines: {1} occurences".format(k, v))
 
-	t = time.time()
-	print(n_lines)
-	print(t-t0)
-
+    t = time.time()
+    print(n_lines)
+    print(t - t0)
 
 
 def unrag_layout_test_dump():
-	scrw = 572
-	msg = "012345678901234567890 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-	msg = msg + ' ' + msg
-	wrappers = [ unrag_1_linear, unrag_2_binary, unrag_3_divide, unrag_4_shortest ]
-	avail = scrw/len(wrappers)
-	last_txt = None
-	for msgw in range(10, avail):
-		print(msgw)
-		results = []
-		for wrapper in wrappers:
-			results.append(wrapper(' '.join(prewrap(msg, msgw)), msgw))
-			#results[-1].insert(0, '{0} {1}'.format(msgw, wrapper.__name__))
-		txt = u''
-		for row in range(0, 1000):
-			ln = u'\n'
-			for nr, result in enumerate(results):
-				if len(result) <= row:
-					ln += u' ' * avail
-				else:
-					ln += '\033[1;3{0}m{1}{2}\033[1;30m.{3}'.format(
-						nr+1, result[row],
-						u' ' * (msgw-len(result[row])),
-						u' ' * (avail-msgw-1))
-			if not ln.strip():
-				break
-			txt += '\033[G' + ln
-		if txt != last_txt:
-			print(txt)
-		last_txt = txt
-
+    scrw = 572
+    msg = "012345678901234567890 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    msg = msg + " " + msg
+    wrappers = [unrag_1_linear, unrag_2_binary, unrag_3_divide, unrag_4_shortest]
+    avail = scrw / len(wrappers)
+    last_txt = None
+    for msgw in range(10, avail):
+        print(msgw)
+        results = []
+        for wrapper in wrappers:
+            results.append(wrapper(" ".join(prewrap(msg, msgw)), msgw))
+            # results[-1].insert(0, '{0} {1}'.format(msgw, wrapper.__name__))
+        txt = u""
+        for row in range(0, 1000):
+            ln = u"\n"
+            for nr, result in enumerate(results):
+                if len(result) <= row:
+                    ln += u" " * avail
+                else:
+                    ln += "\033[1;3{0}m{1}{2}\033[1;30m.{3}".format(
+                        nr + 1,
+                        result[row],
+                        u" " * (msgw - len(result[row])),
+                        u" " * (avail - msgw - 1),
+                    )
+            if not ln.strip():
+                break
+            txt += "\033[G" + ln
+        if txt != last_txt:
+            print(txt)
+        last_txt = txt
 
 
 def unrag_layout_test_interactive():
-	try: input = raw_input
-	except NameError: pass
+    try:
+        input = raw_input
+    except NameError:
+        pass
 
-	try:
-		import msvcrt
-	except:
-		import sys, tty, termios
-	def getch():
-		try:
-			return msvcrt.getch()
-		except:
-			fd = sys.stdin.fileno()
-			old_cfg = termios.tcgetattr(fd)
-			tty.setraw(sys.stdin.fileno())
-			ret = sys.stdin.read(1)
-			termios.tcsetattr(fd, termios.TCSADRAIN, old_cfg)
-			return ret
-	
-	msg = "012345678901234567890 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-	msg = msg + ' ' + msg
-	wrappers = [ unrag_1_linear, unrag_2_binary, unrag_3_divide, unrag_4_shortest ]
-	iwrapper = 0
-	msgw = 20
-	while True:
-		if msgw < 3:
-			msgw = 3
-		if iwrapper < 0:
-			iwrapper = len(wrappers) - 1
-		if iwrapper >= len(wrappers):
-			iwrapper = 0
+    try:
+        import msvcrt
+    except:
+        import sys, tty, termios
 
-		pwrap = ' '.join(prewrap(msg, msgw))
-		wraps = []
-		uniq_wraps = []
-		for wrapper in wrappers:
-			wrap = '\n'.join(wrapper(pwrap, msgw))
-			wraps.append(wrap)
-			if wrap not in uniq_wraps:
-				uniq_wraps.append(wrap)
+    def getch():
+        try:
+            return msvcrt.getch()
+        except:
+            fd = sys.stdin.fileno()
+            old_cfg = termios.tcgetattr(fd)
+            tty.setraw(sys.stdin.fileno())
+            ret = sys.stdin.read(1)
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_cfg)
+            return ret
 
-		wrapped = wraps[iwrapper]
-		print('{0}\033[H\033[J\n  {1} {2}  ~{3}\n\n{4}'.format(
-			'\n'*20, msgw, wrappers[iwrapper].__name__, len(uniq_wraps), wrapped))
+    msg = "012345678901234567890 Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
+    msg = msg + " " + msg
+    wrappers = [unrag_1_linear, unrag_2_binary, unrag_3_divide, unrag_4_shortest]
+    iwrapper = 0
+    msgw = 20
+    while True:
+        if msgw < 3:
+            msgw = 3
+        if iwrapper < 0:
+            iwrapper = len(wrappers) - 1
+        if iwrapper >= len(wrappers):
+            iwrapper = 0
 
-		ch = getch()
-		if ch == b'\x03': sys.exit(0)
-		elif ch == b'a': iwrapper -= 1
-		elif ch == b'd': iwrapper += 1
-		elif ch == b'w': msgw -= 1
-		elif ch == b's': msgw += 1
+        pwrap = " ".join(prewrap(msg, msgw))
+        wraps = []
+        uniq_wraps = []
+        for wrapper in wrappers:
+            wrap = "\n".join(wrapper(pwrap, msgw))
+            wraps.append(wrap)
+            if wrap not in uniq_wraps:
+                uniq_wraps.append(wrap)
 
+        wrapped = wraps[iwrapper]
+        print(
+            "{0}\033[H\033[J\n  {1} {2}  ~{3}\n\n{4}".format(
+                "\n" * 20, msgw, wrappers[iwrapper].__name__, len(uniq_wraps), wrapped
+            )
+        )
+
+        ch = getch()
+        if ch == b"\x03":
+            sys.exit(0)
+        elif ch == b"a":
+            iwrapper -= 1
+        elif ch == b"d":
+            iwrapper += 1
+        elif ch == b"w":
+            msgw -= 1
+        elif ch == b"s":
+            msgw += 1
 
 
 unrag_bench_results = """
@@ -451,11 +464,11 @@ unrag_4_shortest
 """
 
 
-
 # divide and shortest are the most A E S T H E T I C
 # shortest wins just barely
 
-#unrag = unrag_1_linear    # 166sec
-#unrag = unrag_2_binary    # 150sec
-#unrag = unrag_3_divide    # 102sec
-unrag = unrag_4_shortest   #  82sec
+# unrag = unrag_1_linear    # 166sec
+# unrag = unrag_2_binary    # 150sec
+# unrag = unrag_3_divide    # 102sec
+unrag = unrag_4_shortest  #  82sec
+

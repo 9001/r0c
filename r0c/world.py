@@ -450,4 +450,3 @@ class World(object):
 			self.dirty_ch[nchan] = 1
 			for uchan in nchan.uchans:
 				uchan.user.client.need_full_redraw = True
-
