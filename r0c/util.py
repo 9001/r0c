@@ -502,7 +502,7 @@ def prewrap(txt, maxlen):
 
 
 def whoops(extra=None):
-    msg = """\
+    msg = r"""\
              __
    _      __/ /_  ____  ____  ____  _____
   | | /| / / __ \/ __ \/ __ \/ __ \/ ___/

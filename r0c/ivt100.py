@@ -188,7 +188,7 @@ class VT100_Server(asyncore.dispatcher):
                         pass
 
             if panic:
-                raise RuntimError("see above")
+                raise RuntimeError("see above")
 
             print(
                 "  *  {0} knows {1} clients".format(
@@ -285,7 +285,7 @@ class VT100_Client(asyncore.dispatcher):
         self.h = 24
         self.pending_size_request = False
         self.size_request_action = None
-        self.re_cursor_pos = re.compile("\033\[([0-9]{1,4});([0-9]{1,4})R")
+        self.re_cursor_pos = re.compile(r"\033\[([0-9]{1,4});([0-9]{1,4})R")
 
         self.msg_too_small = [
             u"your screen is too small",
@@ -2453,7 +2453,7 @@ class VT100_Client(asyncore.dispatcher):
                         elif self.scroll_f is not None:
                             steps = int(steps * self.scroll_f)
                         else:
-                            what("no scroll size?!")
+                            print("no scroll size?!")
 
                         if act == "pgup":
                             steps *= -1

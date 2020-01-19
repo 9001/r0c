@@ -669,29 +669,29 @@ class User(object):
             else:
                 tfmt = "%Y-%m-%dT%H:%M:%S"
 
-                m = re.match("(^[0-9]+)$", arg)
+                m = re.match(r"(^[0-9]+)$", arg)
                 if m:
                     ch.jump_to_msg(int(m.group(1)))
                     return
 
-                m = re.match("(^[0-9\.]+)%$", arg)
+                m = re.match(r"(^[0-9\.]+)%$", arg)
                 if m:
                     ch.jump_to_msg(int(float(m.group(1)) * len(nch.msgs) / 100.0))
                     return
 
-                m = re.match("(^[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2})$", arg)
+                m = re.match(r"(^[0-9]{4}-[0-9]{2}-[0-9]{2}) ([0-9]{2}:[0-9]{2})$", arg)
                 if m:
                     ht = u"{0}T{1}:00".format(*m.groups())
                     ch.jump_to_time(datetime.strptime(ht, tfmt))
                     return
 
-                m = re.match("(^[0-9]{4}-[0-9]{2}-[0-9]{2})$", arg)
+                m = re.match(r"(^[0-9]{4}-[0-9]{2}-[0-9]{2})$", arg)
                 if m:
                     ht = u"{0}T00:00:00".format(m.group(1))
                     ch.jump_to_time(datetime.strptime(ht, tfmt))
                     return
 
-                m = re.match("(^[0-9]{2}:[0-9]{2})$", arg)
+                m = re.match(r"(^[0-9]{2}:[0-9]{2})$", arg)
                 if m:
                     ht = u"{0}T{1}:00".format(time.strftime("%Y-%m-%d"), m.group(1))
                     ch.jump_to_time(datetime.strptime(ht, tfmt))

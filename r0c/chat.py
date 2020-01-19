@@ -33,10 +33,10 @@ class NChannel(object):
         return ret or u"<abandoned private channel>"
 
     def __unicode__(self):
-        return u"NChannel {0}".format(get_name())
+        return u"NChannel {0}".format(self.get_name())
 
     def __str__(self):
-        return "NChannel {0}".format(get_name())
+        return "NChannel {0}".format(self.get_name())
 
     def __repr__(self):
         return "NChannel({0}, {1})".format(self.name, repr(self.topic))
@@ -158,7 +158,7 @@ class VisMessage(object):
 
         return self
 
-    def plaintext():
+    def plaintext(self):
         return [self.unformatted] + self.txt[1:]
 
     def apply_markup(self):
