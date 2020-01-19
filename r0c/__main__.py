@@ -78,7 +78,6 @@ class Core(object):
 
         self.stopping = 0
         self.threadmon = False
-        self.pushthr_alive = False
         self.asyncore_alive = False
         self.shutdown_flag = threading.Event()
 
@@ -184,6 +183,9 @@ class Core(object):
                 last_parts = self.world.num_parts
                 last_messages = self.world.num_messages
 
+        # termiante refresh_chans
+        self.world.dirty_flag.set()
+
         asyncore_timeout = 0.5 / 0.05
         if self.telnet_server.clients or self.netcat_server.clients:
             # give it <= 3 sec since people are connected
@@ -214,7 +216,7 @@ class Core(object):
         while not self.shutdown_flag.is_set():
             timeout = 69
             if self.telnet_server.clients or self.netcat_server.clients:
-                timeout = 0.1
+                timeout = 0.34
 
             try:
                 asyncore.loop(timeout, count=1)
@@ -227,29 +229,29 @@ class Core(object):
         self.asyncore_alive = False
 
     def push_worker(self, world, ifaces):
-        self.pushthr_alive = True
-
         nth_iter = 0
         last_ts = None
         last_date = None
         while not self.shutdown_flag.is_set():
             if self.telnet_server.clients or self.netcat_server.clients:
-                # sleep until the start of the next utc second
+                # sleep until the start of the next mod5 utc second
                 while True:
                     ts = time.time()
-                    its = int(ts)
+                    its = int(ts / 5) * 5
                     if its != last_ts:
                         last_ts = its
                         break
-                    if ts - its < 0.98:
-                        time.sleep((1 - (ts - its)) * 0.9)
+                    if ts - its < 4.99:
+                        if self.shutdown_flag.wait((5 - (ts - its))):
+                            break
                     else:
-                        time.sleep(0.01)
+                        time.sleep(0.02)
             else:
                 # less precision if there's nobody connected
-                self.shutdown_flag.wait(69)
+                ts0 = time.time()
+                self.world.dirty_flag.wait(100)
                 ts = time.time()
-                nth_iter += 68
+                nth_iter += int(ts) - int(ts0) - 4
 
             with world.mutex:
                 date = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
@@ -292,7 +294,7 @@ class Core(object):
 
                         iface.next_scheduled_kick = next_min
 
-                nth_iter += 1
+                nth_iter += 5
                 if nth_iter >= 600:
                     nth_iter = 0
 
@@ -318,7 +320,7 @@ class Core(object):
                                 except:
                                     Util.whoops()
 
-        self.pushthr_alive = False
+        print("  *  terminated push_worker")
 
     def shutdown(self, send_signal=False):
         # monitor_threads()

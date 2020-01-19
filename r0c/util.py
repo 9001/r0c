@@ -502,13 +502,13 @@ def prewrap(txt, maxlen):
 
 
 def whoops(extra=None):
-    msg = r"""\
+    msg = r"""
              __
    _      __/ /_  ____  ____  ____  _____
   | | /| / / __ \/ __ \/ __ \/ __ \/ ___/
   | |/ |/ / / / / /_/ / /_/ / /_/ (__  )
   |__/|__/_/ /_/\____/\____/ .___/____/
-                          /_/"""
+                          /_/"""[1:]
     exc = traceback.format_exc()
     if exc.startswith("None"):
         exc = "".join(traceback.format_stack()[:-1])

@@ -35,6 +35,7 @@ class World(object):
         self.dirty_ch = {}  # Channels that have pending tx
         self.task_queue = Queue()  # Delayed processing of expensive tasks
         self.mutex = threading.RLock()
+        self.dirty_flag = threading.Event()  # raise after setting dirty_ch
 
         # config
         self.messages_per_log_file = Config.MESSAGES_PER_LOG_FILE
@@ -59,13 +60,17 @@ class World(object):
             return None
 
     def refresh_chans(self):
-        self.chan_sync_active = True
         while not self.core.shutdown_flag.is_set():
+            # no latency unless multiple messages within 0.05 sec
             time.sleep(0.05)
+
+            self.dirty_flag.wait()
+            self.dirty_flag.clear()
+
             with self.mutex:
-                # while not self.task_queue.empty():
-                # 	task = self.task_queue.get()
-                # 	task[0](*task[1],**task[2])
+                if not self.dirty_ch:
+                    # raised with no pending work; shutdown signal
+                    continue
 
                 dirty_ch = list(self.dirty_ch)
                 self.dirty_ch = {}
@@ -73,11 +78,7 @@ class World(object):
                 for chan in dirty_ch:
                     self.refresh_chan(chan)
 
-            if not self.users:
-                if self.core.shutdown_flag.wait(3):
-                    break
-
-        self.chan_sync_active = False
+        print("  *  terminated refresh_chans")
 
     def refresh_chan(self, nchan):
         if not nchan.uchans:
@@ -176,6 +177,7 @@ class World(object):
 
             if nchan not in self.dirty_ch:
                 self.dirty_ch[nchan] = 1
+                self.dirty_flag.set()
 
             if nchan.log_fh:
                 # print('logrotate counter at {0}'.format(nchan.log_ctr))
@@ -497,6 +499,6 @@ class World(object):
             # potential chance that a render goes through
             # before the async job processor kicks in
             self.dirty_ch[nchan] = 1
+            self.dirty_flag.set()
             for uchan in nchan.uchans:
                 uchan.user.client.need_full_redraw = True
-
