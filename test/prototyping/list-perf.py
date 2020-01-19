@@ -3,18 +3,22 @@
 import time
 
 t0 = 0
+
+
 def td(msg):
-	global t0
-	t1 = time.time()
-	print('{0}  {1:.6f}  {2}\n'.format(t1, t1-t0, msg))
-	t0 = t1
+    global t0
+    t1 = time.time()
+    print("{0}  {1:.6f}  {2}\n".format(t1, t1 - t0, msg))
+    t0 = t1
+
 
 class Foo(object):
-	def __init__(self, n):
-		self.n = n
-		self.v2 = int(n*1.3)
+    def __init__(self, n):
+        self.n = n
+        self.v2 = int(n * 1.3)
 
-td('started')
+
+td("started")
 
 n_mb = 24
 
@@ -22,22 +26,22 @@ haystack = []
 needle = None
 needle_at = int(n_mb * 1024 * 1024 * 0.74)
 for n1 in range(n_mb):
-	print(n_mb, n1)
-	for n2 in range(1024):
-		for n3 in range(1024):
-			n = (n1 * 1024 + n2) * 1024 + n3
-			haystack.append(Foo(n))
-			if n == needle_at:
-				needle = haystack[-1]
-td('built list')
+    print(n_mb, n1)
+    for n2 in range(1024):
+        for n3 in range(1024):
+            n = (n1 * 1024 + n2) * 1024 + n3
+            haystack.append(Foo(n))
+            if n == needle_at:
+                needle = haystack[-1]
+td("built list")
 
-#print(haystack.index(needle))
-#td('find needle')
+# print(haystack.index(needle))
+# td('find needle')
 print(haystack[needle_at])
-td('get abs pos needle')
+td("get abs pos needle")
 
-print(haystack[int(0.31*n_mb*1024*1024)])
-td('get abs pos other')
+print(haystack[int(0.31 * n_mb * 1024 * 1024)])
+td("get abs pos other")
 
 # py2 58.6% ram
 # 1515537393.86  25.088947  built list

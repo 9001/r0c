@@ -10,146 +10,159 @@ import random
 import struct
 import time
 import json
+
 try:
-	import cPickle as pickle  # py2
+    import cPickle as pickle  # py2
 except:
-	import pickle  # py3
+    import pickle  # py3
 
 
 ITERATIONS = 2
-#ITERATIONS = 1
+# ITERATIONS = 1
 
 
 class Message(object):
-	def __init__(self, ts, user, txt):
-		self.ts   = ts          # int timestamp
-		self.user = user        # str username
-		self.txt  = txt         # str text
+    def __init__(self, ts, user, txt):
+        self.ts = ts  # int timestamp
+        self.user = user  # str username
+        self.txt = txt  # str text
 
 
 def result(desc, sec, sec2, mul, comp_t, base_t, fn=None):
-	sz = os.path.getsize(fn) if fn else 'x'
-	print(u'{0:24} {1:8.3f}s  {2:8.3f}s  {3:8.3f} ({4:.3f},{5:.3f})  {6:9} byte'.format(
-		desc, sec, sec2, mul, comp_t, base_t, sz))
+    sz = os.path.getsize(fn) if fn else "x"
+    print(
+        u"{0:24} {1:8.3f}s  {2:8.3f}s  {3:8.3f} ({4:.3f},{5:.3f})  {6:9} byte".format(
+            desc, sec, sec2, mul, comp_t, base_t, sz
+        )
+    )
 
 
 """ run a test function, compare time against comp_t after subtracting base_t """
+
+
 def run(func, write_to, comp_t=None, base_t=None, iterations=ITERATIONS):
-	mtd = 99999999
-	desc = func.__name__[2:]
-	is_windows = platform.system() == 'Windows'
-	if not is_windows:
-		print()
+    mtd = 99999999
+    desc = func.__name__[2:]
+    is_windows = platform.system() == "Windows"
+    if not is_windows:
+        print()
 
-	best = []
-	for iteration in range(iterations):
-		t0 = time.time()
-		func(write_to)
-		td = time.time() - t0
-		
-		base_tv = base_t or td
-		comp_tv = comp_t or td
-		rel_tv = td - base_tv
-		mul = rel_tv / comp_tv if comp_t else 1
-		if mtd > td:
-			mtd = td
-			best = [desc, td, rel_tv, mul, comp_tv, base_tv, write_to]
-			if not is_windows:
-				print('\033[A', end='')
-				result(*best)
-	
-	if is_windows:
-		result(*best)
+    best = []
+    for iteration in range(iterations):
+        t0 = time.time()
+        func(write_to)
+        td = time.time() - t0
 
-	return [ desc, write_to, mtd ]
+        base_tv = base_t or td
+        comp_tv = comp_t or td
+        rel_tv = td - base_tv
+        mul = rel_tv / comp_tv if comp_t else 1
+        if mtd > td:
+            mtd = td
+            best = [desc, td, rel_tv, mul, comp_tv, base_tv, write_to]
+            if not is_windows:
+                print("\033[A", end="")
+                result(*best)
+
+    if is_windows:
+        result(*best)
+
+    return [desc, write_to, mtd]
 
 
 import struct
-all_chars = b''
-for n in range(1,128):
-	all_chars += struct.pack('B', n)
-all_chars = all_chars.decode('utf-8').replace('\r', '\\r').replace('\n', '\\n') + u'宇多田ヒカル桜流し'
-some_chars = letters = u'宇多田ヒカル桜流しABCDEFGHIJKLMNOPQRSTUVWXYZ\\\'\'\'"/abcdefghijklmnopqrstuvwxyz        '
+
+all_chars = b""
+for n in range(1, 128):
+    all_chars += struct.pack("B", n)
+all_chars = (
+    all_chars.decode("utf-8").replace("\r", "\\r").replace("\n", "\\n") + u"宇多田ヒカル桜流し"
+)
+some_chars = (
+    letters
+) = u"宇多田ヒカル桜流しABCDEFGHIJKLMNOPQRSTUVWXYZ\\'''\"/abcdefghijklmnopqrstuvwxyz        "
+
 
 def gen_sentence():
-	charset = some_chars
-	ret = u''
-	retlen = random.randint(4, 64)
-	for n in range(retlen):
-		ret += random.choice(charset)
-	if not ret:
-		ret = u'a'
-	return ret.strip()
+    charset = some_chars
+    ret = u""
+    retlen = random.randint(4, 64)
+    for n in range(retlen):
+        ret += random.choice(charset)
+    if not ret:
+        ret = u"a"
+    return ret.strip()
 
 
 users = []
-letters = u'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+letters = u"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 for n in range(12):
-	ret = u''
-	for n in range(8):
-		ret += random.choice(letters)
-	users.append(ret)
+    ret = u""
+    for n in range(8):
+        ret += random.choice(letters)
+    users.append(ret)
 
 
 def stream_txt():
-	with open('txt', 'rb') as f:
-		for ln in f:
-			yield ln.decode('utf-8').rstrip()
+    with open("txt", "rb") as f:
+        for ln in f:
+            yield ln.decode("utf-8").rstrip()
 
 
 def stream_msgs_plain(dontcare=None):
-	iuser = 0
-	with open('txt', 'rb') as f:
-		for n, ln in enumerate(f):
-			txt = ln.decode('utf-8').rstrip()
-			yield Message(n, users[iuser], txt)
-			iuser += 1
-			if iuser >= len(users):
-				iuser = 0
+    iuser = 0
+    with open("txt", "rb") as f:
+        for n, ln in enumerate(f):
+            txt = ln.decode("utf-8").rstrip()
+            yield Message(n, users[iuser], txt)
+            iuser += 1
+            if iuser >= len(users):
+                iuser = 0
 
 
 def stream_msg_newlines(dontcare=None):
-	iuser = 0
-	with open('txt', 'rb') as f:
-		for n, ln in enumerate(f):
-			txt = ln.decode('utf-8').rstrip()
-			mod = n % 32
-			if mod == 31:
-				mid = int(len(txt) / 2)
-				txt = u'{0}\n{1}'.format(txt[:mid], txt[mid:])
-			if mod == 15:
-				mid = int(len(txt) / 2)
-				txt = u'{0}\r{1}'.format(txt[:mid], txt[mid:])
+    iuser = 0
+    with open("txt", "rb") as f:
+        for n, ln in enumerate(f):
+            txt = ln.decode("utf-8").rstrip()
+            mod = n % 32
+            if mod == 31:
+                mid = int(len(txt) / 2)
+                txt = u"{0}\n{1}".format(txt[:mid], txt[mid:])
+            if mod == 15:
+                mid = int(len(txt) / 2)
+                txt = u"{0}\r{1}".format(txt[:mid], txt[mid:])
 
-			yield Message(n, users[iuser], txt)
-			iuser += 1
-			if iuser >= len(users):
-				iuser = 0
+            yield Message(n, users[iuser], txt)
+            iuser += 1
+            if iuser >= len(users):
+                iuser = 0
 
 
 stream_msgs = stream_msgs_plain
 
 
 def t_gen_txt_file(dontcare):
-	try:
-		memes = xrange
-	except:
-		memes = range
-	
-	with open('txt', 'wb') as f:
-		for n in memes(1048576):
-			if n % 8192 == 0:
-				print('{0}  {1:.2f}%'.format(n, n*100.0/1048576))
-			f.write(u'{0}\n'.format(gen_sentence()).encode('utf-8'))
+    try:
+        memes = xrange
+    except:
+        memes = range
 
-if not os.path.isfile('txt'):
-	run(t_gen_txt_file, 'txt')
+    with open("txt", "wb") as f:
+        for n in memes(1048576):
+            if n % 8192 == 0:
+                print("{0}  {1:.2f}%".format(n, n * 100.0 / 1048576))
+            f.write(u"{0}\n".format(gen_sentence()).encode("utf-8"))
 
 
-py_ver = '.'.join([str(x) for x in sys.version_info])
-bitness = struct.calcsize('P') * 8
+if not os.path.isfile("txt"):
+    run(t_gen_txt_file, "txt")
+
+
+py_ver = ".".join([str(x) for x in sys.version_info])
+bitness = struct.calcsize("P") * 8
 host_os = platform.system()
-print('\n\n{0} // {1}{2} // Deserialization'.format(py_ver, host_os, bitness))
+print("\n\n{0} // {1}{2} // Deserialization".format(py_ver, host_os, bitness))
 
 
 ### takeaways:
@@ -167,513 +180,500 @@ print('\n\n{0} // {1}{2} // Deserialization'.format(py_ver, host_os, bitness))
 
 
 def t_stream_utf8(fn):
-	for ln in stream_txt():
-		pass
+    for ln in stream_txt():
+        pass
 
-td_utf8 = run(t_stream_utf8, 'txt')[2]
+
+td_utf8 = run(t_stream_utf8, "txt")[2]
 base_t = td_utf8
 comp_t = td_utf8
 
 
-
 def t_stream_msgs(fn):
-	for msg in stream_msgs():
-		pass
+    for msg in stream_msgs():
+        pass
 
-td_msgs = run(t_stream_msgs, 'txt', None, comp_t)[2]
+
+td_msgs = run(t_stream_msgs, "txt", None, comp_t)[2]
 base_t = td_msgs
 comp_t = td_msgs
 
 
+if os.path.isfile("lst_repr_f"):
+
+    def verify_deserialization(deserializer, fn):
+        for m1, m2 in zip(stream_msgs(), deserializer(fn)):
+            if m1.ts != m2.ts or m1.txt != m2.txt or len(m1.user) != len(m2.user):
+                print(
+                    "# FAIL\n# [{0}] [{1}] [{2}]\n# [{3}] [{4}] [{5}]  {6} {7} {8} {9}\n".format(
+                        m1.ts,
+                        repr(m1.txt),
+                        m1.user,
+                        m2.ts,
+                        repr(m2.txt),
+                        m2.user,
+                        m1.ts == m2.ts,
+                        len(m1.user) == len(m2.user),
+                        repr(m1.txt) == repr(m2.txt),
+                        m1.txt == m2.txt,
+                    )
+                )
+                return False
+        return True
+
+    def t_dser_dummy(fn):
+        verify_deserialization(stream_msgs, "x")
+
+    td_dser_dummy = run(t_dser_dummy, "txt", comp_t, base_t)[2]
+    base_t = td_dser_dummy
+    comp_t = td_dser_dummy
+
+    for redo in range(2):
+
+        def t_d_split_ast_eval(fn):
+            import ast
+
+            def subroutine(fn):
+                with open(fn, "rb") as f:
+                    for ln in f:
+                        ts, user, txt = ln.decode("utf-8").rstrip().split(" ", 2)
+                        yield Message(int(ts), user, ast.literal_eval(txt))
+
+            verify_deserialization(subroutine, fn)
+
+        td_d_split_ast_eval = run(t_d_split_ast_eval, "s_esc3c", None, comp_t)[2]
+
+        if redo == 0:
+            comp_t = td_d_split_ast_eval - base_t
+
+        def t_d_split_eval(fn):
+            def subroutine(fn):
+                with open(fn, "rb") as f:
+                    for ln in f:
+                        ts, user, txt = ln.decode("utf-8").rstrip().split(" ", 2)
+                        yield Message(int(ts), user, eval(txt))
+
+            verify_deserialization(subroutine, fn)
+
+        run(t_d_split_eval, "s_esc3c", comp_t, base_t)[2]
+
+        def t_d_lst_eval(fn):
+            def subroutine(fn):
+                with open(fn, "rb") as f:
+                    for ln in f:
+                        yield Message(*eval(ln.decode("utf-8").rstrip()))
+
+            verify_deserialization(subroutine, fn)
+
+        run(t_d_lst_eval, "lst_repr_f", comp_t, base_t)[2]
+
+        def t_d_lst_ast_eval(fn):
+            import ast
+
+            def subroutine(fn):
+                with open(fn, "rb") as f:
+                    for ln in f:
+                        yield Message(*ast.literal_eval(ln.decode("utf-8").rstrip()))
+
+            verify_deserialization(subroutine, fn)
+
+        run(t_d_lst_ast_eval, "lst_repr_f", comp_t, base_t)[2]
+
+        def t_d_split_repr_ast_e(fn):
+            import ast
+
+            def subroutine(fn):
+                with open(fn, "rb") as f:
+                    for ln in f:
+                        ts, user, txt = ln.decode("utf-8").rstrip().split(" ", 2)
+                        yield Message(int(ts), user, ast.literal_eval(txt))
+
+            verify_deserialization(subroutine, fn)
+
+        run(t_d_split_repr_ast_e, "txt_repr", comp_t, base_t)[2]
+
+        def t_d_split_repr_eval(fn):
+            def subroutine(fn):
+                with open(fn, "rb") as f:
+                    for ln in f:
+                        ts, user, txt = ln.decode("utf-8").rstrip().split(" ", 2)
+                        yield Message(int(ts), user, eval(txt))
+
+            verify_deserialization(subroutine, fn)
+
+        run(t_d_split_repr_eval, "txt_repr", comp_t, base_t)[2]
+
+        print()
+
+    sys.exit(0)
 
 
+print("\n\n{0} // {1}{2} // Serialization".format(py_ver, host_os, bitness))
 
-
-
-
-
-
-
-
-if os.path.isfile('lst_repr_f'):
-
-	def verify_deserialization(deserializer, fn):
-		for m1, m2 in zip(stream_msgs(), deserializer(fn)):
-			if m1.ts != m2.ts \
-			or m1.txt != m2.txt \
-			or len(m1.user) != len(m2.user):
-				print('# FAIL\n# [{0}] [{1}] [{2}]\n# [{3}] [{4}] [{5}]  {6} {7} {8} {9}\n'.format(
-					m1.ts, repr(m1.txt), m1.user,
-					m2.ts, repr(m2.txt), m2.user,
-					m1.ts == m2.ts,
-					len(m1.user) == len(m2.user),
-					repr(m1.txt) == repr(m2.txt),
-					m1.txt == m2.txt))
-				return False
-		return True
-
-	def t_dser_dummy(fn):
-		verify_deserialization(stream_msgs, 'x')
-
-	td_dser_dummy = run(t_dser_dummy, 'txt', comp_t, base_t)[2]
-	base_t = td_dser_dummy
-	comp_t = td_dser_dummy
-	
-	
-	for redo in range(2):
-		
-		def t_d_split_ast_eval(fn):
-			import ast
-			def subroutine(fn):
-				with open(fn, 'rb') as f:
-					for ln in f:
-						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
-						yield Message(int(ts), user, ast.literal_eval(txt))
-			verify_deserialization(subroutine, fn)
-		td_d_split_ast_eval = run(t_d_split_ast_eval, 's_esc3c', None, comp_t)[2]
-
-		if redo == 0:
-			comp_t = td_d_split_ast_eval - base_t
-
-
-
-		def t_d_split_eval(fn):
-			def subroutine(fn):
-				with open(fn, 'rb') as f:
-					for ln in f:
-						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
-						yield Message(int(ts), user, eval(txt))
-			verify_deserialization(subroutine, fn)
-		run(t_d_split_eval, 's_esc3c', comp_t, base_t)[2]
-
-
-
-		def t_d_lst_eval(fn):
-			def subroutine(fn):
-				with open(fn, 'rb') as f:
-					for ln in f:
-						yield Message(*eval(ln.decode('utf-8').rstrip()))
-			verify_deserialization(subroutine, fn)
-		run(t_d_lst_eval, 'lst_repr_f', comp_t, base_t)[2]
-
-
-
-		def t_d_lst_ast_eval(fn):
-			import ast
-			def subroutine(fn):
-				with open(fn, 'rb') as f:
-					for ln in f:
-						yield Message(*ast.literal_eval(ln.decode('utf-8').rstrip()))
-			verify_deserialization(subroutine, fn)
-		run(t_d_lst_ast_eval, 'lst_repr_f', comp_t, base_t)[2]
-
-
-
-		def t_d_split_repr_ast_e(fn):
-			import ast
-			def subroutine(fn):
-				with open(fn, 'rb') as f:
-					for ln in f:
-						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
-						yield Message(int(ts), user, ast.literal_eval(txt))
-			verify_deserialization(subroutine, fn)
-		run(t_d_split_repr_ast_e, 'txt_repr', comp_t, base_t)[2]
-
-
-
-		def t_d_split_repr_eval(fn):
-			def subroutine(fn):
-				with open(fn, 'rb') as f:
-					for ln in f:
-						ts, user, txt = ln.decode('utf-8').rstrip().split(' ', 2)
-						yield Message(int(ts), user, eval(txt))
-			verify_deserialization(subroutine, fn)
-		run(t_d_split_repr_eval, 'txt_repr', comp_t, base_t)[2]
-
-
-
-		print()
-		
-	sys.exit(0)
-
-
-
-
-
-
-
-
-
-
-print('\n\n{0} // {1}{2} // Serialization'.format(py_ver, host_os, bitness))
-
-r_from = u'\\\'\r\n'
-r_to = [ u'\\\\', u'\\\'', u'\\r', u'\\n' ]
-r_map = {
-	u'\\': u'\\\\',
-	u'\'': u'\\\'',
-	u'\r': u'\\r',
-	u'\n': u'\\n'
-}
-
+r_from = u"\\'\r\n"
+r_to = [u"\\\\", u"\\'", u"\\r", u"\\n"]
+r_map = {u"\\": u"\\\\", u"'": u"\\'", u"\r": u"\\r", u"\n": u"\\n"}
 
 
 # py[23] identical:  1.00  1.00
 #
 def t_chain_replace(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, msg.txt.\
-				replace(u'\\', u'\\\\').\
-				replace(u'\'', u'\\\'').\
-				replace(u'\r', u'\\r').\
-				replace(u'\n', u'\\n')).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0} {1} u'{2}'\n".format(
+                    msg.ts,
+                    msg.user,
+                    msg.txt.replace(u"\\", u"\\\\")
+                    .replace(u"'", u"\\'")
+                    .replace(u"\r", u"\\r")
+                    .replace(u"\n", u"\\n"),
+                ).encode("utf-8")
+            )
 
-td_chain = run(t_chain_replace, 's_esc1', None, comp_t)[2]
+
+td_chain = run(t_chain_replace, "s_esc1", None, comp_t)[2]
 comp_t = td_chain - base_t
 
 
-
 def t_chain_replace_hex(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0:x} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, msg.txt.\
-				replace(u'\\', u'\\\\').\
-				replace(u'\'', u'\\\'').\
-				replace(u'\r', u'\\r').\
-				replace(u'\n', u'\\n')).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0:x} {1} u'{2}'\n".format(
+                    msg.ts,
+                    msg.user,
+                    msg.txt.replace(u"\\", u"\\\\")
+                    .replace(u"'", u"\\'")
+                    .replace(u"\r", u"\\r")
+                    .replace(u"\n", u"\\n"),
+                ).encode("utf-8")
+            )
 
-run(t_chain_replace_hex, 's_esc1_hex', comp_t, base_t)[2]
 
+run(t_chain_replace_hex, "s_esc1_hex", comp_t, base_t)[2]
 
 
 def t_chain_replace_hexjoin(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write((u' '.join([hex(msg.ts)[2:], msg.user, msg.txt.\
-				replace(u'\\', u'\\\\').\
-				replace(u'\'', u'\\\'').\
-				replace(u'\r', u'\\r').\
-				replace(u'\n', u'\\n')])).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                (
+                    u" ".join(
+                        [
+                            hex(msg.ts)[2:],
+                            msg.user,
+                            msg.txt.replace(u"\\", u"\\\\")
+                            .replace(u"'", u"\\'")
+                            .replace(u"\r", u"\\r")
+                            .replace(u"\n", u"\\n"),
+                        ]
+                    )
+                ).encode("utf-8")
+            )
 
-run(t_chain_replace_hexjoin, 's_esc1_hexj', comp_t, base_t)[2]
 
+run(t_chain_replace_hexjoin, "s_esc1_hexj", comp_t, base_t)[2]
 
 
 def t_plain_fmt(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0} {1} {2}\n'.format(
-				msg.ts, msg.user, msg.txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(u"{0} {1} {2}\n".format(msg.ts, msg.user, msg.txt).encode("utf-8"))
 
-run(t_plain_fmt, 's_plain_fmt', comp_t, base_t)[2]
 
+run(t_plain_fmt, "s_plain_fmt", comp_t, base_t)[2]
 
 
 def t_plain_hex(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0:x} {1} {2}\n'.format(
-				msg.ts, msg.user, msg.txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0:x} {1} {2}\n".format(msg.ts, msg.user, msg.txt).encode("utf-8")
+            )
 
-run(t_plain_hex, 's_plain_hex', comp_t, base_t)[2]
 
+run(t_plain_hex, "s_plain_hex", comp_t, base_t)[2]
 
 
 def t_plain_hexjoin(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write((u' '.join(
-				[hex(msg.ts)[2:], msg.user, msg.txt]\
-				) + u'\n').encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                (u" ".join([hex(msg.ts)[2:], msg.user, msg.txt]) + u"\n").encode(
+                    "utf-8"
+                )
+            )
 
-run(t_plain_hexjoin, 's_plain_hexj', comp_t, base_t)[2]
+
+run(t_plain_hexjoin, "s_plain_hexj", comp_t, base_t)[2]
 
 
 def t_plain_join(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write((u' '.join(
-				[str(msg.ts)[2:], msg.user, msg.txt]\
-				) + u'\n').encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                (u" ".join([str(msg.ts)[2:], msg.user, msg.txt]) + u"\n").encode(
+                    "utf-8"
+                )
+            )
 
-run(t_plain_join, 's_plain_join', comp_t, base_t)[2]
 
+run(t_plain_join, "s_plain_join", comp_t, base_t)[2]
 
 
 # py[23] identical:  1.49  1.40
 #
 def t_enumerate_replace(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for n, bad in enumerate(r_from):
-				txt = txt.replace(bad, r_to[n])
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for n, bad in enumerate(r_from):
+                txt = txt.replace(bad, r_to[n])
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_enumerate_replace, 's_esc2a', comp_t, base_t)
 
+run(t_enumerate_replace, "s_esc2a", comp_t, base_t)
 
 
 # py[23] identical:  1.41  1.22
 #
 def t_foreach_dict_replace(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for bad in r_from:
-				txt = txt.replace(bad, r_map[bad])
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for bad in r_from:
+                txt = txt.replace(bad, r_map[bad])
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_foreach_dict_replace, 's_esc2b', comp_t, base_t)
 
+run(t_foreach_dict_replace, "s_esc2b", comp_t, base_t)
 
 
 # py[23] identical:  1.71  1.69
 #
 def t_foreach_idx_replace(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for bad in r_from:
-				txt = txt.replace(bad, r_to[r_from.index(bad)])
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for bad in r_from:
+                txt = txt.replace(bad, r_to[r_from.index(bad)])
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_foreach_idx_replace, 's_esc2c', comp_t, base_t)
 
+run(t_foreach_idx_replace, "s_esc2c", comp_t, base_t)
 
 
 # py[23] identical:  1.27  1.10
 #
 def t_enumerate_replaceif(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for n, bad in enumerate(r_from):
-				if bad in txt:
-					txt = txt.replace(bad, r_to[n])
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for n, bad in enumerate(r_from):
+                if bad in txt:
+                    txt = txt.replace(bad, r_to[n])
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_enumerate_replaceif, 's_esc3', comp_t, base_t)
 
+run(t_enumerate_replaceif, "s_esc3", comp_t, base_t)
 
 
 # py[23] identical:  1.13  0.91
 #
 def t_replaceif_dict(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for bad in r_from:
-				if bad in txt:
-					txt = txt.replace(bad, r_map[bad])
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for bad in r_from:
+                if bad in txt:
+                    txt = txt.replace(bad, r_map[bad])
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_replaceif_dict, 's_esc3b', comp_t, base_t)
 
+run(t_replaceif_dict, "s_esc3b", comp_t, base_t)
 
 
 # py[23] identical:  1.13  0.89
 #
 def t_replaceif_dict_loc(fn):
-	with open(fn, 'wb') as f:
-		lr_from = r_from
-		lr_map = r_map
-		for msg in stream_msgs():
-			txt = msg.txt
-			for bad in lr_from:
-				if bad in txt:
-					txt = txt.replace(bad, lr_map[bad])
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        lr_from = r_from
+        lr_map = r_map
+        for msg in stream_msgs():
+            txt = msg.txt
+            for bad in lr_from:
+                if bad in txt:
+                    txt = txt.replace(bad, lr_map[bad])
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_replaceif_dict_loc, 's_esc3c', comp_t, base_t)
 
+run(t_replaceif_dict_loc, "s_esc3c", comp_t, base_t)
 
 
 # py[23] identical:  3.19  3.19
 #
 def t_condwrite_always_dict(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = u''
-			for ch in msg.txt:
-				if ch in r_from:
-					txt += r_map[ch]
-				else:
-					txt += ch
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = u""
+            for ch in msg.txt:
+                if ch in r_from:
+                    txt += r_map[ch]
+                else:
+                    txt += ch
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_condwrite_always_dict, 's_esc4', comp_t, base_t)
 
+run(t_condwrite_always_dict, "s_esc4", comp_t, base_t)
 
 
 # py[23] identical:  3.06  2.81
 #
 def t_condwrite_ifneed_list(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for bad in r_from:
-				if bad in msg.txt:
-					txt = u''
-					for ch in msg.txt:
-						if ch in r_from:
-							txt += r_map[ch]
-						else:
-							txt += ch
-					break
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for bad in r_from:
+                if bad in msg.txt:
+                    txt = u""
+                    for ch in msg.txt:
+                        if ch in r_from:
+                            txt += r_map[ch]
+                        else:
+                            txt += ch
+                    break
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_condwrite_ifneed_list, 's_esc5', comp_t, base_t)
 
+run(t_condwrite_ifneed_list, "s_esc5", comp_t, base_t)
 
 
 # py[23] identical:  3.38  2.99
 #
 def t_condwrite_ifneed_dict(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			txt = msg.txt
-			for bad in r_from:
-				if bad in msg.txt:
-					txt = u''
-					for ch in msg.txt:
-						if ch in r_map:
-							txt += r_map[ch]
-						else:
-							txt += ch
-					break
-			f.write(u'{0} {1} u\'{2}\'\n'.format(
-				msg.ts, msg.user, txt).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            txt = msg.txt
+            for bad in r_from:
+                if bad in msg.txt:
+                    txt = u""
+                    for ch in msg.txt:
+                        if ch in r_map:
+                            txt += r_map[ch]
+                        else:
+                            txt += ch
+                    break
+            f.write(u"{0} {1} u'{2}'\n".format(msg.ts, msg.user, txt).encode("utf-8"))
 
-run(t_condwrite_ifneed_dict, 's_esc5b', comp_t, base_t)
 
+run(t_condwrite_ifneed_dict, "s_esc5b", comp_t, base_t)
 
 
 # Differ:  0.92  0.57
 #
 def t_msgtxt_repr(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0} {1} {2}\n'.format(
-				msg.ts, msg.user, repr(msg.txt)).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0} {1} {2}\n".format(msg.ts, msg.user, repr(msg.txt)).encode("utf-8")
+            )
 
-run(t_msgtxt_repr, 'txt_repr', comp_t, base_t)
 
+run(t_msgtxt_repr, "txt_repr", comp_t, base_t)
 
 
 # Differ:  0.92  0.57
 #
 def t_msgtxt_repr_u(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0} {1} u{2}\n'.format(
-				msg.ts, msg.user, repr(msg.txt).lstrip('u')).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0} {1} u{2}\n".format(
+                    msg.ts, msg.user, repr(msg.txt).lstrip("u")
+                ).encode("utf-8")
+            )
 
-run(t_msgtxt_repr_u, 'txt_repr', comp_t, base_t)
 
+run(t_msgtxt_repr_u, "txt_repr", comp_t, base_t)
 
 
 # Differ:  ?  ?
 #
 def t_fakelist_repr(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'[{0}, u\'{1}\', {2}]\n'.format(
-				msg.ts, msg.user, repr(msg.txt)).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"[{0}, u'{1}', {2}]\n".format(msg.ts, msg.user, repr(msg.txt)).encode(
+                    "utf-8"
+                )
+            )
 
-run(t_fakelist_repr, 'lst_repr_f', comp_t, base_t)
 
+run(t_fakelist_repr, "lst_repr_f", comp_t, base_t)
 
 
 # Differ:  1.07  0.83
-# 
+#
 def t_list_repr(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0}\n'.format(
-				repr([msg.ts, msg.user, msg.txt])).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(u"{0}\n".format(repr([msg.ts, msg.user, msg.txt])).encode("utf-8"))
 
-run(t_list_repr, 'lst_repr', comp_t, base_t)
 
+run(t_list_repr, "lst_repr", comp_t, base_t)
 
 
 # NG:  1.26  1.35
 #
 def t_uesc(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0}\n'.format(
-				u'{0} {1} {2}'.format(
-					msg.ts, msg.user, msg.txt).\
-					encode('unicode_escape')).\
-				encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0}\n".format(
+                    u"{0} {1} {2}".format(msg.ts, msg.user, msg.txt).encode(
+                        "unicode_escape"
+                    )
+                ).encode("utf-8")
+            )
 
-run(t_uesc, 'uesc', comp_t, base_t)
 
+run(t_uesc, "uesc", comp_t, base_t)
 
 
 # Too slow + insecure:  3.15  2.09
 #
 def t_pickle2(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			pickle.dump(msg, f, 2)
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            pickle.dump(msg, f, 2)
 
-run(t_pickle2, 'p2', comp_t, base_t)
 
+run(t_pickle2, "p2", comp_t, base_t)
 
 
 # py[23] identical:  2.38  2.41
 #
 def t_json_str(fn):
-	with open(fn, 'wb') as f:
-		for msg in stream_msgs():
-			f.write(u'{0}\n'.format(json.dumps([msg.ts, msg.user, msg.txt])).encode('utf-8'))
+    with open(fn, "wb") as f:
+        for msg in stream_msgs():
+            f.write(
+                u"{0}\n".format(json.dumps([msg.ts, msg.user, msg.txt])).encode("utf-8")
+            )
 
-run(t_json_str, 'json1', comp_t, base_t)
 
+run(t_json_str, "json1", comp_t, base_t)
 
 
 # py[23] different + 2slow:  5.5  5.6
 #
 def t_json_fh(fn):
-	with open(fn, 'w') as f:
-		for msg in stream_msgs():
-			json.dump([msg.ts, msg.user, msg.txt], f)
-
-run(t_json_fh, 'json2', comp_t, base_t)
+    with open(fn, "w") as f:
+        for msg in stream_msgs():
+            json.dump([msg.ts, msg.user, msg.txt], f)
 
 
-
+run(t_json_fh, "json2", comp_t, base_t)
 
 
 """
