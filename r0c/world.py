@@ -60,7 +60,7 @@ class World(object):
 
     def refresh_chans(self):
         self.chan_sync_active = True
-        while not self.core.stopping:
+        while not self.core.shutdown_flag.is_set():
             time.sleep(0.05)
             with self.mutex:
                 # while not self.task_queue.empty():
@@ -72,6 +72,10 @@ class World(object):
 
                 for chan in dirty_ch:
                     self.refresh_chan(chan)
+
+            if not self.users:
+                if self.core.shutdown_flag.wait(3):
+                    break
 
         self.chan_sync_active = False
 

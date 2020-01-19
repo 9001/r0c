@@ -802,7 +802,14 @@ class VT100_Client(asyncore.dispatcher):
         nchan = uchan.nchan
         topic = nchan.topic
         if nchan.name is None:
-            topic = topic.replace(u"[[uch_a]]", uchan.alias)
+            title = uchan.alias
+            if uchan.alias == self.user.nick:
+                title += ' (You) (why)'
+            else:
+                if len(uchan.nchan.uchans) < 2:
+                    title += ' (disconnected)'
+
+            topic = topic.replace(u"[[uch_a]]", title)
 
         top_bar = u"\033[1H\033[44;48;5;235;38;5;220m{0}\033[K".format(topic)
 

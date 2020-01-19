@@ -34,7 +34,9 @@ def memory_dump():
 
 
 def get_obj_name(target_id):
-    variables = {**locals(), **globals()}
+    variables = {}
+    variables.extend(locals())
+    variables.extend(globals())
     found = None
     var_id = None
     for var in variables:

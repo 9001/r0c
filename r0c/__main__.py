@@ -80,6 +80,7 @@ class Core(object):
         self.threadmon = False
         self.pushthr_alive = False
         self.asyncore_alive = False
+        self.shutdown_flag = threading.Event()
 
         print("  *  Capturing ^C")
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -112,6 +113,7 @@ class Core(object):
 
         print("  *  Handover to asyncore")
         self.asyncore_thr = threading.Thread(target=self.asyncore_worker, name="ac_mgr")
+        self.asyncore_thr.daemon = True
         self.asyncore_thr.start()
 
         return True
@@ -148,17 +150,21 @@ class Core(object):
 
     def run(self):
         print("  *  r0c is up")
+        # self.main_thread = threading.current_thread().ident
 
         if not Config.BENCHMARK:
-            while not self.stopping:
-                time.sleep(0.1)
+            try:
+                while not self.shutdown_flag.wait(69):
+                    pass
+            except KeyboardInterrupt:
+                pass
         else:
             last_joins = 0
             last_parts = 0
             last_messages = 0
-            while not self.stopping:
+            while not self.shutdown_flag.is_set():
                 for n in range(20):
-                    if self.stopping:
+                    if self.shutdown_flag.is_set():
                         break
                     time.sleep(0.1)
 
@@ -178,17 +184,20 @@ class Core(object):
                 last_parts = self.world.num_parts
                 last_messages = self.world.num_messages
 
+        asyncore_timeout = 0.5 / 0.05
+        if self.telnet_server.clients or self.netcat_server.clients:
+            # give it <= 3 sec since people are connected
+            asyncore_timeout = 3 / 0.05
+
         print("\r\n  *  asyncore stopping")
-        clean_shutdown = False
-        for n in range(0, 40):  # 2sec
+        for n in range(0, int(asyncore_timeout)):
+            time.sleep(0.05)
             if not self.asyncore_alive:
                 print("  *  asyncore stopped")
-                clean_shutdown = True
                 break
-            time.sleep(0.05)
 
-        if not clean_shutdown:
-            print(" -X- asyncore is stuck")
+        if self.asyncore_alive:
+            print(" --  asyncore killed")
 
         print("  *  Saving user configs")
         self.telnet_server.save_configs()
@@ -202,11 +211,13 @@ class Core(object):
 
     def asyncore_worker(self):
         self.asyncore_alive = True
+        while not self.shutdown_flag.is_set():
+            timeout = 69
+            if self.telnet_server.clients or self.netcat_server.clients:
+                timeout = 0.1
 
-        timeout = 0.05
-        while not self.stopping:
             try:
-                asyncore.loop(timeout, count=0.5 / timeout)
+                asyncore.loop(timeout, count=1)
             except Exception as ex:
                 if "Bad file descriptor" in str(ex):
                     # print('osx bug ignored')
@@ -221,22 +232,26 @@ class Core(object):
         nth_iter = 0
         last_ts = None
         last_date = None
-        while not self.stopping:
-            while True:
+        while not self.shutdown_flag.is_set():
+            if self.telnet_server.clients or self.netcat_server.clients:
+                # sleep until the start of the next utc second
+                while True:
+                    ts = time.time()
+                    its = int(ts)
+                    if its != last_ts:
+                        last_ts = its
+                        break
+                    if ts - its < 0.98:
+                        time.sleep((1 - (ts - its)) * 0.9)
+                    else:
+                        time.sleep(0.01)
+            else:
+                # less precision if there's nobody connected
+                self.shutdown_flag.wait(69)
                 ts = time.time()
-                its = int(ts)
-                if its != last_ts:
-                    last_ts = its
-                    # print('=== {0}'.format(its))
-                    break
-                if ts - its < 0.98:
-                    # print(ts-its)
-                    time.sleep((1 - (ts - its)) * 0.9)
-                else:
-                    time.sleep(0.01)
+                nth_iter += 68
 
             with world.mutex:
-                # ts = (ts - 1516554584) * 10000
                 date = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
                 if date != last_date:
                     if last_date:
@@ -278,7 +293,8 @@ class Core(object):
                         iface.next_scheduled_kick = next_min
 
                 nth_iter += 1
-                if nth_iter % 600 == 0:
+                if nth_iter >= 600:
+                    nth_iter = 0
 
                     # flush client configs
                     for iface in ifaces:
@@ -304,11 +320,15 @@ class Core(object):
 
         self.pushthr_alive = False
 
-    def shutdown(self):
+    def shutdown(self, send_signal=False):
         # monitor_threads()
         self.stopping += 1
         if self.stopping >= 3:
             os._exit(1)
+
+        self.shutdown_flag.set()
+        # if send_signal:
+        #    signal.pthread_kill(self.main_thread, signal.SIGINT)
 
     def signal_handler(self, signal, frame):
         if Config.THREADMON and not self.threadmon:
@@ -316,6 +336,7 @@ class Core(object):
             Util.monitor_threads()
         else:
             self.shutdown()
+            raise KeyboardInterrupt()
 
 
 def start_r0c(args):
@@ -330,7 +351,7 @@ def start_r0c(args):
 
 def main(args=None):
     mode = "normal"
-    # mode = 'profiler'
+    # mode = "profiler"
     # mode = 'unrag-speedtest'
     # mode = 'unrag-layout-test-v1'
     # mode = 'unrag-layout-test-interactive'
