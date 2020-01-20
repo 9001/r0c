@@ -1,4 +1,4 @@
-python -m r0c.__main__ 23 531 %1
+python -m r0c.__main__ 23 531 %1 || pause
 
 @REM if an argument is provided to this bat file,
 @REM it will be used as the admin password.

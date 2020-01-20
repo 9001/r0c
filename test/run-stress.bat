@@ -1,1 +1,2 @@
-start "r0c stresstest"  /BelowNormal "python" "stress.py" 23
+cd ..
+start "r0c stresstest" /BelowNormal "python" "test\stress.py" 23

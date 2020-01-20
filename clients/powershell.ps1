@@ -1,7 +1,46 @@
+# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted
+
+function Seppuku {
+    Write-Host ""
+    Write-Host -NoNewLine "press ENTER to terminate "
+    $null = $Host.UI.ReadLine()
+    exit 1
+}
+
+#######################################################################
+
+function Test-IsISE {
+    try {    
+        return $psISE -ne $null;
+    }
+    catch {
+        return $false;
+    }
+}
+
+if (Test-IsISE) {
+    Write-Host "cannot run inside Powershell ISE,"
+    Write-Host "press Ctrl-Shift-P and try there"
+    Seppuku
+}
+
+#######################################################################
+
+try {
+    $null = [console]::KeyAvailable
+}
+catch {
+    Write-Host "cannot access the keyboard;"
+    Write-Host "something's wrong with your shell"
+    Seppuku
+}
+
+#######################################################################
+
 if ($args.count -ne 2) {
     Write-Host "Need argument 1:  Host IP or Hostname"
     Write-Host "Need argument 2:  Host Port"
-    exit 1
+    Seppuku
 }
 
 $socket = New-Object System.Net.Sockets.TcpClient

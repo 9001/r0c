@@ -2,7 +2,7 @@
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION
-from .__init__ import EP
+from .__init__ import EP, WINDOWS
 from . import config as Config
 from . import util as Util
 from .util import print
@@ -153,7 +153,12 @@ class Core(object):
 
         if not Config.BENCHMARK:
             try:
-                while not self.shutdown_flag.wait(69):
+                timeout = 69
+                if WINDOWS:
+                    # ctrl-c does not raise
+                    timeout = 0.69
+
+                while not self.shutdown_flag.wait(timeout):
                     pass
             except KeyboardInterrupt:
                 pass
@@ -210,12 +215,15 @@ class Core(object):
         self.telnet_server.close()
 
         print("  *  r0c is down")
+        return True
 
     def asyncore_worker(self):
         self.asyncore_alive = True
         while not self.shutdown_flag.is_set():
             timeout = 69
             if self.telnet_server.clients or self.netcat_server.clients:
+                # TODO: every once in a while a packet isn't delivered
+                # until the client sends us a packet or the timeout hits
                 timeout = 0.34
 
             try:
@@ -345,7 +353,7 @@ def start_r0c(args):
     core = Core()
     try:
         if core.start(args):
-            core.run()
+            return core.run()
     except:
         Util.whoops()
         os._exit(1)
@@ -361,7 +369,8 @@ def main(args=None):
     # test_hexdump()
 
     if mode == "normal":
-        start_r0c(args)
+        if not start_r0c(args):
+            sys.exit(1)
 
     if mode == "profiler":
         print("  *  PROFILER ENABLED")
