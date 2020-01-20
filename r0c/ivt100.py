@@ -111,7 +111,9 @@ class VT100_Server(asyncore.dispatcher):
             )
 
     def part(self, remote, announce=True):
+        # TODO should probably set this inside the lock? check if that's safe
         remote.dead = True
+        
         with self.world.mutex:
             # print('==[part]' + '='*72)
             # traceback.print_stack()
@@ -644,7 +646,19 @@ class VT100_Client(asyncore.dispatcher):
                     pass
                 if self in self.host.clients:
                     print("*** dead client still in host.clients")
-                    del self.host.clients[self]
+
+                    def delayed_drop():
+                        time.sleep(5)
+                        if self in self.host.clients:
+                            print("*** dead client STILL in host.clients, removing")
+                            self.host.clients.remove(self)
+                        else:
+                            print("*** its fine")
+
+                    thr = threading.Thread(target=delayed_drop, name="dropcli")
+                    thr.daemon = True
+                    thr.start()
+
                 return
 
             if not self.user:
@@ -804,10 +818,10 @@ class VT100_Client(asyncore.dispatcher):
         if nchan.name is None:
             title = uchan.alias
             if uchan.alias == self.user.nick:
-                title += ' (You) (why)'
+                title += " (You) (why)"
             else:
                 if len(uchan.nchan.uchans) < 2:
-                    title += ' (disconnected)'
+                    title += " (disconnected)"
 
             topic = topic.replace(u"[[uch_a]]", title)
 
