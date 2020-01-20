@@ -36,6 +36,7 @@ class World(object):
         self.task_queue = Queue()  # Delayed processing of expensive tasks
         self.mutex = threading.RLock()
         self.dirty_flag = threading.Event()  # raise after setting dirty_ch
+        Util.py26_threading_event_wait(self.dirty_flag)
 
         # config
         self.messages_per_log_file = Config.MESSAGES_PER_LOG_FILE

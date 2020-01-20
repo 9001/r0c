@@ -870,7 +870,7 @@ class User(object):
 
             def delayed_shutdown():
                 time.sleep(0.5)
-                self.world.core.shutdown(True)
+                self.world.core.shutdown()
 
             thr = threading.Thread(target=delayed_shutdown, name="shutd")
             thr.daemon = True

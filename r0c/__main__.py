@@ -80,6 +80,7 @@ class Core(object):
         self.threadmon = False
         self.asyncore_alive = False
         self.shutdown_flag = threading.Event()
+        Util.py26_threading_event_wait(self.shutdown_flag)
 
         print("  *  Capturing ^C")
         signal.signal(signal.SIGINT, self.signal_handler)
@@ -149,7 +150,6 @@ class Core(object):
 
     def run(self):
         print("  *  r0c is up")
-        # self.main_thread = threading.current_thread().ident
 
         if not Config.BENCHMARK:
             try:
@@ -330,15 +330,13 @@ class Core(object):
 
         print("  *  terminated push_worker")
 
-    def shutdown(self, send_signal=False):
+    def shutdown(self):
         # monitor_threads()
         self.stopping += 1
         if self.stopping >= 3:
             os._exit(1)
 
         self.shutdown_flag.set()
-        # if send_signal:
-        #    signal.pthread_kill(self.main_thread, signal.SIGINT)
 
     def signal_handler(self, signal, frame):
         if Config.THREADMON and not self.threadmon:

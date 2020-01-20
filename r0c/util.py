@@ -508,11 +508,11 @@ def whoops(extra=None):
   | | /| / / __ \/ __ \/ __ \/ __ \/ ___/
   | |/ |/ / / / / /_/ / /_/ / /_/ (__  )
   |__/|__/_/ /_/\____/\____/ .___/____/
-                          /_/"""[1:]
+                          /_/"""
     exc = traceback.format_exc()
     if exc.startswith("None"):
         exc = "".join(traceback.format_stack()[:-1])
-    msg = "{0}\r\n{1}\r\n{2}</stack>".format(msg, exc.rstrip(), "-" * 64)
+    msg = "{0}\r\n{1}\r\n{2}</stack>".format(msg[1:], exc.rstrip(), "-" * 64)
     print(msg)
     if extra:
         print("  {0}\n{1}\n".format(extra, "-" * 64))
@@ -588,6 +588,28 @@ def compat_chans_in_root():
 
         print("upgrade done \\o/")
         print()
+
+
+def py26_threading_event_wait(event):
+    """
+    threading.Event.wait() is broken on py2.6;
+    with multiple subscribers it doesn't always trigger
+    """
+    if (
+        sys.version_info[:2] != (2, 6)
+        or platform.python_implementation() != "CPython"
+        or "_Event__flag" not in event.__dict__
+    ):
+        return
+
+    def nice_meme(timeout=None):
+        if event._Event__flag:
+            return True
+
+        time.sleep(0.69)
+        return event._Event__flag
+
+    event.wait = nice_meme
 
 
 # ---------------------------------------------------------------------
