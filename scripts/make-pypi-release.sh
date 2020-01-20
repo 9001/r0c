@@ -2,7 +2,7 @@
 set -e
 echo
 
-
+# osx support
 sed=$( which gsed  2>/dev/null || which sed)
 find=$(which gfind 2>/dev/null || which find)
 sort=$(which gsort 2>/dev/null || which sort)
@@ -13,9 +13,9 @@ which md5sum 2>/dev/null >/dev/null &&
 
 mode="$1"
 
-[ "x$mode" == x ] &&
+[ -z "$mode" ] &&
 {
-	echo "need argument 1:  (D)ry or (U)pload"
+	echo "need argument 1:  (D)ry, (T)est, (U)pload"
 	echo
 	exit 1
 }
@@ -39,29 +39,27 @@ index-servers =
   pypitest
 
 [pypi]
-username=qwer
-password=asdf
+repository: https://upload.pypi.org/legacy/
+username: qwer
+password: asdf
 
 [pypitest]
 repository: https://test.pypi.org/legacy/
-username=qwer
-password=asdf
+username: qwer
+password: asdf
 EOF
 
 	# set pypi password
 	chmod 600 ~/.pypirc
 	sed -ri 's/qwer/username/;s/asdf/password/' ~/.pypirc
 
-	# setup build env
-	cd ~/dev/r0c &&
-	virtualenv buildenv
-	. buildenv/bin/activate
-	pip install m2r
-	deactivate
-	
-	# test rst
-	pip install docutils
-	./setup.py --long-description | tee ~/Desktop/rst | rst2html.py > ~/Desktop/rst.html
+	# if PY2: create build env
+	cd ~/dev/r0c && virtualenv buildenv
+	(. buildenv/bin/activate && pip install twine)
+
+	# if PY3: create build env
+	cd ~/dev/r0c && python3 -m venv buildenv
+	(. buildenv/bin/activate && pip install twine wheel)
 }
 
 
@@ -84,12 +82,12 @@ function have() {
 . buildenv/bin/activate
 have setuptools
 have wheel
-have m2r
+have twine
 ./setup.py clean2
-./setup.py rstconv
 ./setup.py sdist bdist_wheel --universal
-[ "x$mode" == "xu" ] &&
-	./setup.py sdist bdist_wheel upload -r pypi
+
+[ "$mode" == t ] && twine upload -r pypitest dist/*
+[ "$mode" == u ] && twine upload -r pypi dist/*
 
 cat <<EOF
 

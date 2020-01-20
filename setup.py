@@ -32,15 +32,13 @@ def mglob(dirname, extensions):
 
 
 NAME = "r0c"
-VERSION = None
 data_files = [
-    ("share/doc/r0c", ["README.rst", "README.md", "LICENSE"]),
-    ("share/doc/r0c/help", mglob("docs", ["md", "rst"])),
+    ("share/doc/r0c", ["README.md", "LICENSE"]),
+    ("share/doc/r0c/help", mglob("docs", ["md"])),
     ("share/doc/r0c/clients", glob("clients/*")),
 ]
 manifest = ""
 for dontcare, files in data_files:
-    # print(dontcare)
     for fn in files:
         manifest += "include {0}\n".format(fn)
 
@@ -49,29 +47,28 @@ here = os.path.abspath(os.path.dirname(__file__))
 with open(here + "/MANIFEST.in", "wb") as f:
     f.write(manifest.encode("utf-8"))
 
+with open(here + "/README.md", "rb") as f:
+    md = f.read().decode("utf-8")
 
-try:
-    LONG_DESCRIPTION = ""
-    LDCT = ""
-    with open(here + "/README.rst", "rb") as f:
-        txt = f.read().decode("utf-8")
-        txt = txt[txt.find("`") :]
-        LONG_DESCRIPTION = txt
-        LDCT = "text/x-rst"
-except:
-    print("\n### could not open README.rst ###\n")
-    with open(here + "/README.md", "rb") as f:
-        txt = f.read().decode("utf-8")
-        LONG_DESCRIPTION = txt
-        LDCT = "text/markdown"
+    md = md.replace(
+        "(docs/r0c.png)",
+        "(https://raw.githubusercontent.com/9001/r0c/master/docs/r0c.png)",
+    )
+
+    for kw in ["docs/help-", "docs/", "clients/"]:
+        md = md.replace(
+            "({0}".format(kw),
+            "(https://github.com/9001/r0c/blob/master/{0}".format(kw),
+        )
+
+    long_description = md
 
 
 about = {}
-if not VERSION:
-    with open(os.path.join(here, NAME, "__version__.py"), "rb") as f:
-        exec(f.read().decode("utf-8"), about)
-else:
-    about["__version__"] = VERSION
+with open(os.path.join(here, NAME, "__version__.py"), "rb") as f:
+    exec(f.read().decode("utf-8"), about)
+
+# about["__version__"] = "0.0.4"
 
 
 class clean2(Command):
@@ -101,11 +98,10 @@ class clean2(Command):
         for (dirpath, dirnames, filenames) in os.walk("."):
             for fn in filenames:
                 if (
-                    fn.endswith(".rst")
+                    fn.startswith("MANIFEST")
                     or fn.endswith(".pyc")
                     or fn.endswith(".pyo")
                     or fn.endswith(".pyd")
-                    or fn.startswith("MANIFEST")
                 ):
                     nuke.append(dirpath + "/" + fn)
 
@@ -113,82 +109,12 @@ class clean2(Command):
             os.unlink(fn)
 
 
-class rstconv(Command):
-    description = "Converts markdown to rst"
-    user_options = []
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        self.proc_dir(".")
-        self.proc_dir("docs")
-
-    def proc_dir(self, path):
-        import m2r
-
-        for (dirpath, dirnames, filenames) in os.walk(path):
-
-            dirnames.sort()
-            for fn in sorted(filenames):
-
-                fn = dirpath + "/" + fn
-                if not fn.endswith(".md"):
-                    continue
-
-                rst_fn = fn[:-3] + ".rst"
-                with open(fn, "rb") as f:
-                    md = f.read().decode("utf-8")
-
-                for kw in ["docs/help-"]:
-                    md = md.replace(
-                        "({0}".format(kw),
-                        "(https://github.com/9001/r0c/blob/master/{0}".format(kw),
-                    )
-
-                for kw in ["docs", "clients"]:
-                    md = md.replace(
-                        "({0}/".format(kw), "(https://ocv.me/static/r0c/{0}/".format(kw)
-                    )
-
-                md = md.replace("* **[", "* [").replace(")** <-", ") <-")
-                rst = m2r.convert(md)
-                rst = rst.replace(":raw-html-m2r:`<del>", ":sub:`")
-                rst = rst.replace("</del>`", "`")
-
-                with open(rst_fn, "wb") as f:
-                    f.write(rst.encode("utf-8"))
-
-
-if False:
-    data_files = {}
-    for dest, src, masks in [
-        ["share/doc/r0c/help", "docs", [".md", ".rst"]],
-        ["share/doc/r0c/clients", "clients", [""]],
-    ]:
-
-        files = []
-        src = here + "/" + src
-        for (dirpath, dirnames, filenames) in os.walk(src):
-            dirnames.sort()
-            for fn in sorted(filenames):
-                for mask in masks:
-                    if fn.endswith(mask):
-                        files.append(fn)
-                        break
-
-        data_files[dest] = files
-
-
 args = {
     "name": NAME,
     "version": about["__version__"],
     "description": "retr0chat telnet/vt100 chat server",
-    "long_description": LONG_DESCRIPTION,
-    "long_description_content_type": LDCT,
+    "long_description": long_description,
+    "long_description_content_type": "text/markdown",
     "author": "ed",
     "author_email": "r0c@ocv.me",
     "url": "https://github.com/9001/r0c",
@@ -210,12 +136,16 @@ args = {
         "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: Implementation :: CPython",
+        "Programming Language :: Python :: Implementation :: IronPython",
+        "Programming Language :: Python :: Implementation :: Jython",
         "Programming Language :: Python :: Implementation :: PyPy",
         "Environment :: Console",
+        "Environment :: No Input/Output (Daemon)",
         "Topic :: Communications :: Chat",
     ],
-    "cmdclass": {"rstconv": rstconv, "clean2": clean2},
+    "cmdclass": {"clean2": clean2},
 }
 
 
