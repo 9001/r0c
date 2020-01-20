@@ -4,7 +4,6 @@ from .__version__ import S_VERSION, S_BUILD_DT
 from .__init__ import EP, PY2
 from . import config as Config
 from . import util as Util
-from .util import print
 from . import chat as Chat
 from . import world as World
 from . import diag as Diag
@@ -18,6 +17,8 @@ from datetime import datetime
 # debug imports
 import code
 import gc
+
+print = Util.print
 
 
 if __name__ == "__main__":

@@ -5,6 +5,7 @@ import platform
 import sys
 import os
 
+INTERP = platform.python_implementation()
 WINDOWS = platform.system() == "Windows"
 PY2 = sys.version_info[0] == 2
 if PY2:

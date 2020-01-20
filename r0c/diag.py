@@ -1,10 +1,12 @@
 # coding: utf-8
 from __future__ import print_function
-from .util import print
+from . import util as Util
 from . import chat as Chat
 
 import sys
 import gc
+
+print = Util.print
 
 
 if __name__ == "__main__":

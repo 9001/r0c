@@ -3,7 +3,6 @@ from __future__ import print_function
 from .__init__ import EP, PY2, WINDOWS
 from . import config as Config
 from . import util as Util
-from .util import print
 from . import unrag as Unrag
 from . import chat as Chat
 from . import user as User
@@ -17,6 +16,8 @@ import threading
 import binascii
 from datetime import datetime
 import operator
+
+print = Util.print
 
 
 if __name__ == "__main__":
@@ -239,6 +240,12 @@ class VT100_Client(asyncore.dispatcher):
 
             self.wire_log = open(log_fn, "wb")
             self.wire_log.write("{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
+
+        self.uee_offset = 0
+        try:
+            b'\xfe'.decode('utf-8')
+        except UnicodeDecodeError as uee:
+            self.uee_offset = -uee.start
 
         # outgoing data
         self.outbox = Queue()

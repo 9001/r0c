@@ -5,7 +5,6 @@ from .__version__ import S_VERSION
 from .__init__ import EP, WINDOWS
 from . import config as Config
 from . import util as Util
-from .util import print
 from . import unrag as Unrag
 from . import inetcat as Inetcat
 from . import itelnet as Itelnet
@@ -18,6 +17,8 @@ import signal
 import threading
 import asyncore
 from datetime import datetime
+
+print = Util.print
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""

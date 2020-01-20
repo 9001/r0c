@@ -3,11 +3,12 @@ from __future__ import print_function
 from .__init__ import EP, PY2
 from . import config as Config
 from . import util as Util
-from .util import print
 from . import ivt100 as Ivt100
 
 import time
 import struct
+
+print = Util.print
 
 
 if __name__ == "__main__":
@@ -192,6 +193,7 @@ class TelnetClient(Ivt100.VT100_Client):
                     self.in_bytes = self.in_bytes[decode_until:]
 
                 except UnicodeDecodeError as uee:
+                    uee.start += self.uee_offset
 
                     is_inband = (
                         decode_until > uee.start and self.in_bytes[uee.start] == xff

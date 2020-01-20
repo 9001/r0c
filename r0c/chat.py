@@ -1,10 +1,11 @@
 # coding: utf-8
 from __future__ import print_function
 from . import util as Util
-from .util import print
 
 from datetime import datetime
 import calendar
+
+print = Util.print
 
 
 if __name__ == "__main__":

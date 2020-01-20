@@ -3,10 +3,11 @@ from __future__ import print_function
 from .__init__ import EP
 from . import config as Config
 from . import util as Util
-from .util import print
 from . import ivt100 as Ivt100
 
 import time
+
+print = Util.print
 
 
 if __name__ == "__main__":
@@ -77,6 +78,7 @@ class NetcatClient(Ivt100.VT100_Client):
                 self.in_bytes = self.in_bytes[0:0]
 
             except UnicodeDecodeError as uee:
+                uee.start += self.uee_offset
                 if len(self.in_bytes) < uee.start + 6:
                     print(
                         "need more data to parse unicode codepoint at {0} in {1}".format(

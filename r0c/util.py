@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, WINDOWS
+from .__init__ import EP, PY2, WINDOWS, INTERP
 from . import config as Config
 
 import traceback
@@ -597,7 +597,7 @@ def py26_threading_event_wait(event):
     """
     if (
         sys.version_info[:2] != (2, 6)
-        or platform.python_implementation() != "CPython"
+        or INTERP != "CPython"
         or "_Event__flag" not in event.__dict__
     ):
         return

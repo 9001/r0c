@@ -1,9 +1,8 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2
+from .__init__ import EP, PY2, INTERP
 from . import config as Config
 from . import util as Util
-from .util import print
 from . import chat as Chat
 
 import os
@@ -16,6 +15,8 @@ if PY2:
     from Queue import Queue
 else:
     from queue import Queue
+
+print = Util.print
 
 
 if __name__ == "__main__":
@@ -163,7 +164,7 @@ class World(object):
                 if nchan.name is None or uchan.user.nick_re.search(text):
                     # if len(nchan.uchans) == 1:
                     # 	break
-                    if PY2:
+                    if PY2 and INTERP != "IronPython":
                         if isinstance(uchan.user.nick, str):
                             Util.whoops("uchan.user.nick is bytestring")
                         if isinstance(from_nick, str):
