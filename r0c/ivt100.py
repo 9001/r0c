@@ -1479,11 +1479,14 @@ class VT100_Client(asyncore.dispatcher):
 
                     elif t_steps > 0:
                         # official way according to docs,
-                        # doesn't work on windows
+                        # doesn't work in windows terminals (xp..win10)
                         # ret += u'\033[{0}H\033[S\033[K{1}'.format(self.h - 2, ln)
 
-                        # also works
-                        ret += u"\033[{0}H\033D\033[K{1}".format(self.h - 2, ln)
+                        # stopped working in WSL1 terminals on LTSC 2020-09
+                        # ret += u"\033[{0}H\033D\033[K{1}".format(self.h - 2, ln)
+
+                        # ok
+                        ret += u"\033[{0}H\n\n\033[K{1}".format(self.h - 3, ln)
 
                     else:
                         # official way according to docs,
@@ -1669,8 +1672,10 @@ class VT100_Client(asyncore.dispatcher):
             print()
 
         # lock to bottom if all recent messages are visible
-        if not ch.lock_to_bottom and nch.msgs[-1] == ch.vis[-1].msg:
-            ch.lock_to_bottom = True
+        if not ch.lock_to_bottom:
+            vlast = ch.vis[-1]
+            if nch.msgs[-1] == vlast.msg and vlast.cdr == len(vlast.txt):
+                ch.lock_to_bottom = True
 
         # print('update_chat:  {0} runes'.format(len(ret)))
         # print(' scroll_cmd:  {0}'.format(self.scroll_cmd))
