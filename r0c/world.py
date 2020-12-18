@@ -249,9 +249,22 @@ class World(object):
                         ),
                     )
                 )
-                # if nchan.name != 'xld':
-                self.load_chat_log(nchan)
-                # self.task_queue.put([self.load_chat_log, [nchan], {}])
+                if nchan.name != "scrolltest":
+                    self.load_chat_log(nchan)
+                    # self.task_queue.put([self.load_chat_log, [nchan], {}])
+                else:
+                    for n1 in range(10):
+                        txt = u""
+                        for n2 in range(10):
+                            txt += u"{0}{1}".format(n1, n2) * 20 + " "
+
+                        msg = Chat.Message(nchan, time.time(), u"--", txt)
+                        nchan.msgs.append(msg)
+
+                    txt = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa " * 6
+                    msg = Chat.Message(nchan, time.time(), u"--", txt)
+                    nchan.msgs.append(msg)
+
                 self.pub_ch.append(nchan)
 
             ret = self.join_chan_obj(user, nchan)

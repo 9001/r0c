@@ -405,7 +405,7 @@ class User(object):
             )
 
         elif cmd == u"join" or cmd == u"j":
-            if not arg or len(arg) < 2:
+            if not arg or len(arg) < 1:
                 self.world.send_chan_msg(
                     u"-err-",
                     inf,
@@ -417,17 +417,7 @@ class User(object):
                 return
 
             if not arg.startswith(u"#"):
-                self.world.send_chan_msg(
-                    u"-err-",
-                    inf,
-                    u"""[error]
-  illegal channel name:  {0}
-  channel names must start with #
-""".format(
-                        arg
-                    ),
-                )
-                return
+                arg = u"#" + arg
 
             nchan = self.world.join_pub_chan(self, arg[1:]).nchan
             # this is in charge of activating the new channel,
@@ -786,7 +776,7 @@ class User(object):
                     pass
 
             if int_arg is not None:
-                if int_arg > 200:
+                if int_arg > 9000:
                     self.world.send_chan_msg(u"-err-", inf, u"whoa dude")
                     return
 

@@ -114,7 +114,7 @@ class VT100_Server(asyncore.dispatcher):
     def part(self, remote, announce=True):
         # TODO should probably set this inside the lock? check if that's safe
         remote.dead = True
-        
+
         with self.world.mutex:
             # print('==[part]' + '='*72)
             # traceback.print_stack()
@@ -243,7 +243,7 @@ class VT100_Client(asyncore.dispatcher):
 
         self.uee_offset = 0
         try:
-            b'\xfe'.decode('utf-8')
+            b"\xfe".decode("utf-8")
         except UnicodeDecodeError as uee:
             self.uee_offset = -uee.start
 
@@ -1181,7 +1181,6 @@ class VT100_Client(asyncore.dispatcher):
             and not full_redraw
             and nch.msgs[-1].sno - ch.vis[-1].msg.sno > self.h * 2
         ):
-
             # lots of messages since last time, no point in scrolling
             self.scroll_cmd = None
             full_redraw = True
@@ -1205,13 +1204,12 @@ class VT100_Client(asyncore.dispatcher):
                     txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
 
                     if top_msg is not None and len(top_msg.txt) == len(txt):
-
                         car = top_msg.car
-                        cdr = top_msg.cdr
+                        cdr = len(top_msg.txt)
                         n_vis = cdr - car
                         top_msg = None
                         if n_vis > lines_left:
-                            delta = lines_left - n_vis
+                            delta = n_vis - lines_left
                             n_vis -= delta
                             cdr -= delta
 
@@ -1225,6 +1223,9 @@ class VT100_Client(asyncore.dispatcher):
                         if n_vis > lines_left:
                             n_vis = lines_left
                             cdr = n_vis
+
+                    if cdr > len(txt) or car >= cdr or n_vis == 0:
+                        print("bug1 car{0} cdr{1} len{2}".format(car, cdr, len(txt)))
 
                     vmsg = Chat.VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
                     ch.vis.append(vmsg)
@@ -1259,6 +1260,9 @@ class VT100_Client(asyncore.dispatcher):
                     if n_vis >= lines_left:
                         n_vis = lines_left
                         car = cdr - n_vis
+
+                    if cdr > len(txt) or car >= cdr or n_vis == 0:
+                        print("bug2 car{0} cdr{1} len{2}".format(car, cdr, len(txt)))
 
                     vmsg = Chat.VisMessage().c_new(msg, txt, imsg, car, cdr, ch)
                     ch.vis.append(vmsg)
@@ -1377,17 +1381,27 @@ class VT100_Client(asyncore.dispatcher):
 
                     if debug_scrolling:
                         for n, ln in enumerate(ref.txt):
+                            if n == ref.car:
+                                anchor = "== car"
+                            elif n == ref.cdr - 1:
+                                anchor = "== cdr"
+                            else:
+                                anchor = ""
+
                             print(
                                 "{0:2} {1} {2}".format(
                                     n,
                                     ln,
-                                    "== car"
-                                    if n == ref.car
-                                    else "== cdr"
-                                    if n == ref.cdr - 1
-                                    else "",
+                                    anchor,
                                 )
                             )
+
+                    if ref.cdr > len(ref.txt) or ref.car >= ref.cdr:
+                        print(
+                            "bug3 car{0} cdr{1} len{2}".format(
+                                ref.car, ref.cdr, len(ref.txt)
+                            )
+                        )
 
                     partial = Chat.VisMessage().c_segm(
                         ref, ref.cdr, len(ref.txt), 0, len(ref.txt) - ref.cdr, ch
@@ -1511,6 +1525,13 @@ class VT100_Client(asyncore.dispatcher):
                 vmsg.car = new_car
                 vmsg.cdr = new_cdr
                 # print('@@@ vismsg len({0}) car,cdr({1},{2}) -- {3}'.format(len(txt), new_car, new_cdr, txt[0][-30:]))
+
+                if vmsg.cdr > len(vmsg.txt) or vmsg.car >= vmsg.cdr or n_vis == 0:
+                    print(
+                        "bug4 car{0} cdr{1} len{2}".format(
+                            vmsg.car, vmsg.cdr, len(vmsg.txt)
+                        )
+                    )
 
                 if t_steps < 0:
                     ch.vis.insert(0, vmsg)
@@ -1922,6 +1943,7 @@ class VT100_Client(asyncore.dispatcher):
             # if any(ch in btext for ch in nline):
             nl_a = next((i for i, ch in enumerate(btext) if ch in nline), None)
             if nl_a is not None:
+                nl_b = None
                 for i, ch in enumerate(btext[nl_a:], nl_a):
                     if ch not in nline:
                         break
@@ -2173,6 +2195,7 @@ class VT100_Client(asyncore.dispatcher):
                 )
             )
 
+            nth = -1
             if not self.vt100:
                 for nth, (enc, uni) in enumerate(
                     zip(self.codec_map[::2], self.codec_map[1::2])
