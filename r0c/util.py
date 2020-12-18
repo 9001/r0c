@@ -328,6 +328,33 @@ def sanitize_ctl_codes(aside):
     return plain
 
 
+def sanitize_fn(fn):
+    for bad, good in [
+        ["<", "＜"],
+        [">", "＞"],
+        [":", "："],
+        ['"', "＂"],
+        ["/", "／"],
+        ["\\", "＼"],
+        ["|", "｜"],
+        ["?", "？"],
+        ["*", "＊"],
+        ["'", "＇"],  # shell-safety
+        ["`", "｀"]  # shell-safety
+    ]:
+        fn = fn.replace(bad, good)
+
+    if WINDOWS:
+        bad = ["con", "prn", "aux", "nul"]
+        for n in range(1, 10):
+            bad += "com{0} lpt{0}".format(n).split(" ")
+
+        if fn.lower() in bad:
+            fn = "_" + fn
+
+    return fn
+
+
 FOREGROUNDS = {}
 for luma, chars in enumerate([u"01234567", u"89abcdef"]):
     for n, ch in enumerate(chars):

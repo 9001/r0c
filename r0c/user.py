@@ -288,13 +288,16 @@ class User(object):
                 )
                 return
 
-            # TODO: make this more lenient?
             legit_chars = Util.azAZ
-            legit_chars += u"0123456789_-"
+            legit_chars += u"0123456789"
+            legit_within = u"`~!@#$%^&*()_+-=[]{};':\"|,./<>?"
             new_nick = u""
+            err_extra = u""
             for ch in arg:
-                if ch in legit_chars:
+                if ch in legit_chars or (ch in legit_within and new_nick):
                     new_nick += ch
+                elif not new_nick:
+                    err_extra = "  (nicks must begin with an alphanumeric character)\n"
 
             if not new_nick:
                 self.world.send_chan_msg(
@@ -310,17 +313,8 @@ class User(object):
                     u"-err-",
                     inf,
                     u"[invalid argument]\n  "
-                    + u"some illegal characters were removed\n",
+                    + u"some illegal characters were removed\n" + err_extra,
                 )
-                return
-
-            if new_nick.startswith(u"-"):
-                self.world.send_chan_msg(
-                    u"-err-",
-                    inf,
-                    u"[invalid argument]\n  " + u'nicks cannot start with "-" (dash)\n',
-                )
-                return
 
             if len(new_nick) > 32:
                 self.world.send_chan_msg(

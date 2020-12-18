@@ -475,7 +475,7 @@ class World(object):
             log_dir = "{0}chan/{1}".format(EP.log, nchan.name)
         else:
             log_dir = "{0}pm/{1}".format(
-                EP.log, "/".join([x.user.nick for x in nchan.uchans])
+                EP.log, "/".join([Util.sanitize_fn(x.user.nick) for x in nchan.uchans])
             )
 
         if nchan.log_fh:
