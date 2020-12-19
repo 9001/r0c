@@ -37,14 +37,29 @@ catch {
 
 #######################################################################
 
-if ($args.count -ne 2) {
-    Write-Host "Need argument 1:  Host IP or Hostname"
-    Write-Host "Need argument 2:  Host Port"
-    Seppuku
+$r0chost = if ($args.count -ge 1) {$args[0]} else {""}
+$r0cport = if ($args.count -ge 2) {$args[1]} else {""}
+$arr = $r0chost.Split(":")
+if ($arr.count -eq 2) {
+    $r0chost = $arr[0];
+    $r0cport = $arr[1];
 }
+if ([string]::IsNullOrEmpty($r0chost)) {
+    $r0chost = Read-Host "Input r0c address, default 127.0.0.1 if blank"
+    if ([string]::IsNullOrEmpty($r0chost)) {
+        $r0chost = "127.0.0.1"
+    }
+}
+if ([string]::IsNullOrEmpty($r0cport)) {
+    $r0cport = Read-Host "Input r0c port, default 531 if blank"
+    if ([string]::IsNullOrEmpty($r0cport)) {
+        $r0cport = "531"
+    }
+}
+$r0cport = [int]$r0cport
 
 $socket = New-Object System.Net.Sockets.TcpClient
-$socket.connect($args[0], [int]$args[1])
+$socket.connect($r0chost, $r0cport)
 $stream = $socket.GetStream()
 $buf = New-Object byte[] 4096
 $messages_lost = 0
