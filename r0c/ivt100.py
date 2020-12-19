@@ -105,6 +105,9 @@ class VT100_Server(asyncore.dispatcher):
             self.clients.append(remote)
             remote.conf_wizard(0)
 
+            kick_msg = " wizardkick:  {0}  {1}".format(remote.user.nick, remote.adr[0])
+            self.schedule_kick(remote, 600, kick_msg)
+
             print(
                 "client join:  {0}  {2}  {3}  {1}".format(
                     remote.user.nick, len(self.clients), *list(remote.adr)
@@ -149,6 +152,9 @@ class VT100_Server(asyncore.dispatcher):
         self.scheduled_kicks.append([timeout, remote, msg])
         if self.next_scheduled_kick is None or self.next_scheduled_kick > timeout:
             self.next_scheduled_kick = timeout
+
+    def unschedule_kick(self, remote):
+        self.scheduled_kicks = [x for x in self.scheduled_kicks if x[1] != remote]
 
     def load_configs(self):
         with self.world.mutex:
@@ -2310,6 +2316,7 @@ class VT100_Client(asyncore.dispatcher):
                     thr.daemon = True
                     thr.start()
 
+            self.host.unschedule_kick(self)
             self.wizard_stage = None
             self.in_text = u""
             self.in_text_full = u""

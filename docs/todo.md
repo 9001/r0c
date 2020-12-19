@@ -6,7 +6,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: important
 
-* kick idle clients (bots that got stuck in the config wizard lel)
+* `nothing to see here`
 
 # features: whatever
 
@@ -18,7 +18,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 # features: mostly pointless
 
 * notifications in topic bar
-* can verify crlf when loading cfg
 
 # bugs: important
 
@@ -68,6 +67,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * preview colours in text input
 * check if AYT can be used as ping/pong  (not really)
   * can use crazy options where you expect a nope in return and then get a nope every time you ask
+* kick clients that are stuck in the config wizard for >10min
 
 * tabcomplete (last-spoke order)
 * suggest non-telnet clients to use the other interface (and vice versa)
@@ -79,6 +79,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * some clients sending invalid utf8?
   * unparseable data before 303 in 303 total:
   * \xe2\xa3\xbf in messages
+* verify crlf when loading cfg
 
 * jump to ch0 on nick change, day change
 * print nick on connect and disconnect
