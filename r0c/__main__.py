@@ -238,8 +238,8 @@ class Core(object):
         self.asyncore_alive = False
 
     def push_worker(self, world, ifaces):
-        nth_iter = 0
-        last_ts = None
+        last_action_ts = time.time()
+        last_its = None
         last_date = None
         while not self.shutdown_flag.is_set():
             if self.telnet_server.clients or self.netcat_server.clients:
@@ -247,8 +247,8 @@ class Core(object):
                 while True:
                     ts = time.time()
                     its = int(ts / 5) * 5
-                    if its != last_ts:
-                        last_ts = its
+                    if its != last_its:
+                        last_its = its
                         break
                     if ts - its < 4.99:
                         if self.shutdown_flag.wait((5 - (ts - its))):
@@ -257,10 +257,9 @@ class Core(object):
                         time.sleep(0.02)
             else:
                 # less precision if there's nobody connected
-                ts0 = time.time()
                 self.world.dirty_flag.wait(100)
                 ts = time.time()
-                nth_iter += int(ts) - int(ts0) - 4
+                last_its = int(ts / 5) * 5
 
             with world.mutex:
                 date = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
@@ -303,9 +302,8 @@ class Core(object):
 
                         iface.next_scheduled_kick = next_min
 
-                nth_iter += 5
-                if nth_iter >= 600:
-                    nth_iter = 0
+                if ts - last_action_ts >= 600:
+                    last_action_ts = ts
 
                     # flush client configs
                     for iface in ifaces:
