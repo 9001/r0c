@@ -2,9 +2,13 @@
 set -e
 echo
 
-sed=$( which gsed  2>/dev/null || which sed)
-find=$(which gfind 2>/dev/null || which find)
-sort=$(which gsort 2>/dev/null || which sort)
+command -v gtar  >/dev/null &&
+command -v gfind >/dev/null && {
+	tar()  { gtar  "$@"; }
+	sed()  { gsed  "$@"; }
+	find() { gfind "$@"; }
+	sort() { gsort "$@"; }
+}
 
 which md5sum 2>/dev/null >/dev/null &&
 	md5sum=md5sum ||
@@ -27,7 +31,7 @@ ver="$1"
 	exit 1
 }
 
-out_dir="$(pwd | $sed -r 's@/[^/]+$@@')"
+out_dir="$(pwd | sed -r 's@/[^/]+$@@')"
 zip_path="$out_dir/r0c-$ver.zip"
 tgz_path="$out_dir/r0c-$ver.tar.gz"
 
@@ -44,21 +48,20 @@ tgz_path="$out_dir/r0c-$ver.tar.gz"
 rm "$zip_path" 2>/dev/null || true
 rm "$tgz_path" 2>/dev/null || true
 
-#$sed -ri "s/^(ADMIN_PWD *= *u).*/\1'hunter2'/" r0c/config.py
+#sed -ri 's/^(ADMIN_PWD *= *u).*/\1"hunter2"/' r0c/config.py
 
 tmp="$(mktemp -d)"
 rls_dir="$tmp/r0c-$ver"
 mkdir "$rls_dir"
 
-echo ">>> export"
-git archive master |
-tar -x -C "$rls_dir"
+echo ">>> export from git"
+git archive master | tar -xC "$rls_dir"
 
 cd "$rls_dir"
-$find -type d -exec chmod 755 '{}' \+
-$find -type f -exec chmod 644 '{}' \+
+find -type d -exec chmod 755 '{}' \+
+find -type f -exec chmod 644 '{}' \+
 
-grep -qE "ADMIN_PWD *= *u'hunter2'" r0c/config.py ||
+grep -qE 'ADMIN_PWD *= *u"hunter2"' r0c/config.py ||
 {
 	echo "password not hunter2"
 	rm -rf "$tmp"
@@ -67,7 +70,7 @@ grep -qE "ADMIN_PWD *= *u'hunter2'" r0c/config.py ||
 
 commaver="$(
 	printf '%s\n' "$ver" |
-	sed -r 's/\./,/g'
+	sed -r 's/\./, /g'
 )"
 
 grep -qE "^VERSION *= \(${commaver}\)$" r0c/__version__.py ||
@@ -100,10 +103,10 @@ chmod 755 \
   scripts/format-wire-logs.sh \
   test/run-stress.sh
 
-$find -type f -exec $md5sum '{}' \+ |
-$sed -r 's/(.{32})(.*)/\2\1/' | LC_COLLATE=c $sort |
-$sed -r 's/(.*)(.{32})/\2\1/' |
-$sed -r 's/^(.{32}) \./\1  ./' > ../.sums.md5
+find -type f -exec $md5sum '{}' \+ |
+sed -r 's/(.{32})(.*)/\2\1/' | LC_COLLATE=c sort |
+sed -r 's/(.*)(.{32})/\2\1/' |
+sed -r 's/^(.{32}) \./\1  ./' > ../.sums.md5
 mv ../.sums.md5 .
 
 cd ..
@@ -117,5 +120,5 @@ echo "  $zip_path"
 echo "  $tgz_path"
 echo
 
-# function alr() { ls -alR r0c-$1 | $sed -r "s/r0c-$1/r0c/" | $sed -r 's/[A-Z][a-z]{2} [0-9 ]{2} [0-9]{2}:[0-9]{2}//' > $1; }; for x in master rls src ; do alr $x; done
+# function alr() { ls -alR r0c-$1 | sed -r "s/r0c-$1/r0c/" | sed -r 's/[A-Z][a-z]{2} [0-9 ]{2} [0-9]{2}:[0-9]{2}//' > $1; }; for x in master rls src ; do alr $x; done
 
