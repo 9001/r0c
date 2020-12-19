@@ -283,6 +283,7 @@ class VT100_Client(asyncore.dispatcher):
         self.wizard_stage = "start"
         self.wizard_lastlen = 0
         self.wizard_maxdelta = 0
+        self.wizard_mindelta = 9001
         self.iface_confirmed = False
         self.handshake_sz = False
         self.handshake_world = False
@@ -470,6 +471,34 @@ class VT100_Client(asyncore.dispatcher):
             del self.esc_tab[key]
         self.crlf = crlf
         self.esc_tab[self.crlf] = "ret"
+
+    def determine_retkey(self, verify_only=False):
+        nline = b"\x0d\x0a\x00"
+        btext = self.in_text.encode("utf-8")
+        nl_a = next((i for i, ch in enumerate(btext) if ch in nline), None)
+        if nl_a is None:
+            return None
+
+        nl_b = None
+        for i, ch in enumerate(btext[nl_a:], nl_a):
+            if ch not in nline:
+                break
+            nl_b = i
+
+        if nl_b is not None:
+            nl = btext[nl_a : nl_b + 1]
+            crlf = nl.decode("utf-8")
+            if verify_only:
+                return self.crlf == crlf
+            
+            self.reassign_retkey(crlf)
+            print(
+                "client crlf:  {0}  {1}  {2}".format(
+                    self.user.nick, self.adr[0], Util.b2hex(nl)
+                )
+            )
+        
+        return nl_a
 
     def set_term_size(self, w, h):
         self.w = w
@@ -1861,11 +1890,27 @@ class VT100_Client(asyncore.dispatcher):
                 self.host.part(self)
 
         if self.wizard_stage == "config_reuse":
+            delta = len(self.in_text) - self.wizard_lastlen
+            self.wizard_lastlen = len(self.in_text)
+            if self.wizard_mindelta > delta:
+                self.wizard_mindelta = delta
+
+            ret_ok = self.determine_retkey(True)
+            if ret_ok is None:
+                return
+
             text = self.in_text.lower()
             if u"y" in text:
                 text = text[text.rfind(u"y") :]
-                looks_like_linemode = len(text) != 1
+                looks_like_linemode = self.wizard_mindelta > 1
+
+                self.wizard_reuse_errors = []
                 if self.linemode != looks_like_linemode:
+                    self.wizard_reuse_errors.append("linemode changed")
+                if not ret_ok:
+                    self.wizard_reuse_errors.append("retkey changed")
+                
+                if self.wizard_reuse_errors:
                     self.default_config()
                     if not self.check_correct_iface("reuse_impossible"):
                         return
@@ -1882,18 +1927,23 @@ class VT100_Client(asyncore.dispatcher):
 
         if self.wizard_stage == "reuse_impossible":
             self.wizard_stage = "qwer_read"
+            self.wizard_lastlen = 0
             self.in_text = u""
             self.say(
                 (
                     top
                     + u"""
- sorry, your config is definitely incorrect.
+ sorry, your config is definitely incorrect:
+
+   -- {0}
 
  type the text below, then hit [Enter]:
 
    qwer asdf
 
- """
+ """.format(
+     "\n   -- ".join(self.wizard_reuse_errors)
+)
                 )
                 .replace(u"\n", u"\r\n")
                 .encode("utf-8")
@@ -1941,23 +1991,8 @@ class VT100_Client(asyncore.dispatcher):
                         self.wizard_maxdelta = delta
 
             # if any(ch in btext for ch in nline):
-            nl_a = next((i for i, ch in enumerate(btext) if ch in nline), None)
+            nl_a = self.determine_retkey()
             if nl_a is not None:
-                nl_b = None
-                for i, ch in enumerate(btext[nl_a:], nl_a):
-                    if ch not in nline:
-                        break
-                    nl_b = i
-
-                if nl_b is not None:
-                    nl = btext[nl_a : nl_b + 1]
-                    self.reassign_retkey(nl.decode("utf-8"))
-                    print(
-                        "client crlf:  {0}  {1}  {2}".format(
-                            self.user.nick, self.adr[0], Util.b2hex(nl)
-                        )
-                    )
-
                 if self.wizard_maxdelta >= nl_a / 2:
                     self.echo_on = True
                     self.linemode = True
