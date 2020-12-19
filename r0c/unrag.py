@@ -2,6 +2,7 @@
 from __future__ import print_function
 from . import util as Util
 
+import sys
 import time
 from collections import deque
 
@@ -332,7 +333,6 @@ def unrag_layout_test_interactive():
     try:
         import msvcrt
     except:
-        import sys
         import tty
         import termios
 

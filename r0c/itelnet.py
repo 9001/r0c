@@ -262,7 +262,7 @@ class TelnetClient(Ivt100.VT100_Client):
 
                         if not subjects.get(cmd[2]):
                             print(
-                                "[X] subject not implemented: ".format(Util.b2hex(cmd))
+                                "[X] subject not implemented: [{0}]".format(Util.b2hex(cmd))
                             )
                             continue
 

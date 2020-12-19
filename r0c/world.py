@@ -261,7 +261,7 @@ class World(object):
                         msg = Chat.Message(nchan, time.time(), u"--", txt)
                         nchan.msgs.append(msg)
 
-                    txt = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa " * 6
+                    txt = u"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa " * 6
                     msg = Chat.Message(nchan, time.time(), u"--", txt)
                     nchan.msgs.append(msg)
 
@@ -472,25 +472,27 @@ class World(object):
 
     def start_logging(self, nchan, chat_backlog=None):
         if nchan.name is not None:
-            log_dir = "{0}chan/{1}".format(EP.log, nchan.name)
+            log_dir = u"{0}chan/{1}".format(EP.log, Util.sanitize_fn(nchan.name))
         else:
-            log_dir = "{0}pm/{1}".format(
-                EP.log, "/".join([Util.sanitize_fn(x.user.nick) for x in nchan.uchans])
+            log_dir = u"{0}pm/{1}".format(
+                EP.log, u"/".join([Util.sanitize_fn(x.user.nick) for x in nchan.uchans])
             )
 
         if nchan.log_fh:
             nchan.log_fh.close()
-        else:
-            try:
-                os.makedirs(log_dir)
-            except:
-                pass
+
+        # always mkdir because direction can turn on reconnect
+        try:
+            os.makedirs(log_dir)
+        except:
+            if not os.path.isdir(log_dir):
+                raise
 
         ts = datetime.utcnow().strftime("%Y-%m%d-%H%M%S")
-        log_fn = "{0}/{1}".format(log_dir, ts)
+        log_fn = u"{0}/{1}".format(log_dir, ts)
 
         while os.path.isfile(log_fn):
-            log_fn += "-"
+            log_fn += u"-"
 
         nchan.log_ctr = 0
         nchan.log_fh = open(log_fn, "wb")

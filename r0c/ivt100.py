@@ -496,14 +496,14 @@ class VT100_Client(asyncore.dispatcher):
             crlf = nl.decode("utf-8")
             if verify_only:
                 return self.crlf == crlf
-            
+
             self.reassign_retkey(crlf)
             print(
                 "client crlf:  {0}  {1}  {2}".format(
                     self.user.nick, self.adr[0], Util.b2hex(nl)
                 )
             )
-        
+
         return nl_a
 
     def set_term_size(self, w, h):
@@ -932,10 +932,9 @@ class VT100_Client(asyncore.dispatcher):
                 chan_name,
                 offscreen or u"",
                 hilights or u"",
-                activity or u"",
-                len(nchan.uchans),
+                activity or u""
             ),
-            self.w,
+            self.w
         )[0]
 
         if not self.vt100:
@@ -1915,7 +1914,7 @@ class VT100_Client(asyncore.dispatcher):
                     self.wizard_reuse_errors.append("linemode changed")
                 if not ret_ok:
                     self.wizard_reuse_errors.append("retkey changed")
-                
+
                 if self.wizard_reuse_errors:
                     self.default_config()
                     if not self.check_correct_iface("reuse_impossible"):
@@ -1947,9 +1946,7 @@ class VT100_Client(asyncore.dispatcher):
 
    qwer asdf
 
- """.format(
-     "\n   -- ".join(self.wizard_reuse_errors)
-)
+ """.format("\n   -- ".join(self.wizard_reuse_errors))
                 )
                 .replace(u"\n", u"\r\n")
                 .encode("utf-8")

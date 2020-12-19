@@ -330,27 +330,27 @@ def sanitize_ctl_codes(aside):
 
 def sanitize_fn(fn):
     for bad, good in [
-        ["<", "＜"],
-        [">", "＞"],
-        [":", "："],
-        ['"', "＂"],
-        ["/", "／"],
-        ["\\", "＼"],
-        ["|", "｜"],
-        ["?", "？"],
-        ["*", "＊"],
-        ["'", "＇"],  # shell-safety
-        ["`", "｀"]  # shell-safety
+        [u"<", u"＜"],
+        [u">", u"＞"],
+        [u":", u"："],
+        [u'"', u"＂"],
+        [u"/", u"／"],
+        [u"\\", u"＼"],
+        [u"|", u"｜"],
+        [u"?", u"？"],
+        [u"*", u"＊"],
+        [u"'", u"＇"],  # shell-safety
+        [u"`", u"｀"],  # shell-safety
     ]:
         fn = fn.replace(bad, good)
 
     if WINDOWS:
-        bad = ["con", "prn", "aux", "nul"]
+        bad = [u"con", u"prn", u"aux", u"nul"]
         for n in range(1, 10):
-            bad += "com{0} lpt{0}".format(n).split(" ")
+            bad += u"com{0} lpt{0}".format(n).split(u" ")
 
         if fn.lower() in bad:
-            fn = "_" + fn
+            fn = u"_" + fn
 
     return fn
 

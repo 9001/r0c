@@ -5,7 +5,6 @@ from .__init__ import EP, PY2
 from . import config as Config
 from . import util as Util
 from . import chat as Chat
-from . import world as World
 from . import diag as Diag
 
 import re
@@ -437,9 +436,7 @@ class User(object):
                     inf,
                     u"""[error]
   cannot part the status channel
-""".format(
-                        arg
-                    ),
+"""
                 )
                 return
 
