@@ -223,7 +223,7 @@ def unpack():
     """unpacks the tar yielded by `data`"""
     name = "pe-" + NAME
     tag = "v" + str(STAMP)
-    withpid = "{}.{}".format(name, os.getpid())
+    withpid = "{0}.{1}".format(name, os.getpid())
     top = tempfile.gettempdir()
     final = os.path.join(top, name)
     mine = os.path.join(top, withpid)
@@ -244,17 +244,17 @@ def unpack():
             f.write(buf)
 
     if nwrite != SIZE:
-        t = "\n\n  bad file:\n    expected {} bytes, got {}\n".format(SIZE, nwrite)
-        raise Exception(t)
+        t = "\n\n  bad file:\n    expected {0} bytes, got {1}\n"
+        raise Exception(t.format(SIZE, nwrite))
 
     cksum = hashfile(tar)
     if cksum != CKSUM:
-        t = "\n\n  bad file:\n    {} expected,\n    {} obtained\n".format(CKSUM, cksum)
-        raise Exception(t)
+        t = "\n\n  bad file:\n    {0} expected,\n    {1} obtained\n"
+        raise Exception(t.format(CKSUM, cksum))
 
-    with tarfile.open(tar, "r:bz2") as tf:
-        tf.extractall(mine)
-
+    tf = tarfile.open(tar, "r:bz2")
+    tf.extractall(mine)
+    tf.close()
     os.remove(tar)
 
     with open(os.path.join(mine, tag), "wb") as f:
@@ -387,7 +387,7 @@ def run(tmp, py):
         else:
             args = [2323, 1531]
 
-    cmd = 'import sys, runpy; sys.path.insert(0, r"{0}{1}site-packages"); runpy.run_module("$NAME", run_name="__main__")'.format(
+    cmd = 'import sys, runpy; sys.path.insert(0, r"{0}{1}site-packages"); runpy.run_module("$NAME.__main__", run_name="__main__")'.format(
         tmp, os.sep
     )
     cmd = [py, "-c", cmd] + args
