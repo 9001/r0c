@@ -117,9 +117,9 @@ tmv "$f"
 
 # cleanup junk
 find . -type f |
-grep -E '\.(class|bak)$' |
+grep -vE '\.(md|py)$' |
 tr '\n' '\0' |
-xargs -0 rm --
+xargs -0r rm --
 
 # r0c needs the docs here
 rm -f docs/todo.md
