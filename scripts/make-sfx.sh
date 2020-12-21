@@ -115,19 +115,30 @@ f=$name/__main__.py
 awk '/change the ADMIN_PWD/{o=1} o&&/return False$/{sub(/False/,"True");o=0} 1' <$f >t
 tmv "$f"
 
+# cleanup junk
+find . -type f |
+grep -E '\.(class|bak)$' |
+tr '\n' '\0' |
+xargs -0 rm --
+
 # r0c needs the docs here
+rm -f docs/todo.md
 mkdir -p share/doc/r0c/
 mv docs share/doc/r0c/help
 mkdir site-packages
 mv $name share site-packages
 
+echo
 echo creating tar
 args=(--owner=1000 --group=1000)
 [ "$OSTYPE" = msys ] &&
 	args=()
 
-tar -cf tar "${args[@]}" --numeric-owner site-packages
+find site-packages -type f |
+LC_ALL=C sort |
+tar -cvf tar "${args[@]}" --numeric-owner -T-
 
+echo
 echo compressing tar
 # detect best level; bzip2 -7 is usually better than -9
 for n in {2..9}; do cp tar t.$n; bzip2 -$n t.$n & done; wait; mv -v $(ls -1S t.*.bz2 | tail -n 1) tar.bz2
