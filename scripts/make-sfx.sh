@@ -28,6 +28,7 @@ name=r0c
 
 resources=(
 	docs/*.md
+	clients
 )
 
 command -v gtar  >/dev/null &&
@@ -117,7 +118,7 @@ tmv "$f"
 
 # cleanup junk
 find . -type f |
-grep -vE '\.(md|py)$' |
+grep -vE '\.(md|py)$|clients/' |
 tr '\n' '\0' |
 xargs -0r rm --
 
@@ -134,7 +135,9 @@ args=(--owner=1000 --group=1000)
 [ "$OSTYPE" = msys ] &&
 	args=()
 
-find site-packages -type f |
+(for d in clients site-packages; do
+	find $d -type f;
+done) |
 LC_ALL=C sort |
 tar -cvf tar "${args[@]}" --numeric-owner -T-
 
