@@ -29,7 +29,7 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 
 putty is the best option;
 * windows-telnet has a bug (since win7) where unicode letters become unstable the more text you have on the screen (starts flickering and then disappear one by one)
-* the powershell client wastes a LOT of data ~~(an entire kilobyte for each new message, totally unbelievable, who could possibly afford that)~~ because powershell's scrolling is glitchy af
+* the powershell client is no longer spammy as of windows 10.0.15063 (win10 1703 / LTSC)
 
 ## linux clients
 
