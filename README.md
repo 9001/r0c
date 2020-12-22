@@ -6,6 +6,8 @@
 
 ![screenshot of telnet connected to a r0c server](docs/r0c.png)
 
+* download the latest release (standalone): **[r0c.py](https://github.com/9001/r0c/releases/latest/download/r0c.py)**
+
 ## summary
 
 imagine being stuck on ancient gear, in the middle of nowhere, on a slow connection between machines that are even more archaic than the toaster you're trying to keep from falling apart
