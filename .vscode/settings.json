@@ -42,6 +42,9 @@
     "[html]": {
         "editor.formatOnSave": false,
     },
+    "[powershell]": {
+        "editor.formatOnSave": false,
+    },
     "editor.codeActionsOnSaveTimeout": 9001,
     "editor.formatOnSaveTimeout": 9001,
     //

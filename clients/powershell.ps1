@@ -1,4 +1,11 @@
-# Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted
+# usage:
+#   powershell .\powershell.ps1 127.0.0.1:531
+#   (or just doubleclick this script in win10)
+#
+# fix permissions on win7 by running this in a powershell console:
+#   Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted
+
+#######################################################################
 
 function Seppuku {
     Write-Host ""
@@ -11,7 +18,7 @@ function Seppuku {
 
 function Test-IsISE {
     try {    
-        return $psISE -ne $null;
+        return $null -ne $psISE;
     }
     catch {
         return $false;
@@ -34,6 +41,17 @@ catch {
     Write-Host "something's wrong with your shell"
     Seppuku
 }
+
+#######################################################################
+
+$ver = [Environment]::OSVersion.Version
+$ver10 = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ReleaseId
+Write-Host "Windows $ver ($ver10)"
+
+$v1 = new-object 'Version' 10,0,10586  # OK, 1511
+$v2 = new-object 'Version' 10,0,15063  # OK, 1703
+$scroll_ng = $ver -gt $v1 -and $ver -lt $v2
+# LTSB 2015 OK (<1511), 2016 NG (~1607), LTSC 2019 OK (1809)
 
 #######################################################################
 
@@ -73,15 +91,14 @@ while ($socket.Connected) {
         $text = [System.Text.Encoding]::UTF8.GetString($buf, 0, $n_read)
         Write-Host $text -NoNewLine
 
-        if ($text -match '\x48\x1B\x44') {
+        if ($scroll_ng -and $text -match '\x48\x0a\x0a\x1b\x5b\x4b') {
             $messages_lost += 1
         }
     }
     if ($messages_lost -gt 0) {
-        # >2018
-        # >still can't get vt100 right
-        # microsoft in charge of conserving bandwidth
+        # bad powershell ver, do full redraw
         $stream.Write([Byte[]] (0x12), 0, 1)
+        $stream.Flush()
         $messages_lost = 0
     }
     while ([console]::KeyAvailable) {
@@ -107,13 +124,15 @@ while ($socket.Connected) {
         if ($kc -eq 40) { $bytes = [Byte[]] (0x1b,0x5b,0x42) }  # D
         if ($kc -eq 36) { $bytes = [Byte[]] (0x1b,0x5b,0x31,0x7e) }  # Home
         if ($kc -eq 35) { $bytes = [Byte[]] (0x1b,0x5b,0x34,0x7e) }  # End
-        if ($kc -eq 33) { $bytes = [Byte[]] (0x1b,0x5b,0x35,0x7e,0x12) }  # PgUp
-        if ($kc -eq 34) { $bytes = [Byte[]] (0x1b,0x5b,0x36,0x7e,0x12) }  # PgDn
+        if ($kc -eq 33) { $bytes = [Byte[]] (0x1b,0x5b,0x35,0x7e) }  # PgUp
+        if ($kc -eq 34) { $bytes = [Byte[]] (0x1b,0x5b,0x36,0x7e) }  # PgDn
+        if ($scroll_ng -and ($kc -eq 33 -or $kc -eq 34)) {
+            $bytes += [Byte] 0x12
+        }
         $stream.Write($bytes, 0, $bytes.Length)
         $stream.Flush()
         # 0x12 is ^R meaning we redraw the TUI on every scroll event
-        # because powershell /usually/ can't scroll
-        # (it decides to work occasionally)
+        # for powershell versions with busted scrolling
     }
     Start-Sleep -Milliseconds 10
 }
