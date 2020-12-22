@@ -2114,8 +2114,8 @@ class VT100_Client(asyncore.dispatcher):
 
  if you are using Linux or Mac OSX, disconnect and
  run the following command before reconnecting:
-   macOS: stty -f /dev/stdin -icanon
-   Linux: stty -icanon
+   macOS:  stty -f /dev/stdin -icanon
+   Linux:  stty -icanon
 
  press A to accept or Q to quit&lm
  """

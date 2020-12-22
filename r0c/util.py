@@ -633,7 +633,7 @@ def py26_threading_event_wait(event):
         if event._Event__flag:
             return True
 
-        time.sleep(0.69)
+        time.sleep(0.2)
         return event._Event__flag
 
     event.wait = nice_meme

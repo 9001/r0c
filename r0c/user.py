@@ -398,7 +398,10 @@ class User(object):
             )
 
         elif cmd == u"join" or cmd == u"j":
-            if not arg or len(arg) < 1:
+            if arg and not arg.startswith(u"#"):
+                arg = u"#" + arg
+
+            if not arg or len(arg) < 2:
                 self.world.send_chan_msg(
                     u"-err-",
                     inf,
@@ -408,9 +411,6 @@ class User(object):
 """,
                 )
                 return
-
-            if not arg.startswith(u"#"):
-                arg = u"#" + arg
 
             nchan = self.world.join_pub_chan(self, arg[1:]).nchan
             # this is in charge of activating the new channel,
