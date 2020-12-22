@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, WINDOWS
+from .__init__ import EP, PY2, COLORS
 from . import config as Config
 from . import util as Util
 from . import unrag as Unrag
@@ -2290,7 +2290,7 @@ class VT100_Client(asyncore.dispatcher):
 
         if self.wizard_stage == "end":
             self.save_config()
-            if WINDOWS:
+            if not COLORS:
                 print(
                     "client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}\n           :  {4}  {5}".format(
                         u"n" if self.linemode else u"Y",

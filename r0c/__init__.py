@@ -6,11 +6,16 @@ import sys
 import os
 
 INTERP = platform.python_implementation()
-WINDOWS = platform.system() == "Windows"
+
 PY2 = sys.version_info[0] == 2
 if PY2:
     sys.dont_write_bytecode = True
 
+WINDOWS = False
+if platform.system() == "Windows":
+    WINDOWS = [int(x) for x in platform.version().split(".")]
+
+COLORS = not WINDOWS or WINDOWS >= [10, 0, 14393]  # 1607 / LTSB-2016
 
 # [ determine runtime environment ]
 #

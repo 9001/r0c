@@ -2,7 +2,7 @@
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION
-from .__init__ import EP, WINDOWS
+from .__init__ import EP, WINDOWS, COLORS
 from . import config as Config
 from . import util as Util
 from . import unrag as Unrag
@@ -40,6 +40,9 @@ class Core(object):
         pass
 
     def start(self, args=None):
+        if WINDOWS and COLORS:
+            os.system("")
+
         if args is None:
             args = sys.argv
 
@@ -106,7 +109,10 @@ class Core(object):
         print("  *  Starting push driver")
         self.push_thr = threading.Thread(
             target=self.push_worker,
-            args=(self.world, [self.telnet_server, self.netcat_server],),
+            args=(
+                self.world,
+                [self.telnet_server, self.netcat_server],
+            ),
             name="push",
         )
         # self.push_thr.daemon = True

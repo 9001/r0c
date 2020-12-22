@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, WINDOWS, INTERP
+from .__init__ import EP, PY2, WINDOWS, COLORS, INTERP
 from . import config as Config
 
 import traceback
@@ -22,43 +22,26 @@ if __name__ == "__main__":
 
 print_mutex = threading.Lock()
 if PY2:
-    import __builtin__
-
-    def print(*args, **kwargs):
-        args = list(args)
-        try:
-            if WINDOWS and u"\033" in args[0]:
-                args[0] = strip_ansi(args[0])
-        except:
-            pass
-
-        with print_mutex:
-            t = time.strftime("%H%M%S ")
-            __builtin__.print(
-                t + str(args[0] if args else u"").replace(u"\n", u"\n" + t),
-                *args[1:],
-                **kwargs
-            )
-
-
+    import __builtin__ as builtins
 else:
     import builtins
 
-    def print(*args, **kwargs):
-        args = list(args)
-        try:
-            if WINDOWS and u"\033" in args[0]:
-                args[0] = strip_ansi(args[0])
-        except:
-            pass
 
-        with print_mutex:
-            t = time.strftime("%H%M%S ")
-            builtins.print(
-                t + str(args[0] if args else u"").replace(u"\n", u"\n" + t),
-                *args[1:],
-                **kwargs
-            )
+def print(*args, **kwargs):
+    args = list(args)
+    try:
+        if not COLORS and u"\033" in args[0]:
+            args[0] = strip_ansi(args[0])
+    except:
+        pass
+
+    with print_mutex:
+        t = time.strftime("%H%M%S ")
+        builtins.print(
+            t + str(args[0] if args else u"").replace(u"\n", u"\n" + t),
+            *args[1:],
+            **kwargs
+        )
 
 
 def num(c):
