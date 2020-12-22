@@ -279,6 +279,7 @@ class VT100_Client(asyncore.dispatcher):
         self.msg_hist = []
         self.msg_hist_n = None
         self.msg_not_from_hist = False
+        self.left_chrome = u""
 
         # tabcomplete registers
         self.tc_nicks = None
@@ -780,28 +781,30 @@ class VT100_Client(asyncore.dispatcher):
                 if self.user.active_chan.update_activity_flags(True):
                     status_changed = True
 
-            # update top bar (if client can handle it)
             if self.vt100:
+                # update top bar
                 to_send += self.update_top_bar(full_redraw)
 
-            # update status bar
-            if status_changed or not cursor_moved:
-                to_send += self.update_status_bar(full_redraw)
+                # update status bar
+                if status_changed or not cursor_moved:
+                    to_send += self.update_status_bar(full_redraw)
 
-            # anything sent so far would require an SGR reset
-            if to_send:
-                fix_color = True
+                # anything sent so far would require an SGR reset
+                if to_send:
+                    fix_color = True
 
-            # this is too much for netcat on windows
-            if self.vt100:
+            else:
+                # always clear and resend the status bar for non-vt100
+                to_send += "\r" + (" " * 78) + "\r"
+                to_send += self.update_status_bar(True)
 
-                # handle keyboard strokes from non-linemode clients,
-                # but redraw text input field for linemode clients
-                to_send += self.update_text_input(full_redraw or self.echo_on)
+            # handle keyboard strokes from non-linemode clients,
+            # but redraw text input field for linemode clients
+            to_send += self.update_text_input(full_redraw or self.echo_on)
 
-                # reset colours if necessary
-                if u"\033[" in self.linebuf or fix_color:
-                    to_send += u"\033[0m"
+            # reset colours if necessary
+            if u"\033[" in self.linebuf or fix_color:
+                to_send += u"\033[0m"
 
             # position cursor after CLeft/CRight/Home/End
             if self.vt100 and (to_send or cursor_moved):
@@ -939,13 +942,16 @@ class VT100_Client(asyncore.dispatcher):
 
         if not self.vt100:
             now = int(time.time())
+            ret = u""
             if (
                 full_redraw
                 or (now % 5 == 1)
                 or ((hilights or activity) and now % 2 == 1)
             ):
-                return u"\r{0}   {1}> ".format(Util.strip_ansi(line), self.user.nick)
-            return u""
+                ret = u"\r{0}   {1}> ".format(Util.strip_ansi(line), self.user.nick)
+                self.left_chrome = ret
+
+            return ret
 
         elif full_redraw:
             if self.screen[self.h - (self.y_status + 1)] != line:
@@ -974,7 +980,77 @@ class VT100_Client(asyncore.dispatcher):
 
         return u""
 
+    def compute_lineview(self, free_space, chi, ansi):
+        # ensure at least 1/3 of the available space is
+        # dedicated to text on the left side of the cursor
+        left_margin = int(free_space * 0.334)
+        if self.linepos - self.lineview < left_margin:
+            self.lineview = self.linepos - left_margin
+
+            if self.lineview < 0:
+                self.lineview = 0
+
+        # cursor is beyond right side of screen
+        elif self.linepos > self.lineview + free_space:
+            self.lineview = self.linepos - free_space
+
+        # text is partially displayed,
+        # but cursor is not sufficiently far to the right
+        midways = int(free_space * 0.5)
+        if self.lineview > 0 and len(chi) - self.lineview < midways:
+            self.lineview = len(chi) - midways
+            if self.lineview < 0:
+                # not sure if this could actually happen
+                # but the test is cheap enough so might as well
+                self.lineview = 0
+
+        start = 0
+        if self.lineview > 0:
+            # lineview is the first visible character to display,
+            # we want to include any colour codes that precede it
+            # so start from character lineview-1 into the ansi text
+            try:
+                start = chi[self.lineview - 1] + 1
+            except:
+                # seen in the wild, likely caused by that one guy with
+                # the stupidly long nickname; adding this just in case
+                Util.whoops("IT HAPPENED")
+                print("user     = {0}".format(self.user.nick))
+                try:
+                    n = self.user.active_chan.nchan.get_name()
+                    print("chan     = {0}".format(n))
+                except:
+                    pass
+                print("linepos  = " + str(self.linepos))
+                print("lineview = " + str(self.lineview))
+                print("chi      = " + ",".join([str(x) for x in chi]))
+                print("line     = " + Util.b2hex(self.linebuf.encode("utf-8")))
+                print("termsize = " + str(self.w) + "x" + str(self.h))
+                print("free_spa = " + str(free_space))
+                print("-" * 72)
+                # reset to sane defaults
+                self.lineview = 0
+                start = 0
+
+        end = len(ansi)
+        if self.lineview + free_space < len(chi) - 1:  # off-by-one?
+            # no such concerns about control sequences after the last
+            # visible character; just don't read past the end of chi
+            end = chi[self.lineview + free_space]
+
+        return ansi[start:end]
+
     def update_text_input(self, full_redraw):
+        if not self.vt100:
+            # cant believe this works
+            free_space = 72 - len(self.left_chrome)
+            p1 = self.linebuf[: self.linepos]
+            p2 = self.linebuf[self.linepos :]
+            ansi = Util.convert_color_codes(p1 + u"█" + p2, True)
+            chi = Util.visual_indices(ansi)
+            ret = self.compute_lineview(free_space, chi, ansi)
+            return Util.strip_ansi(ret)
+
         if not full_redraw and not self.linebuf and self.linemode:
             return u""
 
@@ -1002,69 +1078,8 @@ class VT100_Client(asyncore.dispatcher):
         free_space = self.w - (self.user.nick_len + 2 + 1)
         if len(chi) <= free_space:
             self.lineview = 0
-
         else:
-            # ensure at least 1/3 of the available space is
-            # dedicated to text on the left side of the cursor
-            left_margin = int(free_space * 0.334)
-            if self.linepos - self.lineview < left_margin:
-                self.lineview = self.linepos - left_margin
-
-                if self.lineview < 0:
-                    self.lineview = 0
-
-            # cursor is beyond right side of screen
-            elif self.linepos > self.lineview + free_space:
-                self.lineview = self.linepos - free_space
-
-            # text is partially displayed,
-            # but cursor is not sufficiently far to the right
-            midways = int(free_space * 0.5)
-            if self.lineview > 0 and len(chi) - self.lineview < midways:
-                self.lineview = len(chi) - midways
-                if self.lineview < 0:
-                    # not sure if this could actually happen
-                    # but the test is cheap enough so might as well
-                    self.lineview = 0
-
-            start = 0
-            if self.lineview > 0:
-                # lineview is the first visible character to display,
-                # we want to include any colour codes that precede it
-                # so start from character lineview-1 into the ansi text
-                try:
-                    start = chi[self.lineview - 1] + 1
-                except:
-                    # seen in the wild, likely caused by that one guy with
-                    # the stupidly long nickname; adding this just in case
-                    Util.whoops("IT HAPPENED")
-                    print("user     = {0}".format(self.user.nick))
-                    try:
-                        print(
-                            "chan     = {0}".format(
-                                self.user.active_chan.nchan.get_name()
-                            )
-                        )
-                    except:
-                        pass
-                    print("linepos  = " + str(self.linepos))
-                    print("lineview = " + str(self.lineview))
-                    print("chi      = " + ",".join([str(x) for x in chi]))
-                    print("line     = " + Util.b2hex(self.linebuf.encode("utf-8")))
-                    print("termsize = " + str(self.w) + "x" + str(self.h))
-                    print("free_spa = " + str(free_space))
-                    print("-" * 72)
-                    # reset to sane defaults
-                    self.lineview = 0
-                    start = 0
-
-            end = len(ansi)
-            if self.lineview + free_space < len(chi) - 1:  # off-by-one?
-                # no such concerns about control sequences after the last
-                # visible character; just don't read past the end of chi
-                end = chi[self.lineview + free_space]
-
-            ansi = ansi[start:end]
+            ansi = self.compute_lineview(free_space, chi, ansi)
 
         if u"\033" in ansi:
             # reset colours if the visible segment contains any
@@ -2099,8 +2114,8 @@ class VT100_Client(asyncore.dispatcher):
 
  if you are using Linux or Mac OSX, disconnect and
  run the following command before reconnecting:
-   Mac OSX:  stty -f /dev/stdin -icanon
-   Linux:    stty -icanon
+   macOS: stty -f /dev/stdin -icanon
+   Linux: stty -icanon
 
  press A to accept or Q to quit&lm
  """
@@ -2162,7 +2177,7 @@ class VT100_Client(asyncore.dispatcher):
        -- either in just one colour
           or otherwise incorrect colours
 
-   B:  "[1;31mred, [32mgreen, [33myellow, [36mblue[0m"
+   B:  "[1;31mred, [32mgreen, [33myellow, [34mblue[0m"
 
  press A or B&lm
  """
@@ -2498,6 +2513,8 @@ class VT100_Client(asyncore.dispatcher):
                             self.linepos = len(self.linebuf)
                     elif act == "cu":
                         hist_step = -1
+                        if self.echo_on:
+                            self.need_full_redraw = True
                     elif act == "cd":
                         hist_step = 1
                     elif act == "home":
@@ -2512,6 +2529,8 @@ class VT100_Client(asyncore.dispatcher):
                             )
                             self.linepos -= 1
                     elif act == "ret":
+                        if self.echo_on:
+                            self.need_full_redraw = True
                         if self.linebuf:
                             # add this to the message/command ("input") history
                             if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
