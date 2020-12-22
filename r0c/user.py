@@ -687,22 +687,6 @@ class User(object):
 """,
                 )
 
-        elif cmd == u"search" or cmd == u"srch" or cmd == u"s":
-            ch = self.active_chan
-            nch = self.active_chan.nchan
-            if not arg:
-                self.world.send_chan_msg(
-                    u"--",
-                    inf,
-                    u"""[search]
-  plaintext search:
-    /s fore       finds messages like "before"
-
-  regex search:
-    /s s/\\bfore/  finds messages like "foremost"
-""",
-                )
-
         elif cmd == u"sw":
             try:
                 arg = int(arg)

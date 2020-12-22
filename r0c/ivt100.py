@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, COLORS
+from .__init__ import EP, PY2, COLORS, IRONPY
 from . import config as Config
 from . import util as Util
 from . import unrag as Unrag
@@ -66,6 +66,16 @@ class VT100_Server(asyncore.dispatcher):
         self.bind((host, port))
         self.listen(1)
 
+        if IRONPY:
+            self.__eq__ = self.ipy__eq__
+            self.__ne__ = self.ipy__ne__
+
+    def ipy__eq__(self, other):
+        return id(self) == id(other)
+
+    def ipy__ne__(self, other):
+        return id(self) != id(other)
+
     def con(self, msg, adr, add=0):
         ht = time.strftime("%d/%m/%Y, %H:%M:%S")
         print(
@@ -119,10 +129,7 @@ class VT100_Server(asyncore.dispatcher):
         remote.dead = True
 
         with self.world.mutex:
-            # print('==[part]' + '='*72)
-            # traceback.print_stack()
-            # print('==[part]' + '='*71)
-
+            # Util.whoops("client part")
             remote.close()
             if announce:
                 print(
@@ -367,6 +374,16 @@ class VT100_Client(asyncore.dispatcher):
         thr = threading.Thread(target=self.handshake_timeout, name="hs_to")
         thr.daemon = True
         thr.start()
+
+        if IRONPY:
+            self.__eq__ = self.ipy__eq__
+            self.__ne__ = self.ipy__ne__
+
+    def ipy__eq__(self, other):
+        return id(self) == id(other)
+
+    def ipy__ne__(self, other):
+        return id(self) != id(other)
 
     def default_config(self):
         self.y_input = 0  # offset from bottom of screen

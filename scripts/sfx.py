@@ -2,7 +2,7 @@
 # coding: utf-8
 from __future__ import print_function, unicode_literals
 
-import os, sys, time, shutil, signal, tarfile, hashlib, platform, tempfile
+import os, sys, time, bz2, shutil, signal, tarfile, hashlib, platform, tempfile
 import subprocess as sp
 
 """
@@ -29,6 +29,8 @@ STAMP = None
 NAME = "r0c"
 PY2 = sys.version_info[0] == 2
 WINDOWS = platform.system() == "Windows"
+IRONPY = "ironpy" in platform.python_implementation().lower()
+
 sys.dont_write_bytecode = True
 me = os.path.abspath(os.path.realpath(__file__))
 cpp = None
@@ -206,17 +208,18 @@ def u8(gen):
 
 
 def yieldfile(fn):
-    with open(fn, "rb") as f:
-        for block in iter(lambda: f.read(64 * 1024), b""):
+    bs = 64 * 1024
+    with open(fn, "rb", bs) as f:
+        for block in iter(lambda: f.read(bs), b""):
             yield block
 
 
 def hashfile(fn):
-    hasher = hashlib.md5()
+    h = hashlib.md5()
     for block in yieldfile(fn):
-        hasher.update(block)
+        h.update(block)
 
-    return hasher.hexdigest()
+    return h.hexdigest()
 
 
 def unpack():
@@ -243,16 +246,21 @@ def unpack():
             nwrite += len(buf)
             f.write(buf)
 
-    if nwrite != SIZE:
-        t = "\n\n  bad file:\n    expected {0} bytes, got {1}\n"
-        raise Exception(t.format(SIZE, nwrite))
-
     cksum = hashfile(tar)
-    if cksum != CKSUM:
-        t = "\n\n  bad file:\n    {0} expected,\n    {1} obtained\n"
-        raise Exception(t.format(CKSUM, cksum))
+    if cksum != CKSUM or nwrite != SIZE:
+        t = "\n\nbad file:\n  {0} ({1} bytes) expected,\n  {2} ({3} bytes) obtained\n"
+        raise Exception(t.format(CKSUM, SIZE, cksum, nwrite))
 
-    tf = tarfile.open(tar, "r:bz2")
+    tm = "r:bz2"
+    if IRONPY:
+        tm = "r"
+        t2 = tar + tm
+        with bz2.BZ2File(tar, "rb") as fi:
+            with open(t2, "wb") as fo:
+                shutil.copyfileobj(fi, fo)
+        shutil.move(t2, tar)
+
+    tf = tarfile.open(tar, tm)
     tf.extractall(mine)
     tf.close()
     os.remove(tar)
@@ -312,7 +320,6 @@ def get_payload():
 
         # start reading from the final b"\n"
         fpos = ofs + len(ptn) - 3
-        # msg("tar found at", fpos)
         f.seek(fpos)
         dpos = 0
         leftovers = b""
@@ -413,7 +420,7 @@ def bye(sig, frame):
 def main():
     sysver = str(sys.version).replace("\n", "\n" + " " * 18)
     pktime = time.strftime("%Y-%m-%d, %H:%M:%S", time.gmtime(STAMP))
-    os.system("")
+    os.system("rem")  # best girl
     msg()
     msg("   this is: $NAME", VER)
     msg(" packed at:", pktime, "UTC,", STAMP)

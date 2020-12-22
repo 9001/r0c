@@ -41,7 +41,7 @@ class Core(object):
 
     def start(self, args=None):
         if WINDOWS and COLORS:
-            os.system("")
+            os.system("rem")  # best girl
 
         if args is None:
             args = sys.argv
