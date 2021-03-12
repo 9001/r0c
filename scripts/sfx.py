@@ -389,7 +389,8 @@ def run(tmp, py):
     try:
         runpy.run_module(str("$NAME.__main__"), run_name=str("__main__"))
     except SystemExit as ex:
-        confirm(ex.code)
+        if ex.code:
+            confirm(ex.code)
     except:
         confirm(1)
 
