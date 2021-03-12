@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# coding: utf-8
+# coding: latin-1
 from __future__ import print_function, unicode_literals
 
 import os, sys, time, bz2, shutil, signal, tarfile, hashlib, platform, tempfile
