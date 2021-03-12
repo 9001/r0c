@@ -69,7 +69,8 @@ def find_leaked_messages():
         print()
 
 
-repl_notepad = """
+# repl notepad
+"""
 
 from .diag import *
 find_leaked_messages()

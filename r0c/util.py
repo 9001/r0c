@@ -622,6 +622,7 @@ def py26_threading_event_wait(event):
     event.wait = nice_meme
 
 
+"""
 # ---------------------------------------------------------------------
 # dumping ground for mostly useless code below
 
@@ -657,3 +658,4 @@ def test_ansi_annotation():
         for n in rangetype(100000):
             rv = visual_length(ansi_txt)
         print(str(time.time() - t0))
+"""

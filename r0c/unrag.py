@@ -389,7 +389,8 @@ def unrag_layout_test_interactive():
             msgw += 1
 
 
-unrag_bench_results = """
+# unrag_bench_results
+"""
 unrag_1_linear
    8191 / 853993  0.959%  4315 p/s
   16383 / 853993  1.918%  4643 p/s

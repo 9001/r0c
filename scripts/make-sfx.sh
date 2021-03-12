@@ -132,6 +132,15 @@ mv docs share/doc/r0c/help
 mkdir site-packages
 mv $name share site-packages
 
+# drop 8 KiB if u clone copyparty
+unc="$HOME/dev/copyparty/scripts/uncomment.py"
+[ -e "$unc" ] || unc="$1"
+[ -e "$unc" ] && [ ! -z "$unc" ] &&
+	find | grep -E '\.py$' |
+		grep -vE '__version__' |
+		tr '\n' '\0' |
+		xargs -0 python $unc
+
 echo
 echo creating tar
 args=(--owner=1000 --group=1000)

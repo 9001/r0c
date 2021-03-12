@@ -26,6 +26,7 @@ __author__ = "ed <a@ocv.me>"
 __credits__ = ["stackoverflow.com"]
 __license__ = "MIT"
 __copyright__ = 2018
+__url__ = "https://github.com/9001/r0c"
 
 
 if "r0c" not in sys.modules:
@@ -375,6 +376,7 @@ def main(args=None):
         if not start_r0c(args):
             sys.exit(1)
 
+"""
     if mode == "profiler":
         print("  *  PROFILER ENABLED")
         statfile = "profiler-results"
@@ -415,7 +417,7 @@ def main(args=None):
 
     if mode == "test-ansi-annotation":
         Util.test_ansi_annotation()
-
+"""
 
 if __name__ == "__main__":
     main()

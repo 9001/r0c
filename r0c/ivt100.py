@@ -256,7 +256,8 @@ class VT100_Client(asyncore.dispatcher):
 
         self.uee_offset = 0
         try:
-            b"\xfe".decode("utf-8")
+            x = b"\xfe"
+            x.decode("utf-8")
         except UnicodeDecodeError as uee:
             self.uee_offset = -uee.start
 
