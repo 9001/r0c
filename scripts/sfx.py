@@ -2,8 +2,7 @@
 # coding: latin-1
 from __future__ import print_function, unicode_literals
 
-import os, sys, time, bz2, shutil, signal, tarfile, hashlib, platform, tempfile
-import subprocess as sp
+import os, sys, time, bz2, shutil, runpy, tarfile, hashlib, platform, tempfile, traceback
 
 """
 run me with any version of python, i will unpack and run $NAME
@@ -354,13 +353,16 @@ def get_payload():
                 break
 
 
-def confirm():
+def confirm(rv):
     msg()
+    msg(traceback.format_exc())
     msg("*** hit enter to exit ***")
     try:
         raw_input() if PY2 else input()
     except:
         pass
+
+    sys.exit(rv)
 
 
 def run(tmp, py):
@@ -368,7 +370,7 @@ def run(tmp, py):
 
     msg("OK")
     msg("will use:", py)
-    msg("bound to:", tmp)
+    msg("bound to:", tmp, "\n")
 
     # "systemd-tmpfiles-clean.timer"?? HOW do you even come up with this shit
     try:
@@ -380,41 +382,16 @@ def run(tmp, py):
     except:
         pass
 
-    fp_py = os.path.join(tmp, "py")
+    if not sys.argv[1:]:
+        sys.argv += [23, 531] if WINDOWS else [2323, 1531]
+
+    sys.path.insert(0, os.path.join(tmp, "site-packages"))
     try:
-        with open(fp_py, "wb") as f:
-            f.write(py.encode("utf-8") + b"\n")
+        runpy.run_module(str("$NAME.__main__"), run_name=str("__main__"))
+    except SystemExit as ex:
+        confirm(ex.code)
     except:
-        pass
-
-    args = list(sys.argv[1:])
-    if not args:
-        if WINDOWS:
-            args = [23, 531]
-        else:
-            args = [2323, 1531]
-
-    cmd = 'import sys, runpy; sys.path.insert(0, r"{0}{1}site-packages"); runpy.run_module("$NAME.__main__", run_name="__main__")'.format(
-        tmp, os.sep
-    )
-    cmd = [py, "-c", cmd] + args
-
-    msg("\n", cmd, "\n")
-    cpp = sp.Popen(str(x) for x in cmd)
-    try:
-        cpp.wait()
-    except:
-        cpp.wait()
-
-    if cpp.returncode != 0:
-        confirm()
-
-    sys.exit(cpp.returncode)
-
-
-def bye(sig, frame):
-    if cpp is not None:
-        cpp.terminate()
+        confirm(1)
 
 
 def main():
@@ -449,10 +426,8 @@ def main():
 
     # skip 0
 
-    signal.signal(signal.SIGTERM, bye)
-
     tmp = unpack()
-    return run(tmp, sys.executable)
+    run(tmp, sys.executable)
 
 
 if __name__ == "__main__":

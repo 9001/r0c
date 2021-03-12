@@ -31,12 +31,14 @@ resources=(
 	clients
 )
 
-command -v gtar  >/dev/null &&
-command -v gfind >/dev/null && {
-	tar()  { gtar  "$@"; }
+# port install gnutar findutils gsed coreutils
+gtar=$(command -v gtar || command -v gnutar) || true
+[ ! -z "$gtar" ] && command -v gfind >/dev/null && {
+	tar()  { $gtar "$@"; }
 	sed()  { gsed  "$@"; }
 	find() { gfind "$@"; }
 	sort() { gsort "$@"; }
+	realpath() { grealpath "$@"; }
 }
 
 while [ ! -z "$1" ]; do
@@ -119,8 +121,9 @@ tmv "$f"
 # cleanup junk
 find . -type f |
 grep -vE '\.(md|py)$|clients/' |
-tr '\n' '\0' |
-xargs -0r rm --
+while IFS= read -r x; do
+	rm -- "$x"
+done
 
 # r0c needs the docs here
 rm -f docs/todo.md
