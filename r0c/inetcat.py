@@ -47,8 +47,11 @@ class NetcatClient(Ivt100.VT100_Client):
                 print("XXX reading when dead")
                 return
 
-            data = self.recv(8192)
-            if not data:
+            try:
+                data = self.socket.recv(8192)
+                if not data:
+                    raise Exception()
+            except:
                 if not self.dead:
                     self.host.part(self)
                 return

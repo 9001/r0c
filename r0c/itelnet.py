@@ -155,8 +155,11 @@ class TelnetClient(Ivt100.VT100_Client):
                 print("\033[1;31mXXX reading when dead\033[0m")
                 return
 
-            data = self.recv(8192)
-            if not data:
+            try:
+                data = self.socket.recv(8192)
+                if not data:
+                    raise Exception()
+            except:
                 self.handle_close()
                 return
 

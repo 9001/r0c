@@ -11,7 +11,6 @@ import os
 import re
 import time
 import socket
-import asyncore
 import threading
 import binascii
 from datetime import datetime
@@ -34,9 +33,8 @@ else:
     from queue import Queue
 
 
-class VT100_Server(asyncore.dispatcher):
+class VT100_Server(object):
     def __init__(self, host, port, world, other_if):
-        asyncore.dispatcher.__init__(self)
         self.other_if = other_if
         self.world = world
         self.clients = []
@@ -57,14 +55,10 @@ class VT100_Server(asyncore.dispatcher):
         self.scheduled_kicks = []
         self.next_scheduled_kick = None
 
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        if PY2:
-            self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        else:
-            self.set_reuse_addr()
-
-        self.bind((host, port))
-        self.listen(1)
+        self.srv_sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.srv_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.srv_sck.bind((host, port))
+        self.srv_sck.listen(1)
 
         if IRONPY:
             self.__eq__ = self.ipy__eq__
@@ -101,7 +95,7 @@ class VT100_Server(asyncore.dispatcher):
             # yes 127.0.0.1 | nmap -v -iL - -Pn -sT -p 2323,1531 -T 5
 
             try:
-                socket, addr = self.accept()
+                socket, addr = self.srv_sck.accept()
                 adr = [addr[0], addr[1]]
                 if len(socket.getpeername()[0]) < 3:
                     raise Exception
@@ -130,7 +124,12 @@ class VT100_Server(asyncore.dispatcher):
 
         with self.world.mutex:
             # Util.whoops("client part")
-            remote.close()
+            try:
+                remote.socket.shutdown(socket.SHUT_RDWR)
+                remote.socket.close()
+            except:
+                pass
+
             if announce:
                 print(
                     "client part:  {0}  {2}  {3}  {1}".format(
@@ -230,16 +229,14 @@ class VT100_Server(asyncore.dispatcher):
             )
 
 
-class VT100_Client(asyncore.dispatcher):
+class VT100_Client(object):
     def __init__(self, host, socket, address, world, usr):
-        asyncore.dispatcher.__init__(self, socket)
-        # self.mutex = threading.RLock()
         self.host = host
         self.socket = socket
         self.adr = address
         self.world = world
         self.user = usr
-        self.dead = False  # set true at disconnect (how does asyncore work)
+        self.dead = False  # set true at disconnect
         self.is_bot = False
 
         self.wire_log = None
@@ -674,13 +671,13 @@ class VT100_Client(asyncore.dispatcher):
                 len(msg),
             )
             self.backlog = msg[end_pos:]
-            sent = self.send(msg[:end_pos])
+            sent = self.socket.send(msg[:end_pos])
             self.backlog = msg[sent:]
             # hexdump(msg[:sent])
             time.sleep(0.02)
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
         else:
-            sent = self.send(msg)
+            sent = self.socket.send(msg)
             self.backlog = msg[sent:]
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
 
