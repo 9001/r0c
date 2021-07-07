@@ -30,13 +30,13 @@ __copyright__ = 2018
 #
 
 NUM_CLIENTS = 1
-# NUM_CLIENTS = 4
+NUM_CLIENTS = 32
 
 # CHANNELS = ['#1']
 CHANNELS = ["#1", "#2", "#3", "#4"]
 
 EVENT_DELAY = 0.01
-EVENT_DELAY = 0.001
+EVENT_DELAY = 0.005
 # EVENT_DELAY = None
 
 ITERATIONS = 1000000
@@ -191,24 +191,21 @@ class Client(asyncore.dispatcher):
 
             if self.stage == "start":
                 self.send_status("start")
-                hit = False
+                termsize_rsp = b"\xff\xfa\x1f" + tszb + b"\xff\xf0"
 
                 if "verify that your previous config" in self.in_text:
-                    hit = True
+                    self.txb(termsize_rsp)
                     self.in_text = u""
-                    self.tx("n")
+                    self.tx("n\n")
 
                 if "type the text below, then hit [Enter]:" in self.in_text:
-                    hit = True
+                    self.txb(termsize_rsp)
                     self.stage = "qwer"
                     self.in_text = u""
                     for ch in u"qwer asdf\n":
                         self.tx(ch)
                         time.sleep(0.1)
-
-                if hit and TELNET:
-                    # print('sending telnet termsize\n'*100)
-                    self.txb(b"\xff\xfa\x1f" + tszb + b"\xff\xf0")
+                
                 continue
 
             if self.stage == "qwer":

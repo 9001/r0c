@@ -6,7 +6,7 @@ tr -s ' ' > /dev/shm/r0c-perf.log
 names="joins parts messages"
 
 {
-	echo "set term svg size 1600,1000"
+	echo "set term svg size 1600,1000 font 'monospace,16' rounded linewidth 3"
 	echo "set object rectangle from screen 0,0 to screen 1,1 behind fillcolor rgb 'white' fillstyle solid noborder"
 	echo "set datafile separator ' '"
 	echo "set xdata time"
@@ -36,16 +36,13 @@ names="joins parts messages"
 } |
 sed 's/, $//' |
 tee /dev/stderr |
-gnuplot |
-sed 's/stroke-linejoin:miter/stroke-linejoin:round/g' |
-sed 's/stroke-width:1./stroke-width:2./g' |
-sed 's/000<\/text>$/<\/text>/g' |
-sed 's/font-size:12./font-size:16./g' > /dev/shm/r0c-perf.svg &&
+gnuplot > /dev/shm/r0c-perf.svg &&
 
 {
 	eog /dev/shm/r0c-perf.svg ||
 	feh /dev/shm/r0c-perf.svg ||
 	display /dev/shm/r0c-perf.svg ||
 	gthumb /dev/shm/r0c-perf.svg ||
-	xdg-open /dev/shm/r0c-perf.svg
+	ristretto /dev/shm/r0c-perf.svg ||
+	echo get an image viewer
 }

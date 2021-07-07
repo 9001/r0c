@@ -50,6 +50,6 @@ cd ~/dev/r0c; git checkout r0c/config.py; git pull origin; sed -ri 's/hunter2/am
 
 # performance analysis
 config.py: BENCHMARK = True
-stdbuf -oL python2 -m r0c 2323 1531 memes | tee /dev/shm/r0c.log
+/c/Users/ed/AppData/Local/Programs/Python/Python39/python.exe -um r0c 2323 1531 k | tee plog
 bash run-stress.sh 2323
 python resample-log.py /dev/shm/r0c.log | bash plot.sh

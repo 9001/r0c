@@ -6,8 +6,12 @@ NUM_INPUT_COLS = 4
 import re
 import sys
 
+def eprint(*args, **kwargs):
+    kwargs["file"] = sys.stderr
+    print(*args, **kwargs)
+
 if len(sys.argv) < 2:
-    print("need argument 1:  graph to resample+derive")
+    eprint("need argument 1:  graph to resample+derive")
     sys.exit(1)
 
 fn = sys.argv[1]
@@ -25,7 +29,7 @@ with open(fn, "rb") as f:
             continue
         rows.append([float(x) for x in m.groups()])
 
-n = -2
+n = -1
 rows2 = []
 for r2, r in zip(rows[:-1], rows[1:]):
     n += 1
@@ -38,7 +42,7 @@ for r2, r in zip(rows[:-1], rows[1:]):
 
 rows = rows2
 if not rows:
-    print("\n\n  too slow my dude\n", file=sys.stderr)
+    eprint("\n\n  too slow my dude\n")
     sys.exit(1)
 
 
@@ -67,17 +71,17 @@ def resample(rows):
 
         # all whole seconds between r2 and r
         for isec in range(its2 + 1, its + 1):
-            # print()
-            # print('r2: ' + ''.join('{0}  '.format(x) for x in r2))
-            # print('r:  ' + ''.join('{0}  '.format(x) for x in r))
-            # print('rd: ' + ''.join('{0}  '.format(x) for x in rd))
-            # print('isec {0}  [{1}..{2}]'.format(isec, its2+1, its+1))
+            # eprint()
+            # eprint('r2: ' + ''.join('{0}  '.format(x) for x in r2))
+            # eprint('r:  ' + ''.join('{0}  '.format(x) for x in r))
+            # eprint('rd: ' + ''.join('{0}  '.format(x) for x in rd))
+            # eprint('isec {0}  [{1}..{2}]'.format(isec, its2+1, its+1))
             row = []
             mul = (isec * 1.0 - ts2) / (ts * 1.0 - ts2)
             for n, rv in enumerate(r):
                 row.append(r2[n] + (rv - r2[n]) * mul)
 
-            # print('ri: ' + ''.join('{0}  '.format(x) for x in row))
+            # eprint('ri: ' + ''.join('{0}  '.format(x) for x in row))
             ret.append(row)
 
     return ret
@@ -95,6 +99,10 @@ def derivate(rows):
 
 rows = resample(rows)
 rows = derivate(rows)
+
+if not rows:
+    eprint("parsing failed")
+    sys.exit(1)
 
 # start counting time from 0
 epoch = round(rows[0][0])
