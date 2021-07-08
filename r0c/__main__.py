@@ -227,39 +227,50 @@ class Core(object):
 
     def select_worker(self):
         self.selector_alive = True
-        while not self.shutdown_flag.is_set():
-            timeout = 69
-            clients = self.telnet_server.clients + self.netcat_server.clients
-            if clients:
-                # TODO: every once in a while a packet isn't delivered
-                # until the client sends us a packet or the timeout hits
-                timeout = 0.34
 
-            srvs = {}
-            clis = {}
-            for iface in [self.telnet_server, self.netcat_server]:
-                srvs[iface.srv_sck] = iface
-                for cli in iface.clients:
-                    clis[cli.socket] = cli
-            
-            want_rx = [k for k, v in clis.items() if v.readable()]
-            want_tx = [k for k, v in clis.items() if v.writable()]
+        srvs = {}
+        for iface in [self.telnet_server, self.netcat_server]:
+            srvs[iface.srv_sck] = iface
+
+        acli = []
+        dcli = {}
+        while not self.shutdown_flag.is_set():
+            acli = self.telnet_server.clients + self.netcat_server.clients
+
+            if len(acli) != len(dcli):
+                dcli = {}
+
+            for ic in [self.telnet_server.clients, self.netcat_server.clients]:
+                if ic and ic[-1].socket not in dcli:
+                    dcli = {}
+                    break
+
+            if not dcli:
+                for c in acli:
+                    dcli[c.socket] = c
+
+            # TODO: every once in a while a packet isn't delivered
+            # until the client sends us a packet or the timeout hits
+            timeout = 0.34 if acli else 69
+
+            want_rx = [c.socket for c in acli if c.readable()]
+            want_tx = [c.socket for c in acli if c.writable()]
             want_rx += list(srvs.keys())
 
             try:
                 rxs, txs, _ = select.select(want_rx, want_tx, [], timeout)
                 if self.stopping:
                     break
-                
+
                 for s in rxs:
                     if s in srvs:
                         srvs[s].handle_accept()
                     else:
-                        clis[s].handle_read()
-                
+                        dcli[s].handle_read()
+
                 for s in txs:
-                    clis[s].handle_write()
-            
+                    dcli[s].handle_write()
+
             except Exception as ex:
                 if "Bad file descriptor" in str(ex):
                     # print('osx bug ignored')

@@ -53,3 +53,10 @@ config.py: BENCHMARK = True
 /c/Users/ed/AppData/Local/Programs/Python/Python39/python.exe -um r0c 2323 1531 k | tee plog
 bash run-stress.sh 2323
 python resample-log.py /dev/shm/r0c.log | bash plot.sh
+
+
+# quick loadgen
+m() { sleep 0.2; printf '%s\n' "$*"; };
+cli() { (exec 147<>/dev/tcp/127.0.0.1/1531; timeout 10 cat >/dev/null <&147& (m n; m qwer asdf; m a; m y; m a; m '/join #g'; echo $$ >&2; for ((a=0;a<1000;a++)); do date; sleep 0.5; done) >&147); }
+cln() { ps -ef | awk '/bash$/{print$2}' | while read p; do [ -S /proc/$p/fd/147 ] && kill $p; done; }
+cln; for ((c=0;c<64;c++)); do cli & sleep 0.13; done
