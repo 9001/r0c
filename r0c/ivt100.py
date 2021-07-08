@@ -2297,7 +2297,7 @@ class VT100_Client(object):
 
         if self.wizard_stage == "codec_answer":
             text = self.in_text.lower()
-            for n, letter in enumerate(AZ[: int(2 + len(self.codec_map) / 2)].lower()):
+            for n, letter in enumerate(AZ[: int(len(self.codec_map) / 2)].lower()):
                 if letter in text:
                     self.wizard_stage = "end"
                     self.set_codec(self.codec_map[n * 2])
