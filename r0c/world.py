@@ -233,7 +233,7 @@ class World(object):
 
     def join_pub_chan(self, user, name):
         with self.mutex:
-            name = name.strip()
+            name = name.strip().lower()
             nchan = self.get_pub_chan(name)
             if nchan is None:
                 nchan = Chat.NChannel(
