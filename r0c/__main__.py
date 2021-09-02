@@ -88,7 +88,8 @@ class Core(object):
         Util.py26_threading_event_wait(self.shutdown_flag)
 
         print("  *  Capturing ^C")
-        signal.signal(signal.SIGINT, self.signal_handler)
+        for sig in [signal.SIGINT, signal.SIGTERM]:
+            signal.signal(sig, self.signal_handler)
 
         print("  *  Creating world")
         self.world = World.World(self)
@@ -409,6 +410,7 @@ def main(args=None):
     if mode == "normal":
         if not start_r0c(args):
             sys.exit(1)
+
 
 """
     if mode == "profiler":
