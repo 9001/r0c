@@ -2,13 +2,13 @@
 # coding: latin-1
 from __future__ import print_function, unicode_literals
 
-import os, sys, time, bz2, shutil, runpy, tarfile, hashlib, platform, tempfile, traceback
+import os, sys, time, bz2, shutil, threading, tarfile, hashlib, platform, tempfile, traceback
 
 """
-run me with any version of python, i will unpack and run $NAME
+to edit this file, use HxD or "vim -b"
+  (there is compressed stuff at the end)
 
-(but please don't edit this file with a text editor
-  since that would probably corrupt the binary stuff at the end)
+run me with any version of python, i will unpack and run PKG_NAME
 
 there's zero binaries! just plaintext python scripts all the way down
   so you can easily unpack the archive and inspect it for shady stuff
@@ -27,24 +27,23 @@ STAMP = None
 
 NAME = "r0c"
 PY2 = sys.version_info[0] == 2
-WINDOWS = platform.system() == "Windows"
+WINDOWS = sys.platform in ["win32", "msys"]
 IRONPY = "ironpy" in platform.python_implementation().lower()
 
 sys.dont_write_bytecode = True
 me = os.path.abspath(os.path.realpath(__file__))
-cpp = None
 
 
-def eprint(*args, **kwargs):
-    kwargs["file"] = sys.stderr
-    print(*args, **kwargs)
+def eprint(*a, **ka):
+    ka["file"] = sys.stderr
+    print(*a, **ka)
 
 
-def msg(*args, **kwargs):
-    if args:
-        args = ["[SFX]", args[0]] + list(args[1:])
+def msg(*a, **ka):
+    if a:
+        a = ["[SFX]", a[0]] + list(a[1:])
 
-    eprint(*args, **kwargs)
+    eprint(*a, **ka)
 
 
 # skip 1
@@ -142,7 +141,7 @@ def testchk(cdata):
     msg(txt)
 
 
-def encode(data, size, cksum, name, ver, ts):
+def encode(data, size, cksum, ver, ts):
     """creates a new sfx; `data` should yield bufs to attach"""
     nin = 0
     nout = 0
@@ -150,7 +149,7 @@ def encode(data, size, cksum, name, ver, ts):
     with open(me, "rb") as fi:
         unpk = ""
         src = fi.read().replace(b"\r", b"").rstrip(b"\n").decode("utf-8")
-        src = src.replace("$NAME", NAME)
+        src = src.replace("PKG_NAME", NAME)
         for ln in src.split("\n"):
             if ln.endswith("# skip 0"):
                 skip = False
@@ -187,10 +186,10 @@ def encode(data, size, cksum, name, ver, ts):
     msg("wrote {:x}H bytes ({:x}H after encode)".format(nin, nout))
 
 
-def makesfx(tar_src, name, ver, ts):
+def makesfx(tar_src, ver, ts):
     sz = os.path.getsize(tar_src)
     cksum = hashfile(tar_src)
-    encode(yieldfile(tar_src), sz, cksum, name, ver, ts)
+    encode(yieldfile(tar_src), sz, cksum, ver, ts)
 
 
 # skip 0
@@ -227,9 +226,10 @@ def unpack():
     tag = "v" + str(STAMP)
     withpid = "{0}.{1}".format(name, os.getpid())
     top = tempfile.gettempdir()
-    final = os.path.join(top, name)
-    mine = os.path.join(top, withpid)
-    tar = os.path.join(mine, "tar")
+    opj = os.path.join
+    final = opj(top, name)
+    mine = opj(top, withpid)
+    tar = opj(mine, "tar")
 
     try:
         if tag in os.listdir(final):
@@ -238,17 +238,17 @@ def unpack():
     except:
         pass
 
-    nwrite = 0
+    sz = 0
     os.mkdir(mine)
     with open(tar, "wb") as f:
         for buf in get_payload():
-            nwrite += len(buf)
+            sz += len(buf)
             f.write(buf)
 
-    cksum = hashfile(tar)
-    if cksum != CKSUM or nwrite != SIZE:
-        t = "\n\nbad file:\n  {0} ({1} bytes) expected,\n  {2} ({3} bytes) obtained\n"
-        raise Exception(t.format(CKSUM, SIZE, cksum, nwrite))
+    ck = hashfile(tar)
+    if ck != CKSUM:
+        t = "\n\nexpected {} ({} byte)\nobtained {} ({} byte)\nsfx corrupt"
+        raise Exception(t.format(CKSUM, SIZE, ck, sz))
 
     tm = "r:bz2"
     if IRONPY:
@@ -264,7 +264,7 @@ def unpack():
     tf.close()
     os.remove(tar)
 
-    with open(os.path.join(mine, tag), "wb") as f:
+    with open(opj(mine, tag), "wb") as f:
         f.write(b"h\n")
 
     try:
@@ -282,25 +282,25 @@ def unpack():
     except:
         pass
 
+    for fn in u8(os.listdir(top)):
+        if fn.startswith(name) and fn != withpid:
+            try:
+                old = opj(top, fn)
+                if time.time() - os.path.getmtime(old) > 86400:
+                    shutil.rmtree(old)
+            except:
+                pass
+
     try:
         os.symlink(mine, final)
     except:
         try:
             os.rename(mine, final)
+            return final
         except:
             msg("reloc fail,", mine)
-            return mine
 
-    for fn in u8(os.listdir(top)):
-        if fn.startswith(name) and fn not in [name, withpid]:
-            try:
-                old = os.path.join(top, fn)
-                if time.time() - os.path.getmtime(old) > 10:
-                    shutil.rmtree(old)
-            except:
-                pass
-
-    return final
+    return mine
 
 
 def get_payload():
@@ -317,82 +317,91 @@ def get_payload():
         if ofs < 0:
             raise Exception("could not find archive marker")
 
-        # start reading from the final b"\n"
+        # start at final b"\n"
         fpos = ofs + len(ptn) - 3
         f.seek(fpos)
         dpos = 0
-        leftovers = b""
+        rem = b""
         while True:
             rbuf = f.read(1024 * 32)
             if rbuf:
-                buf = leftovers + rbuf
+                buf = rem + rbuf
                 ofs = buf.rfind(b"\n")
                 if len(buf) <= 4:
-                    leftovers = buf
+                    rem = buf
                     continue
 
                 if ofs >= len(buf) - 4:
-                    leftovers = buf[ofs:]
+                    rem = buf[ofs:]
                     buf = buf[:ofs]
                 else:
-                    leftovers = b"\n# "
+                    rem = b"\n# "
             else:
-                buf = leftovers
+                buf = rem
 
             fpos += len(buf) + 1
-            buf = (
-                buf.replace(b"\n# ", b"")
-                .replace(b"\n#r", b"\r")
-                .replace(b"\n#n", b"\n")
-            )
-            dpos += len(buf) - 1
+            for a, b in [[b"\n# ", b""], [b"\n#r", b"\r"], [b"\n#n", b"\n"]]:
+                buf = buf.replace(a, b)
 
+            dpos += len(buf) - 1
             yield buf
 
             if not rbuf:
                 break
 
 
+def utime(top):
+    i = 0
+    files = [os.path.join(dp, p) for dp, dd, df in os.walk(top) for p in dd + df]
+    while WINDOWS:
+        t = int(time.time())
+        if i:
+            msg("utime {}, {}".format(i, t))
+
+        for f in files:
+            os.utime(f, (t, t))
+
+        i += 1
+        time.sleep(78123)
+
+
 def confirm(rv):
     msg()
-    msg(traceback.format_exc())
+    msg("retcode", rv if rv else traceback.format_exc())
     msg("*** hit enter to exit ***")
     try:
         raw_input() if PY2 else input()
     except:
         pass
 
-    sys.exit(rv)
+    sys.exit(rv or 1)
 
 
-def run(tmp, py):
-    global cpp
+def run(tmp):
+    msg("sfxdir:", tmp)
+    msg()
 
-    msg("OK")
-    msg("will use:", py)
-    msg("bound to:", tmp, "\n")
-
-    # "systemd-tmpfiles-clean.timer"?? HOW do you even come up with this shit
+    # block systemd-tmpfiles-clean.timer
     try:
         import fcntl
 
         fd = os.open(tmp, os.O_RDONLY)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        tmp = os.readlink(tmp)  # can't flock a symlink, even with O_NOFOLLOW
-    except:
-        pass
+    except Exception as ex:
+        if not WINDOWS:
+            msg("\033[31mflock:{!r}\033[0m".format(ex))
+
+    t = threading.Thread(target=utime, args=(tmp,))
+    t.daemon = True
+    t.start()
 
     if not sys.argv[1:]:
         sys.argv += [23, 531] if WINDOWS else [2323, 1531]
 
     sys.path.insert(0, os.path.join(tmp, "site-packages"))
-    try:
-        runpy.run_module(str("$NAME.__main__"), run_name=str("__main__"))
-    except SystemExit as ex:
-        if ex.code:
-            confirm(ex.code)
-    except:
-        confirm(1)
+    from PKG_NAME.__main__ import main as p
+
+    p()
 
 
 def main():
@@ -400,7 +409,7 @@ def main():
     pktime = time.strftime("%Y-%m-%d, %H:%M:%S", time.gmtime(STAMP))
     os.system("rem")  # best girl
     msg()
-    msg("   this is: $NAME", VER)
+    msg("   this is: PKG_NAME", VER)
     msg(" packed at:", pktime, "UTC,", STAMP)
     msg("archive is:", me)
     msg("python bin:", sys.executable)
@@ -422,13 +431,23 @@ def main():
         return testchk(get_payload())
 
     if arg == "--sfx-make":
-        tar, name, ver, ts = sys.argv[2:]
-        return makesfx(tar, name, ver, ts)
+        tar, ver, ts = sys.argv[2:]
+        return makesfx(tar, ver, ts)
 
     # skip 0
 
-    tmp = unpack()
-    run(tmp, sys.executable)
+    tmp = os.path.realpath(unpack())
+
+    try:
+        run(tmp)
+    except SystemExit as ex:
+        c = ex.code
+        if c not in [0, -15]:
+            confirm(ex.code)
+    except KeyboardInterrupt:
+        pass
+    except:
+        confirm(0)
 
 
 if __name__ == "__main__":

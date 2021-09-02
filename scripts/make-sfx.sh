@@ -38,7 +38,11 @@ gtar=$(command -v gtar || command -v gnutar) || true
 	sed()  { gsed  "$@"; }
 	find() { gfind "$@"; }
 	sort() { gsort "$@"; }
-	realpath() { grealpath "$@"; }
+	command -v grealpath >/dev/null &&
+		realpath() { grealpath "$@"; }
+
+	[ -e /opt/local/bin/bzip2 ] &&
+		bzip2() { /opt/local/bin/bzip2 "$@"; }
 }
 
 while [ ! -z "$1" ]; do
@@ -68,7 +72,7 @@ rm -f ../tar
 ver=
 git describe --tags >/dev/null 2>/dev/null && {
 	git_ver="$(git describe --tags)";  # v0.5.5-2-gb164aa0
-	ver="$(printf '%s\n' "$git_ver" | sed -r 's/^v//; s/-g?/./g')";
+	ver="$(printf '%s\n' "$git_ver" | sed -r 's/^v//')";
 	t_ver=
 
 	printf '%s\n' "$git_ver" | grep -qE '^v[0-9\.]+$' && {
@@ -106,12 +110,12 @@ mkdir -p ../dist
 sfx_out=../dist/$name
 
 echo cleanup
-find .. -name '*.pyc' -delete
-find .. -name __pycache__ -delete
+find -name '*.pyc' -delete
+find -name __pycache__ -delete
 
 # especially prevent osx from leaking your lan ip (wtf apple)
-find .. -type f \( -name .DS_Store -or -name ._.DS_Store \) -delete
-find .. -type f -name ._\* | while IFS= read -r f; do cmp <(printf '\x00\x05\x16') <(head -c 3 -- "$f") && rm -f -- "$f"; done
+find -type f \( -name .DS_Store -or -name ._.DS_Store \) -delete
+find -type f -name ._\* | while IFS= read -r f; do cmp <(printf '\x00\x05\x16') <(head -c 3 -- "$f") && rm -f -- "$f"; done
 
 # disable password check (TODO should be a r0c option probably)
 f=$name/__main__.py
@@ -139,7 +143,7 @@ unc="$HOME/dev/copyparty/scripts/uncomment.py"
 	find | grep -E '\.py$' |
 		grep -vE '__version__' |
 		tr '\n' '\0' |
-		xargs -0 python $unc
+		xargs -0 python3 $unc
 
 echo
 echo creating tar
@@ -160,7 +164,7 @@ for n in {2..9}; do cp tar t.$n; bzip2 -$n t.$n & done; wait; mv -v $(ls -1S t.*
 rm t.*
 
 echo creating sfx
-python ../scripts/sfx.py --sfx-make tar.bz2 r0c $ver $ts
+python3 ../scripts/sfx.py --sfx-make tar.bz2 $ver $ts
 mv sfx.out $sfx_out.py
 chmod 755 $sfx_out.*
 
