@@ -158,7 +158,7 @@ class Core(object):
         return False
 
     def run(self):
-        print("  *  r0c is up")
+        print("  *  r0c is up  ^^,")
 
         if not Config.BENCHMARK:
             try:
@@ -169,7 +169,7 @@ class Core(object):
 
                 while not self.shutdown_flag.wait(timeout):
                     pass
-            except KeyboardInterrupt:
+            except:
                 pass
         else:
             last_joins = 0
