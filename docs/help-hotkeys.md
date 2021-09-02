@@ -4,13 +4,13 @@
 
 **`Tab`** completes a nickname after writing the first couple letters
 
-**`CTRL-A`** switches to the left window
+**`CTRL-A`** switches to the previous channel
 
-**`CTRL-X`** switches to the right window
+**`CTRL-X`** switches to the next channel
 
-**`CTRL-E`** jumps to another channel, to the oldest unread message
+**`CTRL-E`** jumps to the oldest unread message in another channel, or alt-tabs between two channels otherwise
 
-**`CTRL-R`** is the `/r` command, redraws the screen to fix corruption. Use this if things are glitchy after resizing the window
+**`CTRL-R`** is the `/r` command, redraws the screen to fix corruption. Use this if things are glitchy after resizing the terminal
 
 **`CTRL-K`** followed by a number `0-9` or letter `a-f` changes colour mid-message, see `/cmap`
 

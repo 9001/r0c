@@ -1,5 +1,5 @@
-VERSION = (1, 1, 8)
-BUILD_DT = (2020, 12, 22)
+VERSION = (1, 1, 9)
+BUILD_DT = (2021, 9, 2)
 
 S_VERSION = ".".join(map(str, VERSION))
 S_BUILD_DT = "{0:04d}-{1:02d}-{2:02d}".format(*BUILD_DT)
