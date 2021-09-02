@@ -2,12 +2,16 @@
 set -e
 echo
 
-command -v gtar  >/dev/null &&
-command -v gfind >/dev/null && {
-	tar()  { gtar  "$@"; }
+# osx support
+# port install gnutar findutils gsed coreutils
+gtar=$(command -v gtar || command -v gnutar) || true
+[ ! -z "$gtar" ] && command -v gfind >/dev/null && {
+	tar()  { $gtar "$@"; }
 	sed()  { gsed  "$@"; }
 	find() { gfind "$@"; }
 	sort() { gsort "$@"; }
+	command -v grealpath >/dev/null &&
+		realpath() { grealpath "$@"; }
 }
 
 which md5sum 2>/dev/null >/dev/null &&
@@ -16,7 +20,7 @@ which md5sum 2>/dev/null >/dev/null &&
 
 ver="$1"
 
-[ "x$ver" == x ] &&
+[ "x$ver" = x ] &&
 {
 	echo "need argument 1:  version"
 	echo
@@ -88,6 +92,7 @@ grep -qE "^VERSION *= \(${commaver}\)$" r0c/__version__.py ||
 	read -u1
 }
 
+rm -rf .vscode
 rm \
   r0c.sublime-project \
   .editorconfig \
@@ -103,6 +108,12 @@ chmod 755 \
   scripts/format-wire-logs.sh \
   test/run-stress.sh
 
+# the regular cleanup memes
+find -name '*.pyc' -delete
+find -name __pycache__ -delete
+find -type f \( -name .DS_Store -or -name ._.DS_Store \) -delete
+find -type f -name ._\* | while IFS= read -r f; do cmp <(printf '\x00\x05\x16') <(head -c 3 -- "$f") && rm -f -- "$f"; done
+
 find -type f -exec $md5sum '{}' \+ |
 sed -r 's/(.{32})(.*)/\2\1/' | LC_COLLATE=c sort |
 sed -r 's/(.*)(.{32})/\2\1/' |
@@ -110,7 +121,7 @@ sed -r 's/^(.{32}) \./\1  ./' > ../.sums.md5
 mv ../.sums.md5 .
 
 cd ..
-echo ">>> tar"; tar -czf "$tgz_path" "r0c-$ver"
+echo ">>> tar"; tar -czf "$tgz_path" --owner=1000 --group=1000 --numeric-owner "r0c-$ver"
 echo ">>> zip"; zip -qr  "$zip_path" "r0c-$ver"
 
 rm -rf "$tmp"
