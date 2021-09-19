@@ -215,9 +215,12 @@ class Core(object):
         if self.selector_alive:
             print(" --  selector killed")
 
-        print("  *  Saving user configs")
+        print("  *  saving user configs")
         self.telnet_server.save_configs()
         self.netcat_server.save_configs()
+
+        print("  *  terminating world")
+        self.world.shutdown()
 
         print("  *  selector cleanup")
         self.telnet_server.srv_sck.close()

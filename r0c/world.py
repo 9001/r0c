@@ -49,6 +49,14 @@ class World(object):
 
         threading.Thread(target=self.refresh_chans, name="tx_chan").start()
 
+    def shutdown(self):
+        with self.mutex:
+            for chanlist in [self.pub_ch, self.priv_ch]:
+                ucs = [y for x in chanlist for y in x.uchans]
+                ucs = [x for x in ucs if x.alias != "r0c-status"]
+                for uc in ucs:
+                    self.part_chan(uc, True)
+
     def add_user(self, user):
         with self.mutex:
             self.users.append(user)
@@ -334,7 +342,7 @@ class World(object):
                             .encode("utf-8")
                         )
 
-    def part_chan(self, uchan):
+    def part_chan(self, uchan, quiet=False):
         with self.mutex:
             self.num_parts += 1
             user = uchan.user
@@ -355,9 +363,10 @@ class World(object):
                     i -= 1
                 user.new_active_chan = user.chans[i]
 
-            self.send_chan_msg(
-                u"--", nchan, u"\033[1;33m{0}\033[22m has left".format(user.nick)
-            )
+            if not quiet:
+                self.send_chan_msg(
+                    u"--", nchan, u"\033[1;33m{0}\033[22m has left".format(user.nick)
+                )
 
             if not nchan.uchans:
                 print(" close chan:  [{0}]".format(nchan.get_name()))
