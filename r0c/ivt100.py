@@ -764,14 +764,6 @@ class VT100_Client(object):
                     # schedule a recheck after message processing
                     scroll_performed = True
 
-            # look for events in other chats too
-            if not cursor_moved and False:
-                for chan in self.user.chans:
-                    if chan == self.user.active_chan:
-                        continue
-                    if chan.update_activity_flags():
-                        status_changed = True
-
             to_send = u""
             fix_color = False
 
@@ -1392,10 +1384,9 @@ class VT100_Client(object):
 
             # print('@@@ gonna scroll {0} lines'.format(abs_steps))
 
-            if False:
-                for msg in ch.vis:
-                    for ln in msg.txt[msg.car : msg.cdr]:
-                        print(ln)
+            # for msg in ch.vis:
+            #     for ln in msg.txt[msg.car : msg.cdr]:
+            #         print(ln)
 
             # set scroll region:  chat pane
             if self.vt100:
@@ -2330,18 +2321,6 @@ class VT100_Client(object):
 
             if self.num_telnet_negotiations == 0:
                 self.request_terminal_size()
-
-                # this is a terrible idea (but terribly good for testing)
-                if False:
-
-                    def sz_requester():
-                        while not self.dead:
-                            self.request_terminal_size()
-                            time.sleep(0.1)
-
-                    thr = threading.Thread(target=sz_requester, name="sz_req")
-                    thr.daemon = True
-                    thr.start()
 
             self.host.unschedule_kick(self)
             self.wizard_stage = None

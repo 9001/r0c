@@ -181,37 +181,7 @@ class User(object):
         msg = Chat.Message(nchan, time.time(), u"-nfo-", text)
         nchan.msgs.append(msg)
 
-        if False:
-            text = []
-            lipsum1 = u"Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."
-            lipsum2 = u"Lorem ipsum dolor sit amet, \033[1;31mconsectetur\033[0m adipiscing elit, sed do eiusmod tempor incididunt ut \033[1;32mlabore et dolore magna\033[0m aliqua. Ut enim ad minim veniam, quis nostrud \033[1;33mexercitation ullamco laboris nisi ut aliquip ex ea\033[0m commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est labo\033[1;35mrum."
-            for n in range(10):
-                text.append(lipsum1)
-                text.append(lipsum2)
-            for ln in text:
-                nchan.msgs.append(Chat.Message(nchan, time.time(), u"-nfo-", ln))
-
         self.new_active_chan = uchan
-
-        if False:
-            uchan = self.world.join_pub_chan(self, u"general")
-            nchan = uchan.nchan
-            if len(nchan.msgs) < 100:
-                for n in range(1, 200):
-                    txt = u"{1}_{0:03}     \\\\\\\\".format(
-                        n,
-                        u"_{0:03}     \\\\\\\\\n".format(n).join(
-                            str(v).rjust(v + 4, u" ") for v in range(0, 12)
-                        ),
-                    )
-                    self.world.send_chan_msg(self.nick, nchan, txt)
-
-        if False:
-            uchan = self.world.join_pub_chan(self, u"smalltalk")
-            nchan = uchan.nchan
-            for n in range(1, 3):
-                txt = u"  message {0}\n      mes {0}".format(n)
-                self.world.send_chan_msg(self.nick, nchan, txt)
 
         self.client.handshake_world = True
 
@@ -312,7 +282,8 @@ class User(object):
                     u"-err-",
                     inf,
                     u"[invalid argument]\n  "
-                    + u"some illegal characters were removed\n" + err_extra,
+                    + u"some illegal characters were removed\n"
+                    + err_extra
                 )
 
             if len(new_nick) > 32:
@@ -416,18 +387,6 @@ class User(object):
             # this is in charge of activating the new channel,
             # rapid part/join will crash us without this
             self.client.refresh(False)
-
-            if False:
-                # measure performance on chans with too many messages
-                if len(self.active_chan.nchan.msgs) < 1048576:
-                    for n in range(0, 1048576):
-                        if n % 16384 == 0:
-                            print(n)
-                        self.world.send_chan_msg(
-                            u"--",
-                            self.active_chan.nchan,
-                            u"large history load test {0}".format(n),
-                        )
 
         elif cmd == u"part" or cmd == u"p":
             if self.active_chan.alias == u"r0c-status":
