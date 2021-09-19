@@ -44,7 +44,7 @@ technical:
 * or enable `Telnet Client` in control panel `->` programs `->` programs and features `->` turn windows features on or off, then press WIN+R and run `telnet r0c.int`
 
 putty is the best option;
-* windows-telnet has a bug (since win7) where unicode letters become unstable the more text you have on the screen (starts flickering and then disappear one by one)
+* windows-telnet has a bug (since win7) where [non-ascii letters occasionally render but usually dont](https://ocv.me/stuff/win10-telnet.webm)
 * the powershell client is no longer spammy as of windows 10.0.15063 (win10 1703 / LTSC)
 
 ## linux clients
