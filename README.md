@@ -21,6 +21,22 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
   * linemode
   * no vt100 / ansi escape codes
 
+## features
+
+irc-like:
+* public channels with persistent history (pgup/pgdn)
+* private messages (`/msg acidburn hey`)
+* nick completion with `<tab>`
+* notifications (bell/visual) on hilights and PMs
+* command subset (`/nick`, `/join`, `/part`, `/names`, `/topic`, `/me`)
+* inline message coloring, see `/help`
+
+technical:
+* client behavior detection (echo, colors, charset, newline)
+* readline-like message input (arrow-keys, home/end, backspace)
+  * history of sent messages (arrow-up)
+* bandwidth-conservative (push/pop lines instead of full redraws; scroll-regions)
+
 ## windows clients
 
 * use [putty](https://the.earth.li/~sgtatham/putty/latest/w32/putty.exe) in telnet mode
