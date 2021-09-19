@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION
@@ -31,7 +31,7 @@ __url__ = "https://github.com/9001/r0c"
 
 if "r0c" not in sys.modules:
     print(
-        "\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python -m r0c\r\n"
+        "\r\n  retr0chat must be launched as a module.\r\n  in the project root, run this:\r\n\r\n    python3 -m r0c\r\n"
     )
     sys.exit(1)
 
@@ -54,10 +54,10 @@ class Core(object):
             print("  optional arg. 3:  Password")
             print()
             print("  example 1:")
-            print("    python -m r0c 2323 1531 hunter2")
+            print("    python3 -m r0c 2323 1531 hunter2")
             print()
             print("  example 2:")
-            print("    python -m r0c 23 531")
+            print("    python3 -m r0c 23 531")
             print()
             return False
 

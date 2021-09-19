@@ -41,7 +41,7 @@ head -c 300 /dev/zero | tr '\0' '\n';  cp /dev/shm/fwl1 /dev/shm/fwl2; for bw in
 
 
 # log r0c stdout to file
-cd ~/dev/r0c; stdbuf -oL python2 -um r0c 2323 1531 | tee log/sys-$(date +%Y-%m%d-%H%M%S)
+cd ~/dev/r0c; stdbuf -oL python3 -um r0c 2323 1531 | tee log/sys-$(date +%Y-%m%d-%H%M%S)
 
 
 # upgrade r0c
@@ -52,7 +52,7 @@ cd ~/dev/r0c; git checkout r0c/config.py; git pull origin; sed -ri 's/hunter2/am
 config.py: BENCHMARK = True
 /c/Users/ed/AppData/Local/Programs/Python/Python39/python.exe -um r0c 2323 1531 k | tee plog
 bash run-stress.sh 2323
-python resample-log.py /dev/shm/r0c.log | bash plot.sh
+python3 resample-log.py /dev/shm/r0c.log | bash plot.sh
 
 
 # quick loadgen
