@@ -9,6 +9,7 @@ from . import user as User
 import os
 import re
 import time
+import zlib
 import socket
 import threading
 import binascii
@@ -388,6 +389,7 @@ class VT100_Client(object):
         self.linemode = False  # set true by buggy clients
         self.echo_on = False  # set true by buffy clients
         self.vt100 = True  # set nope by butty clients
+        self.cnicks = True  # colored nicknames
         self.bell = True  # doot on hilights
         self.crlf = u"\n"  # return key
         self.set_codec("utf-8")
@@ -409,6 +411,7 @@ class VT100_Client(object):
                     crlf,
                     codec,
                     bell,
+                    cnicks,
                 ) = self.host.user_config[self.adr[0]].split(u" ")
 
                 # print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
@@ -422,6 +425,7 @@ class VT100_Client(object):
 
                 # user config
                 self.bell = 1 == int(bell)
+                self.cnicks = 1 == int(cnicks)
 
                 if not self.world.find_user(nick):
                     self.user.set_nick(nick)
@@ -456,6 +460,7 @@ class VT100_Client(object):
                     self.codec,
                     # user config
                     u"1" if self.bell else u"0",
+                    u"1" if self.cnicks else u"0",
                 ]
             )
 
@@ -681,7 +686,7 @@ class VT100_Client(object):
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
 
     def refresh(self, cursor_moved):
-        """ compose necessary ansi text and send to client """
+        """compose necessary ansi text and send to client"""
         with self.world.mutex:
             if (
                 self.too_small
@@ -862,7 +867,7 @@ class VT100_Client(object):
             self.refresh(False)
 
     def update_top_bar(self, full_redraw):
-        """ no need to optimize this tbh """
+        """no need to optimize this tbh"""
         uchan = self.user.active_chan
         nchan = uchan.nchan
         topic = nchan.topic
@@ -941,9 +946,9 @@ class VT100_Client(object):
                 chan_name,
                 offscreen or u"",
                 hilights or u"",
-                activity or u""
+                activity or u"",
             ),
-            self.w
+            self.w,
         )[0]
 
         if not self.vt100:
@@ -1127,6 +1132,15 @@ class VT100_Client(object):
                     elif msg.user == u"***":
                         c1 = u"\033[36m"
                         c2 = u"\033[0m"
+                    elif msg.user != u"--" and self.cnicks:
+                        try:
+                            c2 = u"\033[0m"
+                            c1 = self.world.cntab[msg.user]
+                        except:
+                            crc = zlib.crc32(msg.user.encode("utf-8")) & 0xFFFFFFFF
+                            c1 = Util.BRI_256[crc % len(Util.BRI_256)]
+                            c1 = u"\033[48;5;16;38;5;{}m".format(c1)
+                            self.world.cntab[msg.user] = c1
 
                 txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
             else:
@@ -1965,7 +1979,9 @@ class VT100_Client(object):
 
    qwer asdf
 
- """.format("\n   -- ".join(self.wizard_reuse_errors))
+ """.format(
+                        "\n   -- ".join(self.wizard_reuse_errors)
+                    )
                 )
                 .replace(u"\n", u"\r\n")
                 .encode("utf-8")

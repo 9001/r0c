@@ -34,6 +34,7 @@ class World(object):
         self.pub_ch = []  # NChannel instances (public)
         self.priv_ch = []  # NChannel instances (private)
         self.dirty_ch = {}  # Channels that have pending tx
+        self.cntab = {}  # nick color cache
         self.task_queue = Queue()  # Delayed processing of expensive tasks
         self.mutex = threading.RLock()
         self.dirty_flag = threading.Event()  # raise after setting dirty_ch
@@ -321,7 +322,7 @@ class World(object):
                         )
 
     def broadcast_message(self, msg, severity=1):
-        """ 1=append, 2=append+scroll """
+        """1=append, 2=append+scroll"""
         with self.mutex:
             for nchan in self.pub_ch:
                 self.send_chan_msg(u"--", nchan, msg)

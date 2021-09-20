@@ -283,7 +283,7 @@ class User(object):
                     inf,
                     u"[invalid argument]\n  "
                     + u"some illegal characters were removed\n"
-                    + err_extra
+                    + err_extra,
                 )
 
             if len(new_nick) > 32:
@@ -395,7 +395,7 @@ class User(object):
                     inf,
                     u"""[error]
   cannot part the status channel
-"""
+""",
                 )
                 return
 
@@ -760,6 +760,20 @@ class User(object):
             self.client.bell = False
             self.world.send_chan_msg(
                 u"--", inf, u"Audible alerts disabled. Enable with /by", False
+            )
+
+        elif cmd == u"cy":
+            self.client.cnicks = True
+            self.client.need_full_redraw = True
+            self.world.send_chan_msg(
+                u"--", inf, u"Colored nicknames enabled. Disable with /cn", False
+            )
+
+        elif cmd == u"cn":
+            self.client.cnicks = False
+            self.client.need_full_redraw = True
+            self.world.send_chan_msg(
+                u"--", inf, u"Colored nicknames disabled. Enable with /cy", False
             )
 
         elif cmd == u"cmap":

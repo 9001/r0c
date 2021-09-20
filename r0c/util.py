@@ -10,6 +10,7 @@ import time
 import sys
 import os
 import platform
+import itertools
 
 
 if __name__ == "__main__":
@@ -25,6 +26,19 @@ if PY2:
     import __builtin__ as builtins
 else:
     import builtins
+
+
+azAZ = u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+BRI_256 = list(
+    itertools.chain(
+        range(35, 47),
+        range(48, 52),
+        range(70, 88),
+        range(103, 124),
+        range(132, 232),
+    )
+)
 
 
 def print(*args, **kwargs):
@@ -139,9 +153,6 @@ def test_hexdump():
         hexdump(v, ">")
 
     sys.exit(0)
-
-
-azAZ = u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
 def trunc(txt, maxlen):

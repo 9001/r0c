@@ -33,6 +33,8 @@
 
 **`/by`** and **`/bn`** turns on/off audible alerts when someone mentions your name
 
+**`/cy`** and **`/cn`** turns on/off colored nicknames
+
 **`/sw`** and **`/sh`** sets the terminal width/height in case the detection fails  
 `/sw 80`  
 `/sh 24`

@@ -33,6 +33,11 @@ cat radio.log | awk 'length($0) > 30 && length($0) < 200 {print $0}' > radio.lon
 f=2021-09-19; (echo 1 6147563b; cat $f.log | grep -E '^\[..:..:..\] <' | sed -r 's/^\[(..:..:..)\] <([^>]+)> /'$f'T\1Z \2 /' | while IFS=' ' read -r t s; do t=$(date +%s --date="$t"); printf '%x %s\n' "$((t*8))" "$s"; done) > ~/dev/r0c/log/chan/g/2021-0919-152443
 
 
+# latin1
+for cp in latin1 cp437; do printf "%02x" {32..255} | xxd -r -p | iconv -f $cp; echo; done > latin1-and-cp437
+f = open('latin1-and-cp437', encoding='utf-8'); s = f.read(); f.close(); print('\n'.join(sorted("{:04x} {}".format(ord(x), x) for x in s)))
+
+
 # statistics for attempted usernames / passwords
 ./format-wire-logs.sh | tee /dev/shm/wirefmt | tee /dev/stderr | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
 
