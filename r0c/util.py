@@ -253,7 +253,17 @@ def visual_length(txt):
                 if ch == u"\033":
                     pend = u"{0}".format(ch)
                 else:
-                    clen += 1
+                    co = ord(ch)
+                    # the safe parts of latin1 and cp437 (no greek stuff)
+                    if (
+                        co < 0x100  # ascii + lower half of latin1
+                        or (co >= 0x2500 and co <= 0x25A0)  # box drawings
+                        or (co >= 0x2800 and co <= 0x28FF)  # braille
+                    ):
+                        clen += 1
+                    else:
+                        # assume moonrunes or other double-width
+                        clen += 2
     return clen
 
 
