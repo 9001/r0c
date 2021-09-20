@@ -64,6 +64,7 @@ Keybinds:
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
 if you are using a mac, PgUp is fn-Shift-PgUp
+if your terminal is tiny, try \033[36m/mn\033[0m and \033[36m/cy\033[0m
 """
 
 
@@ -132,7 +133,7 @@ class User(object):
                              `34m  b. r0c_build `0m
 """
             # the messy version
-            text = u"""\
+            text = u"""
 `1;30m________ `37m__`36m_ `30m________
 `1;30m░▒▓█▀▀▀▀`37m █▀`46m▓`0;1;30m ▀▀▀▀█▓▒░   `0;36m┌pad1[`0mret`1mr0c`22mhat r0c_ver`36m]pad2┐
 `1;30m ░▒▓ `34;46m▒`0;1;36m▀█ `37;46m▓`0m `1;37;46m▓`0m `1;36m█▀`34m▀ `30m▓▒░    `0;36m│`0mgithub.com/9001/r0c`36m│
@@ -149,7 +150,8 @@ class User(object):
 """
 
             # the messy version
-            text = u"""`1;30m______    `37m_`30m    ______
+            text = u"""
+`1;30m______    `37m_`30m    ______
 `1;30m\\\\\\\\\\\\\\  `37m/ \\  `30m///////   `0mret`1mr0c`22mhat r0c_ver `36m-----
  `1;30m\\\\ `36m/`37m^^  | |  `36m/^`0;36m^`1;30m //    `0mgithub.com/9001/r0c
   `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. r0c_build `0m
@@ -774,6 +776,20 @@ class User(object):
             self.client.need_full_redraw = True
             self.world.send_chan_msg(
                 u"--", inf, u"Colored nicknames disabled. Enable with /cy", False
+            )
+
+        elif cmd == u"my":
+            self.client.align = True
+            self.client.need_full_redraw = True
+            self.world.send_chan_msg(
+                u"--", inf, u"Wordwrap margin enabled. Disable with /mn", False
+            )
+
+        elif cmd == u"mn":
+            self.client.align = False
+            self.client.need_full_redraw = True
+            self.world.send_chan_msg(
+                u"--", inf, u"Wordwrap margin disabled. Enable with /my", False
             )
 
         elif cmd == u"cmap":

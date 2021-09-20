@@ -35,6 +35,8 @@
 
 **`/cy`** and **`/cn`** turns on/off colored nicknames
 
+**`/my`** and **`/mn`** turns on/off wordwrap margins
+
 **`/sw`** and **`/sh`** sets the terminal width/height in case the detection fails  
 `/sw 80`  
 `/sh 24`

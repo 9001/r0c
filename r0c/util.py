@@ -517,7 +517,7 @@ def visualize_all_unicode_codepoints_as_utf8():
 # visualize_all_unicode_codepoints_as_utf8()
 
 
-def wrap(txt, maxlen):
+def wrap(txt, maxlen, maxlen2):
     words = txt.rstrip().split()
     ret = []
     for word in words:
@@ -538,6 +538,7 @@ def wrap(txt, maxlen):
         wl = visual_length(word)
         if spent + wl > maxlen:
             ret.append(ln[1:])
+            maxlen = maxlen2
             spent = 0
             ln = u""
         ln += u" " + word

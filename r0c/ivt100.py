@@ -389,7 +389,8 @@ class VT100_Client(object):
         self.linemode = False  # set true by buggy clients
         self.echo_on = False  # set true by buffy clients
         self.vt100 = True  # set nope by butty clients
-        self.cnicks = True  # colored nicknames
+        self.cnicks = False  # colored nicknames
+        self.align = True  # fixed left margin
         self.bell = True  # doot on hilights
         self.crlf = u"\n"  # return key
         self.set_codec("utf-8")
@@ -412,6 +413,7 @@ class VT100_Client(object):
                     codec,
                     bell,
                     cnicks,
+                    align,
                 ) = self.host.user_config[self.adr[0]].split(u" ")
 
                 # print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
@@ -426,6 +428,7 @@ class VT100_Client(object):
                 # user config
                 self.bell = 1 == int(bell)
                 self.cnicks = 1 == int(cnicks)
+                self.align = 1 == int(align)
 
                 if not self.world.find_user(nick):
                     self.user.set_nick(nick)
@@ -461,6 +464,7 @@ class VT100_Client(object):
                     # user config
                     u"1" if self.bell else u"0",
                     u"1" if self.cnicks else u"0",
+                    u"1" if self.align else u"0",
                 ]
             )
 
@@ -1102,7 +1106,7 @@ class VT100_Client(object):
             return print_fmt.format(self.h - self.y_input, line)
         return u""
 
-    def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w):
+    def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w):
         ts = datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
 
         txt = []
@@ -1110,7 +1114,7 @@ class VT100_Client(object):
             if len(ln) < msg_w or Util.visual_length(ln) < msg_w:
                 txt.append(ln)
             else:
-                txt.extend(Util.wrap(ln.rstrip(), msg_w))
+                txt.extend(Util.wrap(ln.rstrip(), msg_w, msg_w2))
 
         for n, line in enumerate(txt):
             if u"\033" in line:
@@ -1123,18 +1127,16 @@ class VT100_Client(object):
                 c1 = u""
                 c2 = u""
                 if self.vt100:
+                    c1 = u"\033[1m"
+                    c2 = u"\033[0m"
                     if msg.user == u"-nfo-":
                         c1 = u"\033[0;32m"
-                        c2 = u"\033[0m"
                     elif msg.user == u"-err-":
                         c1 = u"\033[1;33m"
-                        c2 = u"\033[0m"
                     elif msg.user == u"***":
                         c1 = u"\033[36m"
-                        c2 = u"\033[0m"
                     elif msg.user != u"--" and self.cnicks:
                         try:
-                            c2 = u"\033[0m"
                             c1 = self.world.cntab[msg.user]
                         except:
                             crc = zlib.crc32(msg.user.encode("utf-8")) & 0xFFFFFFFF
@@ -1194,6 +1196,12 @@ class VT100_Client(object):
             msg_nl = u" " * (nick_w + 1)
             ts_fmt = "%H%M"
             msg_fmt = u"{{1}}{{2:{0}}}{{3}} {{4}}".format(nick_w)
+
+        if self.align:
+            msg_w2 = msg_w
+        else:
+            msg_w2 = self.w - 2
+            msg_nl = u"  "
 
         # first ensure our cache is sane
         if not ch.vis:
@@ -1269,7 +1277,9 @@ class VT100_Client(object):
                 imsg = top_msg.im
                 ch.vis = []
                 for n, msg in enumerate(nch.msgs[imsg : imsg + self.h - 3]):
-                    txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+                    txt = self.msg2ansi(
+                        msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
+                    )
 
                     if top_msg is not None and len(top_msg.txt) == len(txt):
                         car = top_msg.car
@@ -1320,7 +1330,9 @@ class VT100_Client(object):
                 ch.vis = []
                 for n, msg in enumerate(reversed(nch.msgs)):
                     imsg = (len(nch.msgs) - 1) - n
-                    txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+                    txt = self.msg2ansi(
+                        msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
+                    )
 
                     n_vis = len(txt)
                     car = 0
@@ -1532,7 +1544,9 @@ class VT100_Client(object):
                             break
 
                     msg = nch.msgs[imsg]
-                    txt = self.msg2ansi(msg, msg_fmt, ts_fmt, msg_nl, msg_w, nick_w)
+                    txt = self.msg2ansi(
+                        msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
+                    )
 
                     vmsg = Chat.VisMessage().c_new(msg, txt, imsg, 0, len(txt), ch)
 
