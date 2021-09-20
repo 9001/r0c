@@ -496,11 +496,11 @@ def visualize_all_unicode_codepoints_as_utf8():
 # visualize_all_unicode_codepoints_as_utf8()
 
 
-def prewrap(txt, maxlen):
-    words = txt.split()
+def wrap(txt, maxlen):
+    words = txt.rstrip().split()
     ret = []
     for word in words:
-        if len(word) < maxlen or visual_length(word) < maxlen:
+        if len(word) * 2 < maxlen or visual_length(word) < maxlen:
             ret.append(word)
         else:
             while visual_length(word) >= maxlen:
@@ -508,6 +508,22 @@ def prewrap(txt, maxlen):
                 word = word[maxlen - 1 :]
             if word:
                 ret.append(word)
+
+    words = ret
+    ret = []
+    ln = u""
+    spent = 0
+    for word in words:
+        wl = visual_length(word)
+        if spent + wl > maxlen:
+            ret.append(ln[1:])
+            spent = 0
+            ln = u""
+        ln += u" " + word
+        spent += wl + 1
+    if ln:
+        ret.append(ln[1:])
+
     return ret
 
 

@@ -5,7 +5,6 @@ from .__version__ import S_VERSION
 from .__init__ import EP, WINDOWS, COLORS
 from . import config as Config
 from . import util as Util
-from . import unrag as Unrag
 from . import inetcat as Inetcat
 from . import itelnet as Itelnet
 from . import world as World
@@ -404,9 +403,6 @@ def start_r0c(args):
 def main(args=None):
     mode = "normal"
     # mode = "profiler"
-    # mode = 'unrag-speedtest'
-    # mode = 'unrag-layout-test-v1'
-    # mode = 'unrag-layout-test-interactive'
     # mode = 'test-ansi-annotation'
     # test_hexdump()
 
@@ -444,15 +440,6 @@ def main(args=None):
 
         print("\n\n{0}\n  thread stats\n{0}\n".format("-" * 72))
         thr_stats.print_all()
-
-    if mode == "unrag-speedtest":
-        Unrag.bench_unrag("../radio.long")
-
-    if mode == "unrag-layout-test-v1":
-        Unrag.unrag_layout_test_dump()
-
-    if mode == "unrag-layout-test-interactive":
-        Unrag.unrag_layout_test_interactive()
 
     if mode == "test-ansi-annotation":
         Util.test_ansi_annotation()

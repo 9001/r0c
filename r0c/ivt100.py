@@ -3,7 +3,6 @@ from __future__ import print_function
 from .__init__ import EP, PY2, COLORS, IRONPY
 from . import config as Config
 from . import util as Util
-from . import unrag as Unrag
 from . import chat as Chat
 from . import user as User
 
@@ -1106,8 +1105,7 @@ class VT100_Client(object):
             if len(ln) < msg_w or Util.visual_length(ln) < msg_w:
                 txt.append(ln)
             else:
-                ln = u" ".join(Util.prewrap(ln.rstrip(), msg_w))
-                txt.extend(Unrag.unrag(ln, msg_w) or [u" "])
+                txt.extend(Util.wrap(ln.rstrip(), msg_w))
 
         for n, line in enumerate(txt):
             if u"\033" in line:

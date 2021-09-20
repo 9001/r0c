@@ -29,6 +29,10 @@ cat radio.log | awk '{print length($0)}' | sort -n | uniq -c | awk '{print $2, $
 cat radio.log | awk 'length($0) > 30 && length($0) < 200 {print $0}' > radio.long
 
 
+# convert znc log to r0c format
+f=2021-09-19; (echo 1 6147563b; cat $f.log | grep -E '^\[..:..:..\] <' | sed -r 's/^\[(..:..:..)\] <([^>]+)> /'$f'T\1Z \2 /' | while IFS=' ' read -r t s; do t=$(date +%s --date="$t"); printf '%x %s\n' "$((t*8))" "$s"; done) > ~/dev/r0c/log/chan/g/2021-0919-152443
+
+
 # statistics for attempted usernames / passwords
 ./format-wire-logs.sh | tee /dev/shm/wirefmt | tee /dev/stderr | grep -E '^.\[' | sed -r "$(printf 's/.*\033\[0m  \.*P?\.*//;s/([^\.]*)\.*([^\.]*).*/\\1\\n\\2/')" | sort | uniq -c | sort -n
 
