@@ -1141,7 +1141,7 @@ class VT100_Client(object):
                         except:
                             crc = zlib.crc32(msg.user.encode("utf-8")) & 0xFFFFFFFF
                             c1 = Util.BRI_256[crc % len(Util.BRI_256)]
-                            c1 = u"\033[48;5;16;38;5;{}m".format(c1)
+                            c1 = u"\033[48;5;16;38;5;{0}m".format(c1)
                             self.world.cntab[msg.user] = c1
 
                 txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)

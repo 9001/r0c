@@ -167,8 +167,8 @@ def encode(data, size, cksum, ver, ts):
             ["CKSUM", '"' + cksum + '"'],
             ["STAMP", ts],
         ]:
-            v1 = "\n{} = None\n".format(k)
-            v2 = "\n{} = {}\n".format(k, v)
+            v1 = "\n{0} = None\n".format(k)
+            v2 = "\n{0} = {1}\n".format(k, v)
             unpk = unpk.replace(v1, v2)
 
         unpk = unpk.replace("\n    ", "\n\t")
@@ -247,7 +247,7 @@ def unpack():
 
     ck = hashfile(tar)
     if ck != CKSUM:
-        t = "\n\nexpected {} ({} byte)\nobtained {} ({} byte)\nsfx corrupt"
+        t = "\n\nexpected {0} ({1} byte)\nobtained {2} ({3} byte)\nsfx corrupt"
         raise Exception(t.format(CKSUM, SIZE, ck, sz))
 
     tm = "r:bz2"
@@ -356,7 +356,7 @@ def utime(top):
     while WINDOWS:
         t = int(time.time())
         if i:
-            msg("utime {}, {}".format(i, t))
+            msg("utime {0}, {1}".format(i, t))
 
         for f in files:
             os.utime(f, (t, t))
