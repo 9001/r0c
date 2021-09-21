@@ -82,7 +82,6 @@ class Core(object):
 
         self.stopping = 0
         self.threadmon = False
-        self.selector_alive = False
         self.shutdown_flag = threading.Event()
         Util.py26_threading_event_wait(self.shutdown_flag)
 
@@ -120,9 +119,12 @@ class Core(object):
         self.push_thr.start()
 
         print("  *  Running")
-        self.select_thr = threading.Thread(target=self.select_worker, name="ac_mgr")
-        self.select_thr.daemon = True
-        self.select_thr.start()
+        for n in [0, 1]:
+            self.select_thr = threading.Thread(
+                target=self.select_worker, args=(n,), name="sel{0}".format(n)
+            )
+            self.select_thr.daemon = True
+            self.select_thr.start()
 
         return True
 
@@ -199,21 +201,6 @@ class Core(object):
         # termiante refresh_chans
         self.world.dirty_flag.set()
 
-        select_timeout = 0.5 / 0.05
-        if self.telnet_server.clients or self.netcat_server.clients:
-            # give it <= 3 sec since people are connected
-            select_timeout = 3 / 0.05
-
-        print("\r\n  *  selector stopping")
-        for n in range(0, int(select_timeout)):
-            time.sleep(0.05)
-            if not self.selector_alive:
-                print("  *  selector stopped")
-                break
-
-        if self.selector_alive:
-            print(" --  selector killed")
-
         print("  *  saving user configs")
         self.telnet_server.save_configs()
         self.netcat_server.save_configs()
@@ -228,36 +215,39 @@ class Core(object):
         print("  *  r0c is down")
         return True
 
-    def select_worker(self):
-        self.selector_alive = True
-
+    def select_worker(self, nsel):
         srvs = {}
         for iface in [self.telnet_server, self.netcat_server]:
             srvs[iface.srv_sck] = iface
 
-        acli = []
-        dcli = {}
+        sn = -1
+        sc = {}  # sck:cli
+        slowmo = bool(nsel)
         while not self.shutdown_flag.is_set():
-            acli = self.telnet_server.clients + self.netcat_server.clients
-
-            if len(acli) != len(dcli):
-                dcli = {}
-
-            for ic in [self.telnet_server.clients, self.netcat_server.clients]:
-                if ic and ic[-1].socket not in dcli:
-                    dcli = {}
-                    break
-
-            if not dcli:
-                for c in acli:
-                    dcli[c.socket] = c
+            nsn = self.world.cserial
+            if sn != nsn:
+                sn = nsn
+                sc = {}
+                for c in self.telnet_server.clients + self.netcat_server.clients:
+                    if bool(c.slowmo_tx) == slowmo:
+                        sc[c.socket] = c
 
             # TODO: every once in a while a packet isn't delivered
             # until the client sends us a packet or the timeout hits
-            timeout = 0.34 if acli else 69
+            timeout = 69 if not sc else 0.1 if slowmo else 0.34
 
-            want_rx = [c.socket for c in acli if c.readable()]
-            want_tx = [c.socket for c in acli if c.writable()]
+            if slowmo:
+                for c in sc.values():
+                    if c.slowmo_skips:
+                        c.slowmo_skips -= 1
+
+                want_tx = [
+                    s for s, c in sc.items() if c.writable() and not c.slowmo_skips
+                ]
+            else:
+                want_tx = [s for s, c in sc.items() if c.writable()]
+
+            want_rx = [s for s, c in sc.items() if c.readable()]
             want_rx += list(srvs.keys())
 
             try:
@@ -265,22 +255,28 @@ class Core(object):
                 if self.stopping:
                     break
 
-                for s in rxs:
-                    if s in srvs:
-                        srvs[s].handle_accept()
-                    else:
-                        dcli[s].handle_read()
+                with self.world.mutex:
+                    if sn != self.world.cserial:
+                        continue
 
-                for s in txs:
-                    dcli[s].handle_write()
+                    for s in rxs:
+                        if s in srvs:
+                            srvs[s].handle_accept()
+                        else:
+                            sc[s].handle_read()
+
+                    for s in txs:
+                        sc[s].handle_write()
+
+                if slowmo and want_tx and (rxs or txs):
+                    # sleep because we didnt timeout
+                    time.sleep(0.1)
 
             except Exception as ex:
                 if "Bad file descriptor" in str(ex):
                     # print('osx bug ignored')
                     continue
                 Util.whoops()
-
-        self.selector_alive = False
 
     def push_worker(self, world, ifaces):
         last_action_ts = time.time()

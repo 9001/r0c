@@ -35,6 +35,7 @@ class World(object):
         self.priv_ch = []  # NChannel instances (private)
         self.dirty_ch = {}  # Channels that have pending tx
         self.cntab = {}  # nick color cache
+        self.cserial = 0  # selector configuration serial number
         self.task_queue = Queue()  # Delayed processing of expensive tasks
         self.mutex = threading.RLock()
         self.dirty_flag = threading.Event()  # raise after setting dirty_ch

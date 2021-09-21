@@ -11,6 +11,8 @@ IRONPY = "ironpy" in INTERP.lower()
 PY2 = sys.version_info[0] == 2
 if PY2:
     sys.dont_write_bytecode = True
+else:
+    unicode = str
 
 WINDOWS = False
 if platform.system() == "Windows":

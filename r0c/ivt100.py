@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, COLORS, IRONPY
+from .__init__ import EP, PY2, COLORS, IRONPY, unicode
 from . import config as Config
 from . import util as Util
 from . import chat as Chat
@@ -55,9 +55,10 @@ class VT100_Server(object):
         self.scheduled_kicks = []
         self.next_scheduled_kick = None
 
+        self.ep = (host, port)
         self.srv_sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.srv_sck.bind((host, port))
+        self.srv_sck.bind(self.ep)
         self.srv_sck.listen(1)
 
         if IRONPY:
@@ -107,6 +108,7 @@ class VT100_Server(object):
             remote = self.gen_remote(socket, adr, usr)
             self.world.add_user(usr)
             self.clients.append(remote)
+            self.world.cserial += 1
             remote.conf_wizard(0)
 
             kick_msg = " wizardkick:  {0}  {1}".format(remote.user.nick, remote.adr[0])
@@ -137,6 +139,7 @@ class VT100_Server(object):
                     )
                 )
             self.clients.remove(remote)
+            self.world.cserial += 1
             try:
                 remote.user.active_chan = None
                 remote.user.old_active_chan = None
@@ -180,21 +183,6 @@ class VT100_Server(object):
                     for ln in [x.decode("utf-8").strip() for x in f]:
                         k, v = ln.split(u" ", 1)
                         self.user_config[k] = v
-
-                        if len(v.split(u" ")) > 15:
-                            panic = True
-                            print("\n /!\\ YOUR CFG.* FILES ARE BUSTED")
-                            print(
-                                "     i messed up the serialization in an older version of r0c sorry"
-                            )
-                            print("     please run these oneliners to fix them:\n")
-                            for fn in "telnet", "netcat":
-                                print(
-                                    r"sed -ri 's/([0-9\.]+ [0-9a-f]+ [^ ]+ [01] [01] [01] [^ ]+ [^ ]+ [01])/\1\n/g' {0}cfg.{1}".format(
-                                        EP.log, fn
-                                    )
-                                )
-                                print()
                 except:
                     print(" /!\\ invalid config line")
                     try:
@@ -227,6 +215,23 @@ class VT100_Server(object):
                     self.__class__.__name__, len(self.user_config)
                 )
             )
+
+    def poke(self):
+        """wake up select.select"""
+        self.world.cserial += 1
+        print("poke, ", self.world.cserial)
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect(self.ep)
+        s.close()
+
+    def slowmo_poke(self, cmp):
+        hits = 0
+        for cli in self.clients:
+            if bool(cli.slowmo_tx) == cmp:
+                hits += 1
+
+        if hits < 2:
+            self.poke()
 
 
 class VT100_Client(object):
@@ -264,12 +269,13 @@ class VT100_Client(object):
         self.last_tx = None
 
         # incoming data
-        self.backlog = None
+        self.backlog = b""
         self.in_bytes = b""
         self.in_text = u""
         self.in_text_full = u""
         self.num_telnet_negotiations = 0
         self.slowmo_tx = Config.SLOW_MOTION_TX
+        self.slowmo_skips = 0  # remaining cycles to skip
         self.set_codec("utf-8")
 
         # incoming requests
@@ -384,6 +390,7 @@ class VT100_Client(object):
         return id(self) != id(other)
 
     def default_config(self):
+        self.slowmo_tx = Config.SLOW_MOTION_TX
         self.y_input = 0  # offset from bottom of screen
         self.y_status = 1  # offset from bottom of screen
         self.linemode = False  # set true by buggy clients
@@ -406,6 +413,7 @@ class VT100_Client(object):
                 (
                     ts,
                     nick,
+                    slowmo,
                     linemode,
                     vt100,
                     echo_on,
@@ -419,6 +427,7 @@ class VT100_Client(object):
                 # print('],['.join([nick,linemode,vt100,echo_on,codec,bell]))
 
                 # terminal behavior
+                self.slowmo_tx = int(slowmo)
                 self.linemode = 1 == int(linemode)
                 self.vt100 = 1 == int(vt100)
                 self.echo_on = 1 == int(echo_on)
@@ -456,6 +465,7 @@ class VT100_Client(object):
                     hex(int(time.time() * 8.0))[2:].rstrip("L"),
                     self.user.nick,
                     # terminal behavior
+                    unicode(self.slowmo_tx),
                     u"1" if self.linemode else u"0",
                     u"1" if self.vt100 else u"0",
                     u"1" if self.echo_on else u"0",
@@ -647,17 +657,12 @@ class VT100_Client(object):
         if not self.writable():
             return
 
-        # if self.slowmo_tx:
-        # 	self.last_tx = time.time()
+        msg = self.backlog
+        self.backlog = b""
 
-        src = self.replies
-        if src.empty():
-            src = self.outbox
-
-        if self.backlog:
-            msg = self.backlog
-        else:
-            msg = src.get()
+        for src in [self.replies, self.outbox]:
+            while len(msg) < 480 and not src.empty():
+                msg += src.get()
 
         if Config.HEXDUMP_OUT:
             if len(msg) < Config.HEXDUMP_TRUNC:
@@ -674,15 +679,15 @@ class VT100_Client(object):
                 (
                     i
                     for i, ch in enumerate(msg)
-                    if i > 128 and ch in [b" "[0], b"\033"[0]]
+                    if i > 480 and ch in [b" "[0], b"\033"[0]]
                 ),
                 len(msg),
             )
             self.backlog = msg[end_pos:]
             sent = self.socket.send(msg[:end_pos])
             self.backlog = msg[sent:]
+            self.slowmo_skips = self.slowmo_tx
             # hexdump(msg[:sent])
-            time.sleep(0.02)
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
         else:
             sent = self.socket.send(msg)
@@ -718,6 +723,7 @@ class VT100_Client(object):
                         if self in self.host.clients:
                             print("*** dead client STILL in host.clients, removing")
                             self.host.clients.remove(self)
+                            self.world.cserial += 1
                         else:
                             print("*** its fine")
 
@@ -1796,13 +1802,9 @@ class VT100_Client(object):
                 self.wizard_stage = "bot1"
                 self.is_bot = True
 
-                print("     is bot:  {0}  {1}".format(self.user.nick, self.adr[0]))
-
-                self.host.schedule_kick(
-                    self,
-                    69,
-                    "    botkick:  {0}  {1}".format(self.user.nick, self.adr[0]),
-                )
+                m = "{0}  {1}".format(self.user.nick, self.adr[0])
+                self.host.schedule_kick(self, 69, "    botkick:  " + m)
+                print("     is bot:  " + m)
 
         if self.wizard_stage.startswith("bot"):
             nline = u"\x0d\x0a\x00"

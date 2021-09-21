@@ -46,9 +46,10 @@ HEXDUMP_TRUNC = 65535
 HEXDUMP_TRUNC = 1
 HEXDUMP_TRUNC = 128
 
-# set true for a really bad "slow network" simulation
-SLOW_MOTION_TX = True
-SLOW_MOTION_TX = False
+# set nonzero for a really bad "slow network" simulation
+# (which happens to have the side-effect of fixing a telnet.exe buffer overflow)
+SLOW_MOTION_TX = 1
+SLOW_MOTION_TX = 0
 
 # force clients into linemode (to debug linemode UI)
 FORCE_LINEMODE = True

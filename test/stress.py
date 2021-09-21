@@ -205,7 +205,7 @@ class Client(asyncore.dispatcher):
                     for ch in u"qwer asdf\n":
                         self.tx(ch)
                         time.sleep(0.1)
-                
+
                 continue
 
             if self.stage == "qwer":
@@ -655,7 +655,7 @@ class SubCore(object):
         self.client.stopping = True
 
         clean_shutdown = False
-        for n in range(0, 40):  # 2sec
+        for n in range(40):  # 2sec
             if not self.client.actor_active:
                 clean_shutdown = True
                 break
@@ -723,7 +723,7 @@ class Core(object):
         print_status = not VISUAL_CLIENT
 
         while not self.stopping:
-            for n in range(0, 5):
+            for n in range(5):
                 time.sleep(0.1)
                 for cli in self.clients:
                     cli.recv_status()
@@ -736,7 +736,7 @@ class Core(object):
         for subcore in self.clients:
             subcore.cmd_q.put("x")
 
-        for n in range(0, 40):  # 2sec
+        for n in range(40):  # 2sec
             clean_shutdown = True
             for subcore in self.clients:
                 if not subcore.cmd_q.empty():

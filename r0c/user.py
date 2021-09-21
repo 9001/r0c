@@ -64,6 +64,7 @@ Keybinds:
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
 if you are using a mac, PgUp is fn-Shift-PgUp
+if you are using \033[1mtelnet.exe\033[0m on windows: \033[36m/sy\033[0m
 if your terminal is tiny, try \033[36m/mn\033[0m and \033[36m/cy\033[0m
 """
 
@@ -175,6 +176,9 @@ class User(object):
             .replace("pad2", pad2)
         )
         text += HELP_INTRO
+
+        # x = "`1;30m░▒▓█▀▀▀▀`37m█▀`46m▓`0;1;30m▀▀▀▀█▓▒░`0;36m┌ "
+        # text += x.replace(u"`", u"\033[") * 66
 
         uchan = self.world.join_priv_chan(self, u"r0c-status")
         nchan = uchan.nchan
@@ -792,25 +796,50 @@ class User(object):
                 u"--", inf, u"Wordwrap margin disabled. Enable with /my", False
             )
 
+        elif cmd == u"sy":
+            try:
+                arg = int(arg)
+            except:
+                arg = 1
+
+            poke = not self.client.slowmo_tx
+            self.client.slowmo_tx = arg
+            self.client.need_full_redraw = True
+            if poke:
+                self.client.host.slowmo_poke(True)
+
+            m = u"Slowmo enabled ({0}). This avoids a bug in telnet.exe on windows, but your memory is probably busted already so you have to reconnect now to fix it. Disable with /sn if you change your mind"
+            self.world.send_chan_msg(u"--", inf, m.format(arg), False)
+
+        elif cmd == u"sn":
+            if self.client.slowmo_tx:
+                self.client.slowmo_tx = 0
+                self.client.host.slowmo_poke(False)
+                self.client.need_full_redraw = True
+
+            self.world.send_chan_msg(
+                u"--", inf, u"Slowmo disabled. Enable with /sy", False
+            )
+
         elif cmd == u"cmap":
             msg = u"All foreground colours (0 to f) on default background,\n"
             msg += u"each code wrapped in [brackets] for readability:\n  "
-            for n in range(0, 16):
+            for n in range(16):
                 if n == 8:
                     msg += u"\n  \033[1;3{0}m[{1:x}], ".format(n % 8, n)
                 else:
                     msg += u"\033[3{0}m[{1:x}], ".format(n % 8, n)
 
             msg += u"\033[0m\n\nEach background with black text:\n  \033[30m"
-            for n in range(0, 8):
+            for n in range(8):
                 msg += u"\033[4{0}m 0,{0} ".format(n)
 
             msg += u"\033[0m\n\nEach background with gray text:\n  \033[37m"
-            for n in range(0, 8):
+            for n in range(8):
                 msg += u"\033[4{0}m 7,{0} ".format(n)
 
             msg += u"\033[0m\n\nEach background with white text:\n  \033[1;37m"
-            for n in range(0, 8):
+            for n in range(8):
                 msg += u"\033[4{0}m f,{0} ".format(n)
 
             msg += u"\033[0m\n"
@@ -868,6 +897,9 @@ class User(object):
                     cmd_str
                 ),
             )
+
+        if len(cmd) == 2 and cmd[-1] in u"yn":
+            self.client.save_config()
 
     def set_nick(self, new_nick):
         nick_re = u""

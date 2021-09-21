@@ -31,6 +31,8 @@
 
 **`/r`** or **`/redraw`** redraws the screen to fix corruption, use this if things are glitchy after resizing the window
 
+**`/sy`** and **`/sn`** turns on/off slowmo (avoids bug in telnet.exe on windows)
+
 **`/by`** and **`/bn`** turns on/off audible alerts when someone mentions your name
 
 **`/cy`** and **`/cn`** turns on/off colored nicknames
