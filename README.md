@@ -44,8 +44,10 @@ technical:
 * or enable `Telnet Client` in control panel `->` programs `->` programs and features `->` turn windows features on or off, then press WIN+R and run `telnet r0c.int`
 
 putty is the best option;
+* the powershell client is OK and no longer spammy as of windows 10.0.15063 (win10 1703 / LTSC)
 * windows-telnet has a bug (since win7) where [non-ascii letters occasionally render but usually dont](https://ocv.me/stuff/win10-telnet.webm)
-* the powershell client is no longer spammy as of windows 10.0.15063 (win10 1703 / LTSC)
+  * this is due to a buffer overflow in `telnet.exe`, so r0c will apply a rate-limit to avoid it
+  * looks like messages larger than 512 bytes end up messing with the unicode glyphs area? or something
 
 ## linux clients
 

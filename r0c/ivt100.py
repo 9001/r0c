@@ -2318,7 +2318,7 @@ class VT100_Client(object):
             m = (
                 top
                 + u"""
- are you using telnet.exe on Windows 7 or later?
+ are you using telnet.exe on Windows 7 or newer?
 
    Y:  Yes; this enables slowmo (network throttle)
        which avoids a rendering bug in telnet.exe
