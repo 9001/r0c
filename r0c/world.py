@@ -47,7 +47,7 @@ class World(object):
         with self.mutex:
             for chanlist in [self.pub_ch, self.priv_ch]:
                 ucs = [y for x in chanlist for y in x.uchans]
-                ucs = [x for x in ucs if x.alias != "r0c-status"]
+                ucs = [x for x in ucs if x.alias != u"r0c-status"]
                 for uc in ucs:
                     self.part_chan(uc, True)
 
@@ -172,7 +172,7 @@ class World(object):
                         if isinstance(from_nick, str):
                             Util.whoops("from_nick is bytestring")
 
-                    if uchan.alias == "r0c-status":
+                    if uchan.alias == u"r0c-status":
                         if ping_self:
                             uchan.last_ping = msg.sno
                     else:

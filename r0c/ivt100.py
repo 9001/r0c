@@ -1878,7 +1878,7 @@ class VT100_Client(object):
                 .encode("utf-8")
             )
 
-            ok = "your client is ok"
+            ok = "your client is OK"
             ng = "get better software"
 
             to_say += (

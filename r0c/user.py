@@ -29,9 +29,9 @@ Text formatting:
   \033[36mCTRL-O\033[0m  reset text formatting
   \033[36mCTRL-B\033[0m  bold/bright text on/off
   \033[36mCTRL-K\033[0m  followed by a colour code:
-       \033[36m2\033[0m  \033[32mgreen\033[0m,
-    \033[36m15,4\033[0m  \033[1;37;44mbold white on blue\033[0m --
-          say \033[1m/cmap\033[0m to see all options
+       \033[36m2\033[0m  - \033[32mgreen\033[0m,
+    \033[36m15,4\033[0m  - \033[1;37;44mbold white on blue\033[0m --
+            say \033[1m/cmap\033[0m to see all options
 
 Switching channels:
   \033[36mCTRL-E\033[0m  jump to active channel
@@ -40,8 +40,8 @@ Switching channels:
   \033[36m/3\033[0m      go to channel 3
   \033[36m/0\033[0m      go to this channel
 
-Creating or joining the "general" chatroom:
-  \033[36m/join #general\033[0m
+Creating or joining the "g" (general) chatroom:
+  \033[36m/join #g\033[0m
 
 Leaving a chatroom:
   \033[36m/part\033[0m
@@ -168,7 +168,7 @@ class User(object):
         )
         text += HELP_INTRO
 
-        # x = "`1;30m░▒▓█▀▀▀▀`37m█▀`46m▓`0;1;30m▀▀▀▀█▓▒░`0;36m┌ "
+        # x = u"`1;30m░▒▓█▀▀▀▀`37m█▀`46m▓`0;1;30m▀▀▀▀█▓▒░`0;36m┌ "
         # text += x.replace(u"`", u"\033[") * 66
 
         uchan = self.world.join_priv_chan(self, u"r0c-status")
@@ -817,14 +817,14 @@ class User(object):
             )
             self.client.save_config()
 
-        elif cmd == "cfg":
+        elif cmd == u"cfg":
             m = []
             keys = "slowmo_tx linemode echo_on vt100 crlf codec bell cnicks align"
             fmt = u"\033[36m{0}=\033[0m{1!r}" if self.client.vt100 else u"{0}={1!r}"
             for k in keys.split(" "):
                 m.append(fmt.format(k, getattr(self.client, k)))
 
-            self.world.send_chan_msg(u"--", inf, " ".join(m), False)
+            self.world.send_chan_msg(u"--", inf, u" ".join(m), False)
 
         elif cmd == u"cmap":
             msg = u"All foreground colours (0 to f) on default background,\n"
