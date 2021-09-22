@@ -20,14 +20,6 @@ import gc
 print = Util.print
 
 
-if __name__ == "__main__":
-    raise RuntimeError(
-        "\r\n{0}\r\n\r\n  this file is part of retr0chat.\r\n  enter the parent folder of this file and run:\r\n\r\n    python3 -m r0c <telnetPort> <netcatPort>\r\n\r\n{0}".format(
-            "*" * 72
-        )
-    )
-
-
 HELP_INTRO = u"""\
 Useful commands:
    \033[36m/nick\033[0m  change your nickname
