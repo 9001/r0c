@@ -396,7 +396,7 @@ def run(tmp):
     t.start()
 
     if not sys.argv[1:]:
-        sys.argv += [23, 531] if WINDOWS else [2323, 1531]
+        sys.argv += [23, 531] if WINDOWS or not os.getuid() else [2323, 1531]
 
     sys.path.insert(0, os.path.join(tmp, "site-packages"))
     from PKG_NAME.__main__ import main as p
