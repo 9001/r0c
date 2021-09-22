@@ -64,7 +64,6 @@ Keybinds:
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
 if you are using a mac, PgUp is fn-Shift-PgUp
-if you are using \033[1mtelnet.exe\033[0m on windows: \033[36m/sy\033[0m
 if your terminal is tiny, try \033[36m/mn\033[0m and \033[36m/cy\033[0m
 """
 
@@ -814,6 +813,7 @@ class User(object):
             self.client.slowmo_tx = arg
             m = u"Slowmo enabled ({0}). This avoids a bug in telnet.exe on windows, but your memory is probably busted already so you have to reconnect now to fix it. Disable with /sn if you change your mind"
             self.world.send_chan_msg(u"--", inf, m.format(arg), False)
+            self.client.save_config()
 
         elif cmd == u"sn":
             if self.client.slowmo_tx:
@@ -823,6 +823,7 @@ class User(object):
             self.world.send_chan_msg(
                 u"--", inf, u"Slowmo disabled. Enable with /sy", False
             )
+            self.client.save_config()
 
         elif cmd == u"cmap":
             msg = u"All foreground colours (0 to f) on default background,\n"

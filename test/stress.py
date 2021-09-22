@@ -193,7 +193,7 @@ class Client(asyncore.dispatcher):
                 self.send_status("start")
                 termsize_rsp = b"\xff\xfa\x1f" + tszb + b"\xff\xf0"
 
-                if "verify that your previous config" in self.in_text:
+                if "verify that your config" in self.in_text:
                     self.txb(termsize_rsp)
                     self.in_text = u""
                     self.tx("n\n")

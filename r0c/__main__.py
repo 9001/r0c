@@ -221,8 +221,8 @@ class Core(object):
         sc = {}
         slow = {}  # sck:cli
         fast = {}
+        next_slow = 0
         timeout = None
-        next_slow = time.time()
         while not self.shutdown_flag.is_set():
             nsn = self.world.cserial
             if sn != nsn:
@@ -231,7 +231,11 @@ class Core(object):
                 slow = {}
                 fast = {}
                 for c in self.telnet_server.clients + self.netcat_server.clients:
-                    (slow if c.slowmo_tx else fast)[c.socket] = c
+                    if c.slowmo_tx or c.wizard_stage is not None:
+                        slow[c.socket] = c
+                    else:
+                        fast[c.socket] = c
+
                     sc[c.socket] = c
 
                 timeout = 0.2 if slow else 0.34 if fast else 69

@@ -216,23 +216,6 @@ class VT100_Server(object):
                 )
             )
 
-    def poke(self):
-        """wake up select.select"""
-        self.world.cserial += 1
-        print("poke, ", self.world.cserial)
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect(self.ep)
-        s.close()
-
-    def slowmo_poke(self, cmp):
-        hits = 0
-        for cli in self.clients:
-            if bool(cli.slowmo_tx) == cmp:
-                hits += 1
-
-        if hits < 2:
-            self.poke()
-
 
 class VT100_Client(object):
     def __init__(self, host, socket, address, world, usr):
@@ -274,7 +257,7 @@ class VT100_Client(object):
         self.in_text = u""
         self.in_text_full = u""
         self.num_telnet_negotiations = 0
-        self.slowmo_tx = Config.SLOW_MOTION_TX
+        self.slowmo_tx = 0
         self.slowmo_skips = 0  # remaining cycles to skip
         self.set_codec("utf-8")
 
@@ -390,7 +373,7 @@ class VT100_Client(object):
         return id(self) != id(other)
 
     def default_config(self):
-        self.slowmo_tx = Config.SLOW_MOTION_TX
+        self.slowmo_tx = 0
         self.y_input = 0  # offset from bottom of screen
         self.y_status = 1  # offset from bottom of screen
         self.linemode = False  # set true by buggy clients
@@ -679,7 +662,7 @@ class VT100_Client(object):
                 (
                     i
                     for i, ch in enumerate(msg)
-                    if i > 480 and ch in [b" "[0], b"\033"[0]]
+                    if i >= 510 or (i > 480 and ch in [b" "[0], b"\033"[0]])
                 ),
                 len(msg),
             )
@@ -1177,31 +1160,31 @@ class VT100_Client(object):
             msg_w = self.w - (nick_w + 11)
             msg_nl = u" " * (nick_w + 11)
             ts_fmt = "%H:%M:%S"
-            msg_fmt = u"{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}".format(nick_w)
+            msg_fmt = u"{{0}}  {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
         elif self.w >= 100:
             nick_w = nick_w or 14
             msg_w = self.w - (nick_w + 11)
             msg_nl = u" " * (nick_w + 11)
             ts_fmt = "%H:%M:%S"
-            msg_fmt = u"{{0}}  {{1}}{{2:{0}}}{{3}} {{4}}".format(nick_w)
+            msg_fmt = u"{{0}}  {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
         elif self.w >= 80:
             nick_w = nick_w or 12
             msg_w = self.w - (nick_w + 8)
             msg_nl = u" " * (nick_w + 8)
             ts_fmt = "%H%M%S"
-            msg_fmt = u"{{0}} {{1}}{{2:{0}}}{{3}} {{4}}".format(nick_w)
+            msg_fmt = u"{{0}} {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
         elif self.w >= 60:
             nick_w = nick_w or 8
             msg_w = self.w - (nick_w + 7)
             msg_nl = u" " * (nick_w + 7)
             ts_fmt = "%H:%M"
-            msg_fmt = u"{{0}} {{1}}{{2:{0}}}{{3}} {{4}}".format(nick_w)
+            msg_fmt = u"{{0}} {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
         else:
             nick_w = nick_w or 8
             msg_w = self.w - (nick_w + 1)
             msg_nl = u" " * (nick_w + 1)
             ts_fmt = "%H%M"
-            msg_fmt = u"{{1}}{{2:{0}}}{{3}} {{4}}".format(nick_w)
+            msg_fmt = u"{{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
 
         if self.align:
             msg_w2 = msg_w
@@ -1877,7 +1860,7 @@ class VT100_Client(object):
                 (
                     top
                     + u"""
- verify that your previous config is still OK:
+ verify that your config is still OK:
 """
                 )
                 .replace(u"\n", u"\r\n")
@@ -1903,7 +1886,7 @@ class VT100_Client(object):
                 .encode("utf-8")
             )
 
-            ok = "your client is OK"
+            ok = "your client is ok"
             ng = "get better software"
 
             to_say += (
@@ -1912,7 +1895,7 @@ class VT100_Client(object):
     linemode:  {l_c}  ({l_g})
     colors:    {c_c}  ({c_g})
     echo:      {e_c}  ({e_g})
-    encoding:  {enc_c},   ret: {r_c}
+    encoding:  {enc_c} + {r_c}{slowmo}
 
     Y:  correct; continue
     N:  use another config
@@ -1927,6 +1910,7 @@ class VT100_Client(object):
                     c_g=ok if self.vt100 else ng,
                     e_g=ok if not self.echo_on else ng,
                     enc_c=self.codec,
+                    slowmo="\n    slowmo:    ENABLED" if self.slowmo_tx else "",
                 )
                 .replace(u"\n", u"\r\n")
                 .encode("utf-8")
@@ -2320,9 +2304,50 @@ class VT100_Client(object):
             text = self.in_text.lower()
             for n, letter in enumerate(AZ[: int(len(self.codec_map) / 2)].lower()):
                 if letter in text:
-                    self.wizard_stage = "end"
                     self.set_codec(self.codec_map[n * 2])
+                    if self.crlf == u"\r\n" and self.codec != "utf-8":
+                        self.wizard_stage = "texe"
+                    else:
+                        self.wizard_stage = "end"
+
                     break
+
+        if self.wizard_stage == "texe":
+            self.wizard_stage = "texe_answer"
+            self.in_text = u""
+            m = (
+                top
+                + u"""
+ are you using telnet.exe on Windows 7 or later?
+
+   Y:  Yes; this enables slowmo (network throttle)
+       which avoids a rendering bug in telnet.exe
+
+   N:  No, you are using another client
+
+ press Y or N&lm
+"""
+            )
+            self.say(
+                m.replace(u"\n", u"\r\n")
+                .replace(u"&lm", u", followed by [Enter]" if self.linemode else u":")
+                .encode("utf-8")
+            )
+            return
+
+        if self.wizard_stage == "texe_answer":
+            text = self.in_text.lower()
+            if u"y" in text:
+                self.slowmo_tx = 1
+                self.in_text = u""
+
+            elif u"n" in text:
+                self.in_text = u""
+
+            else:
+                return
+
+            self.wizard_stage = "end"
 
         if self.wizard_stage == "end":
             self.save_config()
@@ -2357,6 +2382,8 @@ class VT100_Client(object):
             self.in_text = u""
             self.in_text_full = u""
             self.user.create_channels()
+            if not self.slowmo_tx:
+                self.world.cserial += 1
 
     def check_correct_iface(self, next_stage):
         self.wizard_stage = next_stage
