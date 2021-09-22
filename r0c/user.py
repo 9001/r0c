@@ -761,12 +761,14 @@ class User(object):
             self.world.send_chan_msg(
                 u"--", inf, u"Audible alerts enabled. Disable with /bn", False
             )
+            self.client.save_config()
 
         elif cmd == u"bn":
             self.client.bell = False
             self.world.send_chan_msg(
                 u"--", inf, u"Audible alerts disabled. Enable with /by", False
             )
+            self.client.save_config()
 
         elif cmd == u"cy":
             self.client.cnicks = True
@@ -774,6 +776,7 @@ class User(object):
             self.world.send_chan_msg(
                 u"--", inf, u"Colored nicknames enabled. Disable with /cn", False
             )
+            self.client.save_config()
 
         elif cmd == u"cn":
             self.client.cnicks = False
@@ -781,6 +784,7 @@ class User(object):
             self.world.send_chan_msg(
                 u"--", inf, u"Colored nicknames disabled. Enable with /cy", False
             )
+            self.client.save_config()
 
         elif cmd == u"my":
             self.client.align = True
@@ -788,6 +792,7 @@ class User(object):
             self.world.send_chan_msg(
                 u"--", inf, u"Wordwrap margin enabled. Disable with /mn", False
             )
+            self.client.save_config()
 
         elif cmd == u"mn":
             self.client.align = False
@@ -795,6 +800,7 @@ class User(object):
             self.world.send_chan_msg(
                 u"--", inf, u"Wordwrap margin disabled. Enable with /my", False
             )
+            self.client.save_config()
 
         elif cmd == u"sy":
             try:
@@ -802,20 +808,17 @@ class User(object):
             except:
                 arg = 1
 
-            poke = not self.client.slowmo_tx
-            self.client.slowmo_tx = arg
-            self.client.need_full_redraw = True
-            if poke:
-                self.client.host.slowmo_poke(True)
+            if not self.client.slowmo_tx:
+                self.world.cserial += 1
 
+            self.client.slowmo_tx = arg
             m = u"Slowmo enabled ({0}). This avoids a bug in telnet.exe on windows, but your memory is probably busted already so you have to reconnect now to fix it. Disable with /sn if you change your mind"
             self.world.send_chan_msg(u"--", inf, m.format(arg), False)
 
         elif cmd == u"sn":
             if self.client.slowmo_tx:
                 self.client.slowmo_tx = 0
-                self.client.host.slowmo_poke(False)
-                self.client.need_full_redraw = True
+                self.world.cserial += 1
 
             self.world.send_chan_msg(
                 u"--", inf, u"Slowmo disabled. Enable with /sy", False
@@ -897,9 +900,6 @@ class User(object):
                     cmd_str
                 ),
             )
-
-        if len(cmd) == 2 and cmd[-1] in u"yn":
-            self.client.save_config()
 
     def set_nick(self, new_nick):
         nick_re = u""

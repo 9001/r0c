@@ -95,6 +95,8 @@ else:
     # debug / negative test;
     # have client linebuffer
     # (reminder that windows telnet refuses to linemode)
+    # (but dont use that to detect telnet.exe because some clients kinda
+    #  require an exact negotiation order and this permutation works)
 
     neg_will = [b"\x1f"]  # negotiate window size
 
@@ -264,9 +266,8 @@ class TelnetClient(Ivt100.VT100_Client):
                         self.in_bytes = self.in_bytes[3:]
 
                         if not subjects.get(cmd[2]):
-                            print(
-                                "[X] subject not implemented: [{0}]".format(Util.b2hex(cmd))
-                            )
+                            m = "[X] subject not implemented: [{0}]"
+                            print(m.format(Util.b2hex(cmd)))
                             continue
 
                         if Config.DBG:

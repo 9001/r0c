@@ -119,12 +119,9 @@ class Core(object):
         self.push_thr.start()
 
         print("  *  Running")
-        for n in [0, 1]:
-            self.select_thr = threading.Thread(
-                target=self.select_worker, args=(n,), name="sel{0}".format(n)
-            )
-            self.select_thr.daemon = True
-            self.select_thr.start()
+        self.select_thr = threading.Thread(target=self.select_worker, name="selector")
+        self.select_thr.daemon = True
+        self.select_thr.start()
 
         return True
 
@@ -215,40 +212,45 @@ class Core(object):
         print("  *  r0c is down")
         return True
 
-    def select_worker(self, nsel):
+    def select_worker(self):
         srvs = {}
         for iface in [self.telnet_server, self.netcat_server]:
             srvs[iface.srv_sck] = iface
 
         sn = -1
-        sc = {}  # sck:cli
-        slowmo = bool(nsel)
+        sc = {}
+        slow = {}  # sck:cli
+        fast = {}
+        timeout = None
+        next_slow = time.time()
         while not self.shutdown_flag.is_set():
             nsn = self.world.cserial
             if sn != nsn:
                 sn = nsn
                 sc = {}
+                slow = {}
+                fast = {}
                 for c in self.telnet_server.clients + self.netcat_server.clients:
-                    if bool(c.slowmo_tx) == slowmo:
-                        sc[c.socket] = c
+                    (slow if c.slowmo_tx else fast)[c.socket] = c
+                    sc[c.socket] = c
 
-            # TODO: every once in a while a packet isn't delivered
-            # until the client sends us a packet or the timeout hits
-            timeout = 69 if not sc else 0.1 if slowmo else 0.34
+                timeout = 0.2 if slow else 0.34 if fast else 69
 
-            if slowmo:
-                for c in sc.values():
+            want_tx = [s for s, c in fast.items() if c.writable()]
+            want_rx = [s for s, c in sc.items() if c.readable()]
+            want_rx += list(srvs.keys())
+
+            now = time.time()
+            if slow and now >= next_slow:
+                next_slow = now + 0.18
+
+                for c in slow.values():
                     if c.slowmo_skips:
                         c.slowmo_skips -= 1
 
-                want_tx = [
-                    s for s, c in sc.items() if c.writable() and not c.slowmo_skips
+                want_tx += [
+                    s for s, c in slow.items() if c.writable() and not c.slowmo_skips
                 ]
-            else:
-                want_tx = [s for s, c in sc.items() if c.writable()]
-
-            want_rx = [s for s, c in sc.items() if c.readable()]
-            want_rx += list(srvs.keys())
 
             try:
                 rxs, txs, _ = select.select(want_rx, want_tx, [], timeout)
@@ -267,10 +269,6 @@ class Core(object):
 
                     for s in txs:
                         sc[s].handle_write()
-
-                if slowmo and want_tx and (rxs or txs):
-                    # sleep because we didnt timeout
-                    time.sleep(0.1)
 
             except Exception as ex:
                 if "Bad file descriptor" in str(ex):
