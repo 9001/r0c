@@ -25,6 +25,8 @@
 
 **`/st`** or **`/status`** shows info about online users
 
+**`/cfg`** shows client config
+
 **`/cmap`** shows a list of colour codes
 
 # control

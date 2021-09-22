@@ -825,6 +825,15 @@ class User(object):
             )
             self.client.save_config()
 
+        elif cmd == "cfg":
+            m = []
+            keys = "slowmo_tx linemode echo_on vt100 crlf codec bell cnicks align"
+            fmt = u"\033[36m{0}=\033[0m{1!r}" if self.client.vt100 else u"{0}={1!r}"
+            for k in keys.split(" "):
+                m.append(fmt.format(k, getattr(self.client, k)))
+
+            self.world.send_chan_msg(u"--", inf, " ".join(m), False)
+
         elif cmd == u"cmap":
             msg = u"All foreground colours (0 to f) on default background,\n"
             msg += u"each code wrapped in [brackets] for readability:\n  "
