@@ -52,8 +52,6 @@ tgz_path="$out_dir/r0c-$ver.tar.gz"
 rm "$zip_path" 2>/dev/null || true
 rm "$tgz_path" 2>/dev/null || true
 
-#sed -ri 's/^(ADMIN_PWD *= *u).*/\1"hunter2"/' r0c/config.py
-
 tmp="$(mktemp -d)"
 rls_dir="$tmp/r0c-$ver"
 mkdir "$rls_dir"
@@ -64,13 +62,6 @@ git archive master | tar -xC "$rls_dir"
 cd "$rls_dir"
 find -type d -exec chmod 755 '{}' \+
 find -type f -exec chmod 644 '{}' \+
-
-grep -qE 'ADMIN_PWD *= *u"hunter2"' r0c/config.py ||
-{
-	echo "password not hunter2"
-	rm -rf "$tmp"
-	exit 1
-}
 
 commaver="$(
 	printf '%s\n' "$ver" |
@@ -94,7 +85,6 @@ grep -qE "^VERSION *= \(${commaver}\)$" r0c/__version__.py ||
 
 rm -rf .vscode
 rm \
-  r0c.sublime-project \
   .editorconfig \
   .gitattributes \
   .gitignore
