@@ -1,7 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
 from .__init__ import EP
-from . import config as Config
 from . import util as Util
 from . import ivt100 as Ivt100
 
@@ -48,10 +47,10 @@ class NetcatClient(Ivt100.VT100_Client):
                     self.host.part(self)
                 return
 
-            if Config.HEXDUMP_IN:
+            if self.ar.hex_rx:
                 Util.hexdump(data, "-->>")
 
-            if self.wire_log and Config.LOG_RX:
+            if self.wire_log and self.ar.log_rx:
                 self.wire_log.write(
                     "{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
                 )

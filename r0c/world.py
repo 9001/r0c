@@ -1,7 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
 from .__init__ import EP, PY2, INTERP
-from . import config as Config
 from . import util as Util
 from . import chat as Chat
 
@@ -22,6 +21,7 @@ print = Util.print
 class World(object):
     def __init__(self, core):
         self.core = core
+        self.ar = core.ar
         self.users = []  # User instances
         self.pub_ch = []  # NChannel instances (public)
         self.priv_ch = []  # NChannel instances (private)
@@ -34,7 +34,7 @@ class World(object):
         Util.py26_threading_event_wait(self.dirty_flag)
 
         # config
-        self.messages_per_log_file = Config.MESSAGES_PER_LOG_FILE
+        self.messages_per_log_file = self.ar.rot_msg
 
         # stats for benchmarking
         self.num_joins = 0
@@ -104,8 +104,8 @@ class World(object):
                 uchan.user.client.refresh(False)
 
     def send_chan_msg(self, from_nick, nchan, text, ping_self=True):
-        max_hist_mem = Config.MAX_HIST_MEM
-        msg_trunc_size = Config.MSG_TRUNC_SIZE
+        max_hist_mem = self.ar.hist_mem
+        msg_trunc_size = self.ar.hist_tsz
         with self.mutex:
             self.num_messages += 1
             if nchan.name is None and not from_nick.startswith(u"-"):
@@ -412,7 +412,7 @@ class World(object):
         ln = u"???"
         t2 = time.time()
         chunks = [nchan.msgs]
-        n_left = Config.MAX_HIST_LOAD - len(nchan.msgs)
+        n_left = self.ar.hist_rd - len(nchan.msgs)
         bytes_loaded = 0
         try:
             for fn in reversed(sorted(files)):
@@ -458,7 +458,7 @@ class World(object):
         t3 = time.time()
         print(
             "  chan hist:  {0} msgs, {1:.0f} kB, {2:.2f} + {3:.2f} sec, #{5}".format(
-                Config.MAX_HIST_LOAD - n_left,
+                self.ar.hist_rd - n_left,
                 bytes_loaded / 1024.0,
                 t2 - t1,
                 t3 - t2,

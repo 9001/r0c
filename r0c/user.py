@@ -2,7 +2,6 @@
 from __future__ import print_function
 from .__version__ import S_VERSION, S_BUILD_DT
 from .__init__ import EP, PY2
-from . import config as Config
 from . import util as Util
 from . import chat as Chat
 from . import diag as Diag
@@ -62,6 +61,7 @@ if your terminal is tiny, try \033[36m/mn\033[0m and \033[36m/cy\033[0m
 
 class User(object):
     def __init__(self, world, address):
+        self.ar = world.ar
         self.world = world
         self.admin = False  # set true after challenge success
         self.client = None  # the client which this object belongs to
@@ -96,7 +96,7 @@ class User(object):
                     yield ch1 + ch2
 
     def set_rand_nick(self):
-        plain_base = Config.NICK_SALT + u"{0}".format(self.client.adr[0])
+        plain_base = self.ar.nsalt + u"{0}".format(self.client.adr[0])
         for suffix in self.pattern_gen():
             plain = plain_base + suffix
             nv = hashlib.sha256(plain.encode("utf-8")).digest()

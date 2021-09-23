@@ -2,8 +2,7 @@
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION
-from .__init__ import EP, WINDOWS, COLORS
-from . import config as Config
+from .__init__ import EP, WINDOWS, COLORS, unicode
 from . import util as Util
 from . import inetcat as Inetcat
 from . import itelnet as Itelnet
@@ -35,30 +34,119 @@ if "r0c" not in sys.modules:
     sys.exit(1)
 
 
+def optgen(ap, pwd):
+    ac = ap
+    u = unicode
+    pt, pn = [23, 531] if WINDOWS or not os.getuid() else [2323, 1531]
+
+    # fmt: off
+    ac.add_argument("-pt", type=int, default=pt, help="telnet port (disable with 0)")
+    ac.add_argument("-pn", type=int, default=pn, help="netcat port (disable with 0)")
+    ac.add_argument("-pw", metavar="PWD", type=u, default=pwd, help="admin password")
+    ac.add_argument("--nsalt", metavar="TXT", type=u, default="lammo/", help="salt for generated nicknames based on IP")
+
+    ac = ap.add_argument_group("logging")
+    ac.add_argument("--log-rx", action="store_true", help="log incoming traffic from clients")
+    ac.add_argument("--log-tx", action="store_true", help="log outgoing traffic to clients")
+    ac.add_argument("--rot_msg", metavar="N", type=int, default=131072, help="max num msgs per logfile")
+
+    ac = ap.add_argument_group("perf")
+    ac.add_argument("--hist-rd", metavar="N", type=int, default=65535, help="max num msgs to load from disk when joining a channel")
+    ac.add_argument("--hist-mem", metavar="N", type=int, default=98303, help="max num msgs to keep in channel scrollback")
+    ac.add_argument("--hist-tsz", metavar="N", type=int, default=16384, help="num msgs to discard when chat exceeds hist-mem")
+
+    ac = ap.add_argument_group("debug")
+    ac.add_argument("--dbg", action="store_true", help="show negotiations etc")
+    ac.add_argument("--hex-rx", action="store_true", help="print incoming traffic from clients")
+    ac.add_argument("--hex-tx", action="store_true", help="print outgoing traffic to clients")
+    ac.add_argument("--hex-lim", metavar="N", type=int, default=128, help="filter packets larger than N bytes from being hexdumped")
+    ac.add_argument("--hex-w", metavar="N", type=int, default=16, help="width of the hexdump, in bytes per line")
+    ac.add_argument("--thr-mon", action="store_true", help="start monitoring threads on ctrl-c")
+    ac.add_argument("--linemode", action="store_true", help="force clients into linemode (to debug linemode UI)")
+    ac.add_argument("--bench", action="store_true", help="dump statistics every 2 sec")
+    # fmt: on
+
+
+try:
+    import argparse
+
+    class RiceFormatter(argparse.HelpFormatter):
+        def _get_help_string(self, action):
+            """
+            same as ArgumentDefaultsHelpFormatter(HelpFormatter)
+            except the help += [...] line now has colors
+            """
+            fmt = "\033[36m (default: \033[35m%(default)s\033[36m)\033[0m"
+            if not COLORS:
+                fmt = " (default: %(default)s)"
+
+            help = action.help
+            if "%(default)" not in action.help:
+                if action.default is not argparse.SUPPRESS:
+                    defaulting_nargs = [argparse.OPTIONAL, argparse.ZERO_OR_MORE]
+                    if action.option_strings or action.nargs in defaulting_nargs:
+                        help += fmt
+            return help
+
+        def _fill_text(self, text, width, indent):
+            """same as RawDescriptionHelpFormatter(HelpFormatter)"""
+            return "".join(indent + line + "\n" for line in text.splitlines())
+
+    class Dodge11874(RiceFormatter):
+        def __init__(self, *args, **kwargs):
+            kwargs["width"] = 9003
+            super(Dodge11874, self).__init__(*args, **kwargs)
+
+    def run_ap(argv, pwd):
+        throw = False
+        for formatter in [RiceFormatter, Dodge11874]:
+            try:
+                ap = argparse.ArgumentParser(formatter_class=formatter, prog="r0c")
+
+                optgen(ap, pwd)
+                return ap.parse_args(args=argv[1:])
+            except AssertionError:
+                if throw:
+                    raise
+                throw = True
+
+
+except:
+
+    class Fargparse(object):
+        def __init__(self):
+            pass
+
+        def add_argument_group(self, *a, **ka):
+            return self
+
+        def add_argument(self, opt, default=False, **ka):
+            setattr(self, opt.lstrip("-").replace("-", "_"), default)
+
+    def run_ap(argv, pwd):
+        ap = Fargparse()
+        optgen(ap, pwd)
+
+        try:
+            setattr(ap, "pt", int(argv[1]))
+            setattr(ap, "pn", int(argv[2]))
+            setattr(ap, "pw", unicode(argv[3]))
+        except:
+            pass
+
+        return ap
+
+
 class Core(object):
     def __init__(self):
         pass
 
-    def start(self, args=None):
+    def start(self, argv=None):
         if WINDOWS and COLORS:
             os.system("rem")  # best girl
 
-        if args is None:
-            args = sys.argv
-
-        if len(args) < 3:
-            print()
-            print("  need argument 1:  Telnet port  (or 0 to disable)")
-            print("  need argument 2:  NetCat port  (or 0 to disable)")
-            print("  optional arg. 3:  Password")
-            print()
-            print("  example 1:")
-            print("    python3 -m r0c 2323 1531 hunter2")
-            print()
-            print("  example 2:")
-            print("    python3 -m r0c 23 531")
-            print()
-            return False
+        if argv is None:
+            argv = sys.argv
 
         for d in ["pm", "chan", "wire"]:
             try:
@@ -68,14 +156,26 @@ class Core(object):
 
         print("  *  r0c {0}, py {1}".format(S_VERSION, Util.host_os()))
 
-        self.telnet_port = int(args[1])
-        self.netcat_port = int(args[2])
+        pwd = "hunter2"
+        pwd_file = os.path.join(EP.app, "password.txt")
+        if os.path.isfile(pwd_file):
+            print("  *  Password from " + pwd_file)
+            with open(pwd_file, "rb") as f:
+                pwd = f.read().decode("utf-8").strip()
 
-        print("  *  Telnet server on port " + str(self.telnet_port))
-        print("  *  NetCat server on port " + str(self.netcat_port))
+        ar = self.ar = run_ap(argv, pwd)
+        Util.HEX_WIDTH = ar.hex_w
+        Itelnet.init(ar)
 
-        if not self.read_password(args):
-            return False
+        print("  *  Telnet server on port " + str(ar.pt))
+        print("  *  NetCat server on port " + str(ar.pn))
+
+        if ar.pw == "hunter2":
+            print("\033[1;31m")
+            print("  using the default password;")
+            print("  change it with argument -pw")
+            print("  or save it here: " + pwd_file)
+            print("\033[0m")
 
         print("  *  Logs at " + EP.log)
         Util.compat_chans_in_root()
@@ -93,14 +193,10 @@ class Core(object):
         self.world = World.World(self)
 
         print("  *  Starting Telnet server")
-        self.telnet_server = Itelnet.TelnetServer(
-            "0.0.0.0", self.telnet_port, self.world, self.netcat_port
-        )
+        self.telnet_server = Itelnet.TelnetServer("0.0.0.0", ar.pt, self.world, ar.pn)
 
         print("  *  Starting NetCat server")
-        self.netcat_server = Inetcat.NetcatServer(
-            "0.0.0.0", self.netcat_port, self.world, self.telnet_port
-        )
+        self.netcat_server = Inetcat.NetcatServer("0.0.0.0", ar.pn, self.world, ar.pt)
 
         print("  *  Loading user configs")
         self.telnet_server.load_configs()
@@ -125,40 +221,10 @@ class Core(object):
 
         return True
 
-    def read_password(self, args):
-        self.password = Config.ADMIN_PWD
-
-        # password as argument overrides all others
-        if len(args) > 3:
-            self.password = args[3]
-            print("  *  Password from argument")
-            return True
-
-        # password file in home directory overrides config
-        pwd_file = os.path.join(EP.app, "password.txt")
-        if os.path.isfile(pwd_file):
-            print("  *  Password from " + pwd_file)
-            with open(pwd_file, "rb") as f:
-                self.password = f.read().decode("utf-8").strip()
-                return True
-
-        # fallback to config.py
-        print("  *  Password from " + os.path.join(EP.src, "config.py"))
-        if self.password != u"hunter2":
-            return True
-
-        # default password is verboten
-        print()
-        print("\033[1;31m  change the ADMIN_PWD in the path above \033[0m")
-        print("\033[1;31m  or provide your password as an argument \033[0m")
-        print("\033[1;31m  or save it here: " + pwd_file + "\033[0m")
-        print()
-        return False
-
     def run(self):
         print("  *  r0c is up  ^^,")
 
-        if not Config.BENCHMARK:
+        if not self.ar.bench:
             try:
                 timeout = 69
                 if WINDOWS:
@@ -353,7 +419,7 @@ class Core(object):
                         iface.save_configs()
 
                         # flush wire logs
-                        if Config.LOG_RX or Config.LOG_TX:
+                        if self.ar.log_rx or self.ar.log_tx:
                             for client in iface.clients:
                                 if client.wire_log:
                                     try:
@@ -381,31 +447,33 @@ class Core(object):
         self.shutdown_flag.set()
 
     def signal_handler(self, sig, frame):
-        if Config.THREADMON and not self.threadmon:
+        if self.ar.thr_mon and not self.threadmon:
             self.threadmon = True
             Util.monitor_threads()
         else:
             self.shutdown()
 
 
-def start_r0c(args):
+def start_r0c(argv):
     core = Core()
     try:
-        if core.start(args):
+        if core.start(argv):
             return core.run()
+    except SystemExit:
+        raise
     except:
         Util.whoops()
         os._exit(1)
 
 
-def main(args=None):
+def main(argv=None):
     mode = "normal"
     # mode = "profiler"
     # mode = 'test-ansi-annotation'
     # test_hexdump()
 
     if mode == "normal":
-        if not start_r0c(args):
+        if not start_r0c(argv):
             sys.exit(1)
 
 
@@ -416,7 +484,7 @@ def main(args=None):
         import yappi
 
         yappi.start()
-        start_r0c(args)
+        start_r0c(argv)
         yappi.stop()
 
         fn_stats = yappi.get_func_stats()
@@ -442,6 +510,7 @@ def main(args=None):
     if mode == "test-ansi-annotation":
         Util.test_ansi_annotation()
 """
+
 
 if __name__ == "__main__":
     main()

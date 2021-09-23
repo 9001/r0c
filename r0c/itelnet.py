@@ -1,7 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
 from .__init__ import EP, PY2
-from . import config as Config
 from . import util as Util
 from . import ivt100 as Ivt100
 
@@ -63,65 +62,69 @@ verbs = {b"\xfe": "DONT", b"\xfd": "DO", b"\xfc": "WONT", b"\xfb": "WILL"}
 xff = b"\xff"
 xf0 = b"\xf0"
 
-
-if not Config.FORCE_LINEMODE:
-    # standard operation procedure;
-    # we'll handle all rendering
-
-    neg_will = [
-        b"\x1f",  # negotiate window size
-        b"\x01",  # echo
-        b"\x03",  # suppress go-ahead
-    ]
-
-    neg_wont = []
-
-    neg_dont = [b"\x25"]  # authentication
-
-    initial_neg = b""
-    initial_neg += b"\xff\xfb\x03"  # will sga
-    initial_neg += b"\xff\xfb\x01"  # will echo
-    initial_neg += b"\xff\xfd\x1f"  # do naws
-
-else:
-    # debug / negative test;
-    # have client linebuffer
-    # (reminder that windows telnet refuses to linemode)
-    # (but dont use that to detect telnet.exe because some clients kinda
-    #  require an exact negotiation order and this permutation works)
-
-    neg_will = [b"\x1f"]  # negotiate window size
-
-    neg_wont = [b"\x01", b"\x03"]  # echo  # suppress go-ahead
-
-    initial_neg = b""
-    # initial_neg += b'\xff\xfc\x03'  # won't sga
-    # initial_neg += b'\xff\xfc\x01'  # won't echo
-    initial_neg += b"\xff\xfd\x01"  # do echo
-    initial_neg += b"\xff\xfd\x22"  # do linemode
-    initial_neg += b"\xff\xfd\x1f"  # do naws
+neg_will = neg_wont = neg_dont = initial_neg = None
 
 
-if not PY2:
-    xff = 0xFF
-    xf0 = 0xF0
+def init(ar):
+    global subjects, verbs, xff, xf0, neg_will, neg_wont, neg_dont, initial_neg
 
-    def dict_2to3(src):
-        ret = {}
-        for k, v in src.items():
-            ret[k[0]] = v
-        return ret
+    if not ar.linemode:
+        # standard operation procedure;
+        # we'll handle all rendering
 
-    def list_2to3(src):
-        ret = []
-        for v in src:
-            ret.append(v[0])
-        return ret
+        neg_will = [
+            b"\x1f",  # negotiate window size
+            b"\x01",  # echo
+            b"\x03",  # suppress go-ahead
+        ]
 
-    verbs = dict_2to3(verbs)
-    subjects = dict_2to3(subjects)
-    neg_will = list_2to3(neg_will)
-    neg_wont = list_2to3(neg_wont)
+        neg_wont = []
+
+        neg_dont = [b"\x25"]  # authentication
+
+        initial_neg = b""
+        initial_neg += b"\xff\xfb\x03"  # will sga
+        initial_neg += b"\xff\xfb\x01"  # will echo
+        initial_neg += b"\xff\xfd\x1f"  # do naws
+
+    else:
+        # debug / negative test;
+        # have client linebuffer
+        # (reminder that windows telnet refuses to linemode)
+        # (but dont use that to detect telnet.exe because some clients kinda
+        #  require an exact negotiation order and this permutation works)
+
+        neg_will = [b"\x1f"]  # negotiate window size
+
+        neg_wont = [b"\x01", b"\x03"]  # echo  # suppress go-ahead
+
+        initial_neg = b""
+        # initial_neg += b'\xff\xfc\x03'  # won't sga
+        # initial_neg += b'\xff\xfc\x01'  # won't echo
+        initial_neg += b"\xff\xfd\x01"  # do echo
+        initial_neg += b"\xff\xfd\x22"  # do linemode
+        initial_neg += b"\xff\xfd\x1f"  # do naws
+
+    if not PY2:
+        xff = 0xFF
+        xf0 = 0xF0
+
+        def dict_2to3(src):
+            ret = {}
+            for k, v in src.items():
+                ret[k[0]] = v
+            return ret
+
+        def list_2to3(src):
+            ret = []
+            for v in src:
+                ret.append(v[0])
+            return ret
+
+        verbs = dict_2to3(verbs)
+        subjects = dict_2to3(subjects)
+        neg_will = list_2to3(neg_will)
+        neg_wont = list_2to3(neg_wont)
 
 
 class TelnetServer(Ivt100.VT100_Server):
@@ -137,8 +140,8 @@ class TelnetClient(Ivt100.VT100_Client):
     def __init__(self, host, socket, address, world, user):
         Ivt100.VT100_Client.__init__(self, host, socket, address, world, user)
 
-        # if FORCE_LINEMODE:
-        # 	self.y_input, self.y_status = self.y_status, self.y_input
+        # if self.ar.linemode:
+        #     self.y_input, self.y_status = self.y_status, self.y_input
 
         self.neg_done = []
         self.replies.put(initial_neg)
@@ -157,10 +160,10 @@ class TelnetClient(Ivt100.VT100_Client):
                 self.handle_close()
                 return
 
-            if Config.HEXDUMP_IN:
+            if self.ar.hex_rx:
                 Util.hexdump(data, "-->>")
 
-            if self.wire_log and Config.LOG_RX:
+            if self.wire_log and self.ar.log_rx:
                 self.wire_log.write(
                     "{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
                 )
@@ -199,7 +202,7 @@ class TelnetClient(Ivt100.VT100_Client):
 
                     if is_inband or is_partial:
 
-                        if Config.DBG and is_partial and not is_inband:
+                        if self.ar.dbg and is_partial and not is_inband:
                             print(
                                 "need more data to parse unicode codepoint at {0} in {1}/{2}".format(
                                     uee.start, decode_until, len(self.in_bytes)
@@ -262,7 +265,7 @@ class TelnetClient(Ivt100.VT100_Client):
                             print(m.format(Util.b2hex(cmd)))
                             continue
 
-                        if Config.DBG:
+                        if self.ar.dbg:
                             print(
                                 "-->> negote:  {0}  {1} {2}".format(
                                     Util.b2hex(cmd),
@@ -273,7 +276,7 @@ class TelnetClient(Ivt100.VT100_Client):
 
                         response = None
                         if cmd in self.neg_done:
-                            if Config.DBG:
+                            if self.ar.dbg:
                                 print("-><- n.loop:  {0}".format(Util.b2hex(cmd)))
 
                         elif cmd[:2] == b"\xff\xfe":  # dont
@@ -287,7 +290,7 @@ class TelnetClient(Ivt100.VT100_Client):
                                 response = b"\xfc"  # will not
 
                         if response is not None:
-                            if Config.DBG:
+                            if self.ar.dbg:
                                 print(
                                     "<<-- n.resp:  {0}  {1} -> {2}".format(
                                         Util.b2hex(cmd[:3]),
@@ -314,7 +317,7 @@ class TelnetClient(Ivt100.VT100_Client):
                             # cmd = b''.join([self.in_bytes[:12]])  # at least 9
                             cmd = self.in_bytes[:eon]
                             self.in_bytes = self.in_bytes[eon + 2 :]
-                            if Config.DBG:
+                            if self.ar.dbg:
                                 print("-->> subneg:  {0}".format(Util.b2hex(cmd)))
 
                             if cmd[2] == b"\x1f"[0]:
@@ -328,7 +331,7 @@ class TelnetClient(Ivt100.VT100_Client):
                                         break
                                     cmd = cmd[:ofs] + cmd[ofs + 1 :]
 
-                                if Config.DBG:
+                                if self.ar.dbg:
                                     print("           :  {0}".format(Util.b2hex(cmd)))
 
                                 self.set_term_size(*struct.unpack(">HH", cmd[3:7]))

@@ -1,7 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
 from .__init__ import EP, PY2, WINDOWS, COLORS, INTERP
-from . import config as Config
 
 import traceback
 import threading
@@ -19,6 +18,8 @@ if PY2:
 else:
     import builtins
 
+
+HEX_WIDTH = 16
 
 azAZ = u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -74,7 +75,7 @@ def hexdump(pk, prefix="", file=None):
         blk_width = 4
     else:
         line_fmt = u"{0}{1:8x}  {2}{3} {4}"
-        hex_width = Config.HEX_WIDTH
+        hex_width = HEX_WIDTH
         blk_width = 8
 
     lpk = len(pk)

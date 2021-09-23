@@ -1,7 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
 from .__init__ import EP, PY2, COLORS, IRONPY, unicode
-from . import config as Config
 from . import util as Util
 from . import chat as Chat
 from . import user as User
@@ -27,6 +26,7 @@ else:
 
 class VT100_Server(object):
     def __init__(self, host, port, world, other_if):
+        self.ar = world.ar
         self.other_if = other_if
         self.world = world
         self.clients = []
@@ -211,6 +211,7 @@ class VT100_Server(object):
 
 class VT100_Client(object):
     def __init__(self, host, socket, address, world, usr):
+        self.ar = world.ar
         self.host = host
         self.socket = socket
         self.adr = address
@@ -220,7 +221,7 @@ class VT100_Client(object):
         self.is_bot = False
 
         self.wire_log = None
-        if Config.LOG_RX or Config.LOG_TX:
+        if self.ar.log_rx or self.ar.log_tx:
             log_fn = "{0}wire/{1}_{2}_{3}".format(
                 EP.log, int(time.time()), *list(self.adr)
             )
@@ -518,7 +519,7 @@ class VT100_Client(object):
     def set_term_size(self, w, h):
         self.w = w
         self.h = h
-        if Config.DBG:
+        if self.ar.dbg:
             print("terminal sz:  {0}x{1}".format(self.w, self.h))
 
         if self.w >= 512:
@@ -535,12 +536,12 @@ class VT100_Client(object):
         self.handshake_sz = True
 
     def handshake_timeout(self):
-        if Config.DBG:
+        if self.ar.dbg:
             print("handshake_sz  init")
 
         time.sleep(1)
 
-        if Config.DBG:
+        if self.ar.dbg:
             if self.handshake_sz:
                 print("handshake_sz  timeout")
             else:
@@ -639,13 +640,13 @@ class VT100_Client(object):
             while len(msg) < 480 and not src.empty():
                 msg += src.get()
 
-        if Config.HEXDUMP_OUT:
-            if len(msg) < Config.HEXDUMP_TRUNC:
+        if self.ar.hex_tx:
+            if len(msg) < self.ar.hex_lim:
                 Util.hexdump(msg, "<<--")
             else:
                 print("<<--       :  [{0} byte]".format(len(msg)))
 
-        if self.wire_log and Config.LOG_TX:
+        if self.wire_log and self.ar.log_tx:
             self.wire_log.write("{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
             Util.hexdump(msg, "<", self.wire_log)
 
@@ -2536,7 +2537,7 @@ class VT100_Client(object):
                         aside = aside[len(m.group(0)) :]
                         continue
 
-                    if Config.DBG:
+                    if self.ar.dbg:
                         print(" escape seq:  {0} = {1}".format(Util.b2hex(aside), act))
 
                     if self.tc_nicks and act != "tab":
@@ -2666,7 +2667,7 @@ class VT100_Client(object):
                             self.linebuf = self.msg_hist[self.msg_hist_n]
                         self.linepos = len(self.linebuf)
         if aside:
-            if Config.DBG:
+            if self.ar.dbg:
                 print(
                     "need more data for {0} runes: {1}".format(
                         len(aside), Util.b2hex(aside)
@@ -2702,7 +2703,7 @@ class VT100_Client(object):
             self.size_request_action = None
             full_redraw = True
 
-        if Config.DBG:
+        if self.ar.dbg:
             if self.dead:
                 print("CANT_ANSWER:  dead")
             if not self.handshake_sz:
