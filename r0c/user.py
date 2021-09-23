@@ -236,7 +236,7 @@ class User(object):
             )
 
         elif cmd == u"auth":
-            if arg == self.world.core.password:
+            if arg == self.ar.pw:
                 self.admin = True
                 self.world.send_chan_msg(u"-nfo-", inf, u"please don't break anything")
             else:

@@ -83,6 +83,14 @@ def run_fap(argv, pwd):
     ap = Fargparse()
     optgen(ap, pwd)
 
+    if "-h" in unicode(argv + [""])[1]:
+        print()
+        print("arg 1: Telnet port (0=disable), default: {0}".format(ap.pt))
+        print("arg 2: NetCat port (0=disable), default: {0}".format(ap.pn))
+        print("arg 3: admin password, default: {0}".format(ap.pw))
+        print()
+        sys.exit(0)
+
     try:
         setattr(ap, "pt", int(argv[1]))
         setattr(ap, "pn", int(argv[2]))
@@ -210,14 +218,16 @@ class Core(object):
         if ar.pt:
             print("  *  Starting Telnet server")
             self.telnet_server = Itelnet.TelnetServer(ar.i, ar.pt, self.world, ar.pn)
-            self.telnet_server.load_configs()
             self.servers.append(self.telnet_server)
 
         if ar.pn:
             print("  *  Starting NetCat server")
             self.netcat_server = Inetcat.NetcatServer(ar.i, ar.pn, self.world, ar.pt)
-            self.netcat_server.load_configs()
             self.servers.append(self.netcat_server)
+
+        print("  *  Loading user configs")
+        for server in self.servers:
+            server.load_configs()
 
         print("  *  Starting push driver")
         self.push_thr = threading.Thread(
@@ -277,6 +287,9 @@ class Core(object):
 
         # termiante refresh_chans
         self.world.dirty_flag.set()
+
+        with self.world.mutex:
+            pass
 
         print("  *  saving user configs")
         for server in self.servers:
@@ -386,6 +399,9 @@ class Core(object):
                 last_its = int(ts / 5) * 5
 
             with world.mutex:
+                if self.stopping:
+                    break
+
                 date = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
                 if date != last_date:
                     if last_date:
