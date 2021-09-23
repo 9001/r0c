@@ -569,7 +569,12 @@ class User(object):
                 # 	self.new_active_chan.nchan.get_name()))
 
             elif self.old_active_chan:
-                self.new_active_chan = self.old_active_chan
+                ch = self.old_active_chan
+                if ch.nchan in self.world.priv_ch or ch.nchan in self.world.pub_ch:
+                    self.new_active_chan = ch
+                else:
+                    self.new_active_chan = self.chans[0]
+
                 # print('jumping to last active, {0}'.format(
                 # 	self.new_active_chan.nchan.get_name()))
             else:
