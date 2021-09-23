@@ -8,11 +8,7 @@
             "module": "r0c",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
-            "args": [
-                "2323",
-                "1531",
-                "hunter2"
-            ]
+            "args": []
         }
     ]
 }
