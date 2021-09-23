@@ -470,6 +470,19 @@ class User(object):
             if not self.admin_test(cmd, arg):
                 return
 
+            try:
+                nt = int(arg1)
+                _ = u"a" in arg2
+            except:
+                self.world.send_chan_msg(
+                    u"-err-",
+                    inf,
+                    u"""[error]
+  bad syntax
+""",
+                )
+                return
+
             for n in range(int(arg1)):
                 self.world.send_chan_msg(
                     self.nick, self.active_chan.nchan, u"{0} {1}".format(arg2, n)

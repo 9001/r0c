@@ -73,7 +73,7 @@ class World(object):
 
             with self.mutex:
                 if not self.dirty_ch:
-                    # raised with no pending work; shutdown signal
+                    # raised with no pending work; maybe shutdown signal
                     continue
 
                 dirty_ch = list(self.dirty_ch)
