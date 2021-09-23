@@ -68,6 +68,31 @@ def optgen(ap, pwd):
     # fmt: on
 
 
+class Fargparse(object):
+    def __init__(self):
+        pass
+
+    def add_argument_group(self, *a, **ka):
+        return self
+
+    def add_argument(self, opt, default=False, **ka):
+        setattr(self, opt.lstrip("-").replace("-", "_"), default)
+
+
+def run_fap(argv, pwd):
+    ap = Fargparse()
+    optgen(ap, pwd)
+
+    try:
+        setattr(ap, "pt", int(argv[1]))
+        setattr(ap, "pn", int(argv[2]))
+        setattr(ap, "pw", unicode(argv[3]))
+    except:
+        pass
+
+    return ap
+
+
 try:
     import argparse
 
@@ -113,29 +138,7 @@ try:
 
 
 except:
-
-    class Fargparse(object):
-        def __init__(self):
-            pass
-
-        def add_argument_group(self, *a, **ka):
-            return self
-
-        def add_argument(self, opt, default=False, **ka):
-            setattr(self, opt.lstrip("-").replace("-", "_"), default)
-
-    def run_ap(argv, pwd):
-        ap = Fargparse()
-        optgen(ap, pwd)
-
-        try:
-            setattr(ap, "pt", int(argv[1]))
-            setattr(ap, "pn", int(argv[2]))
-            setattr(ap, "pw", unicode(argv[3]))
-        except:
-            pass
-
-        return ap
+    run_ap = run_fap
 
 
 class Core(object):
@@ -163,6 +166,13 @@ class Core(object):
             print("  *  Password from " + pwd_file)
             with open(pwd_file, "rb") as f:
                 pwd = f.read().decode("utf-8").strip()
+
+        # old argv syntax compat
+        try:
+            _ = int(argv[1])
+            rap = run_fap
+        except:
+            rap = run_ap
 
         ar = self.ar = rap(argv, pwd)
         Util.HEX_WIDTH = ar.hex_w
