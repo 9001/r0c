@@ -2379,6 +2379,9 @@ class VT100_Client(object):
                 self.world.cserial += 1
 
     def check_correct_iface(self, next_stage):
+        if not self.host.other_if:
+            return True
+
         self.wizard_stage = next_stage
         if self.iface_confirmed:
             return True

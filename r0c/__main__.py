@@ -40,6 +40,7 @@ def optgen(ap, pwd):
     pt, pn = [23, 531] if WINDOWS or not os.getuid() else [2323, 1531]
 
     # fmt: off
+    ac.add_argument("-i", metavar="IP", type=u, default="0.0.0.0", help="address to listen on")
     ac.add_argument("-pt", type=int, default=pt, help="telnet port (disable with 0)")
     ac.add_argument("-pn", type=int, default=pn, help="netcat port (disable with 0)")
     ac.add_argument("-pw", metavar="PWD", type=u, default=pwd, help="admin password")
@@ -48,7 +49,7 @@ def optgen(ap, pwd):
     ac = ap.add_argument_group("logging")
     ac.add_argument("--log-rx", action="store_true", help="log incoming traffic from clients")
     ac.add_argument("--log-tx", action="store_true", help="log outgoing traffic to clients")
-    ac.add_argument("--rot_msg", metavar="N", type=int, default=131072, help="max num msgs per logfile")
+    ac.add_argument("--rot-msg", metavar="N", type=int, default=131072, help="max num msgs per logfile")
 
     ac = ap.add_argument_group("perf")
     ac.add_argument("--hist-rd", metavar="N", type=int, default=65535, help="max num msgs to load from disk when joining a channel")
@@ -163,12 +164,15 @@ class Core(object):
             with open(pwd_file, "rb") as f:
                 pwd = f.read().decode("utf-8").strip()
 
-        ar = self.ar = run_ap(argv, pwd)
+        ar = self.ar = rap(argv, pwd)
         Util.HEX_WIDTH = ar.hex_w
         Itelnet.init(ar)
 
-        print("  *  Telnet server on port " + str(ar.pt))
-        print("  *  NetCat server on port " + str(ar.pn))
+        for srv, port in [["Telnet", ar.pt], ["NetCat", ar.pn]]:
+            if port:
+                print("  *  {0} server on port {1}".format(srv, port))
+            else:
+                print("  *  {0} server disabled".format(srv))
 
         if ar.pw == "hunter2":
             print("\033[1;31m")
@@ -192,23 +196,23 @@ class Core(object):
         print("  *  Creating world")
         self.world = World.World(self)
 
-        print("  *  Starting Telnet server")
-        self.telnet_server = Itelnet.TelnetServer("0.0.0.0", ar.pt, self.world, ar.pn)
+        self.servers = []
+        if ar.pt:
+            print("  *  Starting Telnet server")
+            self.telnet_server = Itelnet.TelnetServer(ar.i, ar.pt, self.world, ar.pn)
+            self.telnet_server.load_configs()
+            self.servers.append(self.telnet_server)
 
-        print("  *  Starting NetCat server")
-        self.netcat_server = Inetcat.NetcatServer("0.0.0.0", ar.pn, self.world, ar.pt)
-
-        print("  *  Loading user configs")
-        self.telnet_server.load_configs()
-        self.netcat_server.load_configs()
+        if ar.pn:
+            print("  *  Starting NetCat server")
+            self.netcat_server = Inetcat.NetcatServer(ar.i, ar.pn, self.world, ar.pt)
+            self.netcat_server.load_configs()
+            self.servers.append(self.netcat_server)
 
         print("  *  Starting push driver")
         self.push_thr = threading.Thread(
             target=self.push_worker,
-            args=(
-                self.world,
-                [self.telnet_server, self.netcat_server],
-            ),
+            args=(self.world, self.servers),
             name="push",
         )
         # self.push_thr.daemon = True
@@ -265,22 +269,22 @@ class Core(object):
         self.world.dirty_flag.set()
 
         print("  *  saving user configs")
-        self.telnet_server.save_configs()
-        self.netcat_server.save_configs()
+        for server in self.servers:
+            server.save_configs()
 
         print("  *  terminating world")
         self.world.shutdown()
 
         print("  *  selector cleanup")
-        self.telnet_server.srv_sck.close()
-        self.netcat_server.srv_sck.close()
+        for server in self.servers:
+            server.srv_sck.close()
 
         print("  *  r0c is down")
         return True
 
     def select_worker(self):
         srvs = {}
-        for iface in [self.telnet_server, self.netcat_server]:
+        for iface in self.servers:
             srvs[iface.srv_sck] = iface
 
         sn = -1
@@ -296,13 +300,14 @@ class Core(object):
                 sc = {}
                 slow = {}
                 fast = {}
-                for c in self.telnet_server.clients + self.netcat_server.clients:
-                    if c.slowmo_tx or c.wizard_stage is not None:
-                        slow[c.socket] = c
-                    else:
-                        fast[c.socket] = c
+                for srv in self.servers:
+                    for c in srv.clients:
+                        if c.slowmo_tx or c.wizard_stage is not None:
+                            slow[c.socket] = c
+                        else:
+                            fast[c.socket] = c
 
-                    sc[c.socket] = c
+                        sc[c.socket] = c
 
                 timeout = 0.2 if slow else 0.34 if fast else 69
 
@@ -351,7 +356,7 @@ class Core(object):
         last_its = None
         last_date = None
         while not self.shutdown_flag.is_set():
-            if self.telnet_server.clients or self.netcat_server.clients:
+            if any(srv.clients for srv in self.servers):
                 # sleep until the start of the next mod5 utc second
                 while True:
                     ts = time.time()
