@@ -21,6 +21,10 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
   * linemode
   * no vt100 / ansi escape codes
 
+## endorsements
+
+* the german federal office for information security [does not approve](https://ocv.me/stuff/r0c-bsi.png)
+
 ## features
 
 irc-like:
