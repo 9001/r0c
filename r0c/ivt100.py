@@ -36,13 +36,18 @@ class VT100_Server(object):
         self.re_bot = re.compile(
             "root|Admin|admin|default|support|user|password|telnet|"
             + "guest|operator|supervisor|daemon|service|enable|system|"
-            + "manager|baby|netman|telecom|volition|davox|sysadm|busybox|"
+            + "[Mm]anage|baby|netman|tele[kc]om|volition|davox|sysadm|"
             + "tech|888888|666666|mg3500|merlin|nmspw|super|setup|vizxv|"
             + "HTTP/1|222222|xxyyzz|synnet|PlcmSpIp|Glo|e8ehome|xc3511|"
             + "taZz@|aquario|1001chin|Oxhlw|S2fGq|Zte521|ttnet|tlJwp|"
             + "t0tal|gpon|anko|changeme|hi3518|antslq|juantech|zlxx|"
             + "xmhdipc|ipcam|cat10|synnet|ezdvr|vstarcam|klv123|"
             + "ubnt|hunt57|Alphanet|epicrout|annie20|realtek|netscreen"
+            + "|telco|ftp|oracle|[Cc]isco|backdoor|Huawei|MIRAI|TABLE"
+            + "|rapport|mother|hikvision|vodafon|tutor|rewt|private"
+            + "|patrol|mediator|nokia|letmein|friday|install|OutOfBox"
+            + "|GDE|EDG|SNNU|ECGG|ECGN|DFG[BC]|toor|busybox"
+            + "|e8ehome|ruijie|keomeo|draytek|secret|qmik|ximo|Intra"
         )
         self.scheduled_kicks = []
         self.next_scheduled_kick = None
