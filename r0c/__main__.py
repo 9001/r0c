@@ -41,8 +41,10 @@ def optgen(ap, pwd):
 
     # fmt: off
     ac.add_argument("-i", metavar="IP", type=u, default="0.0.0.0", help="address to listen on")
-    ac.add_argument("-pt", type=int, default=pt, help="telnet port (disable with 0)")
-    ac.add_argument("-pn", type=int, default=pn, help="netcat port (disable with 0)")
+    ac.add_argument("-pt", metavar="PORT", type=int, default=pt, help="telnet port (disable with 0)")
+    ac.add_argument("-pn", metavar="PORT", type=int, default=pn, help="netcat port (disable with 0)")
+    ac.add_argument("-tpt", metavar="PORT", type=int, default=0, help="TLS telnet port (disable with 0)")
+    ac.add_argument("-tpn", metavar="PORT", type=int, default=0, help="TLS netcat port (disable with 0)")
     ac.add_argument("-pw", metavar="PWD", type=u, default=pwd, help="admin password")
     ac.add_argument("--nsalt", metavar="TXT", type=u, default="lammo/", help="salt for generated nicknames based on IP")
 
@@ -144,7 +146,6 @@ try:
                     raise
                 throw = True
 
-
 except:
     run_ap = run_fap
 
@@ -186,7 +187,30 @@ class Core(object):
         Util.HEX_WIDTH = ar.hex_w
         Itelnet.init(ar)
 
-        for srv, port in [["Telnet", ar.pt], ["NetCat", ar.pn]]:
+        cert = EP.app + "cert.pem"
+        if ar.tpt or ar.tpn:
+            print("Loading OpenSSL")
+            import ssl
+
+            if not os.path.exists(cert):
+                Util.builtins.print(
+                    """\033[1;31m
+tls was requested, but certificate not found at {0}pem
+create the certificate (replacing "r0c.int" with the server's external ip or fqdn) and try again:
+
+printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyout {0}key -nodes -x509 -days 365 -out {0}crt && cat {0}key {0}crt > {0}pem
+\033[0m""".format(
+                        EP.app + "cert."
+                    )
+                )
+                raise Exception("TLS certificate not found")
+
+        for srv, port in [
+            ["Telnet", ar.pt],
+            ["NetCat", ar.pn],
+            ["TLS-Telnet", ar.tpt],
+            ["TLS-NetCat", ar.tpn],
+        ]:
             if port:
                 print("  *  {0} server on port {1}".format(srv, port))
             else:
@@ -215,15 +239,18 @@ class Core(object):
         self.world = World.World(self)
 
         self.servers = []
-        if ar.pt:
-            print("  *  Starting Telnet server")
-            self.telnet_server = Itelnet.TelnetServer(ar.i, ar.pt, self.world, ar.pn)
-            self.servers.append(self.telnet_server)
+        for name, ctor, p1, p2, tls in [
+            ["Telnet", Itelnet.TelnetServer, ar.pt, ar.pn, False],
+            ["NetCat", Inetcat.NetcatServer, ar.pn, ar.pt, False],
+            ["TLS-Telnet", Itelnet.TelnetServer, ar.tpt, ar.tpn, True],
+            ["TLS-NetCat", Inetcat.NetcatServer, ar.tpn, ar.tpt, True],
+        ]:
+            if not p1:
+                continue
 
-        if ar.pn:
-            print("  *  Starting NetCat server")
-            self.netcat_server = Inetcat.NetcatServer(ar.i, ar.pn, self.world, ar.pt)
-            self.servers.append(self.netcat_server)
+            print("  *  Starting {0} server".format(name))
+            srv = ctor(ar.i, p1, self.world, p2, tls)
+            self.servers.append(srv)
 
         print("  *  Loading user configs")
         for server in self.servers:

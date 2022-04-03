@@ -16,7 +16,7 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 
 * tries to be irssi
 * zero dependencies on python 2.6, 2.7, 3.x
-* supports telnet, netcat, /dev/tcp clients
+* supports telnet, netcat, /dev/tcp, TLS clients
 * fallbacks for inhumane conditions
   * linemode
   * no vt100 / ansi escape codes
@@ -65,6 +65,15 @@ most to least recommended
 | netcat | `nc r0c.int 531` |
 
 you can even `exec 147<>/dev/tcp/r0c.int/531;cat<&147&while IFS= read -rn1 x;do [ -z "$x" ]&&x=$'\n';printf %s "$x">&147;done` (disconnect using `exec 147<&-; killall cat #sorry`)
+
+## tls clients
+
+if you enable TLS with `-tpt 2424` (telnet) and/or `-tpn 1515` (netcat) you can connect to r0c with TLS encryption using any of the following:
+
+* `telnet-ssl -zssl -zsecure -zcacert=r0c.crt r0c.int 2424`
+* `socat -,raw,echo=0 openssl:r0c.int:1515,cafile=cert.crt`
+* `stty -icanon; ncat --ssl --ssl-trustfile r0c.crt -v r0c.int 1515`
+* `stty -icanon; openssl s_client -CAfile ~/.r0c/cert.crt -connect r0c.int:1515`
 
 ## firewall rules
 

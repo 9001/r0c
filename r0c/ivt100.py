@@ -17,6 +17,9 @@ import operator
 
 print = Util.print
 
+# dont try-import ssl; avoids crash on systems with broken openssl libs
+ssl = None
+
 
 if PY2:
     from Queue import Queue
@@ -25,10 +28,17 @@ else:
 
 
 class VT100_Server(object):
-    def __init__(self, host, port, world, other_if):
+    def __init__(self, host, port, world, other_if, tls):
+        global ssl
+        if tls:
+            import importlib
+
+            ssl = importlib.import_module("ssl")
+
         self.ar = world.ar
         self.other_if = other_if
         self.world = world
+        self.tls = tls
         self.clients = []
         self.user_config = {}
         self.user_config_path = None
@@ -77,7 +87,8 @@ class VT100_Server(object):
         )
 
     def gen_remote(self, socket, addr, usr):
-        raise RuntimeError("inherit me")
+        if socket:
+            raise RuntimeError("inherit me")
 
     def handle_error(self):
         Util.whoops()
@@ -100,6 +111,15 @@ class VT100_Server(object):
             except:
                 print("[!] handshake error (probably a port scanner)")
                 return
+
+            if self.tls:
+                try:
+                    ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    ctx.load_cert_chain(EP.app + "cert.pem")
+                    socket = ctx.wrap_socket(socket, server_side=True)
+                except Exception as ex:
+                    print("[*] TLS client: " + str(ex))
+                    return
 
             usr = User.User(self.world, adr)
             remote = self.gen_remote(socket, adr, usr)
@@ -163,6 +183,7 @@ class VT100_Server(object):
         self.scheduled_kicks = [x for x in self.scheduled_kicks if x[1] != remote]
 
     def load_configs(self):
+        name = ("TLS-" if self.tls else "") + self.__class__.__name__
         with self.world.mutex:
             if not self.user_config_path:
                 raise RuntimeError("inheritance bug: self.user_config_path not set")
@@ -170,7 +191,7 @@ class VT100_Server(object):
             self.user_config = {}
             self.user_config_changed = False
             if not os.path.isfile(self.user_config_path):
-                print("  *  {0} knows 0 clients".format(self.__class__.__name__))
+                print("  *    {0} knows 0 clients".format(name))
                 return
 
             panic = False
@@ -190,11 +211,7 @@ class VT100_Server(object):
             if panic:
                 raise RuntimeError("see above")
 
-            print(
-                "  *  {0} knows {1} clients".format(
-                    self.__class__.__name__, len(self.user_config)
-                )
-            )
+            print("  *    {0} knows {1} clients".format(name, len(self.user_config)))
 
     def save_configs(self):
         with self.world.mutex:

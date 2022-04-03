@@ -10,9 +10,10 @@ print = Util.print
 
 
 class NetcatServer(Ivt100.VT100_Server):
-    def __init__(self, host, port, world, other_if):
-        Ivt100.VT100_Server.__init__(self, host, port, world, other_if)
-        self.user_config_path = EP.log + "cfg.netcat"
+    def __init__(self, host, port, world, other_if, tls):
+        Ivt100.VT100_Server.__init__(self, host, port, world, other_if, tls)
+        ucp = "{0}cfg.{1}netcat".format(EP.log, "tls-" if tls else "")
+        self.user_config_path = ucp
 
     def gen_remote(self, socket, addr, user):
         return NetcatClient(self, socket, addr, self.world, user)
