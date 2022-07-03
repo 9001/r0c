@@ -368,10 +368,11 @@ class VT100_Client(object):
         self.add_esc(u"\x1b\x5b\x33\x7e", "del")
 
         # hotkeys
-        self.add_esc(u"\x12", "redraw")
-        self.add_esc(u"\x01", "prev-chan")
-        self.add_esc(u"\x18", "next-chan")
-        self.add_esc(u"\x05", "alt-tab")
+        self.add_esc(u"\x0c", "redraw")  # ^L (readline-compat)
+        self.add_esc(u"\x12", "redraw")  # ^R
+        self.add_esc(u"\x01", "prev-chan")  # ^A
+        self.add_esc(u"\x18", "next-chan")  # ^X
+        self.add_esc(u"\x05", "alt-tab")  # ^E
 
         thr = threading.Thread(target=self.handshake_timeout, name="hs_to")
         thr.daemon = True
@@ -2246,7 +2247,7 @@ class VT100_Client(object):
    but this is gonna be bad regardless
 
    whenever the screen turns too glitchy
-   you can press CTRL-R and Enter to redraw
+   you can press CTRL-L and Enter to redraw
    or run the command "/r" if that doesn't work
 
  press A to accept or Q to quit&lm
