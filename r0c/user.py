@@ -448,10 +448,10 @@ class User(object):
             self.client.refresh(False)
 
         elif cmd == u"up" or cmd == u"u":
-            self.client.scroll_cmd = -(self.client.h - 4)
+            self.client.scroll_cmd += -(self.client.h - 4)
 
         elif cmd == u"down" or cmd == u"d":
-            self.client.scroll_cmd = +(self.client.h - 4)
+            self.client.scroll_cmd += +(self.client.h - 4)
 
         elif cmd == u"latest" or cmd == u"l":
             self.active_chan.lock_to_bottom = True

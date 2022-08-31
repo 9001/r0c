@@ -277,7 +277,7 @@ class VT100_Client(object):
         self.set_codec("utf-8")
 
         # incoming requests
-        self.scroll_cmd = None
+        self.scroll_cmd = 0
         self.scroll_i = None
         self.scroll_f = 1
 
@@ -309,7 +309,7 @@ class VT100_Client(object):
         self.screen = []
         self.w = 80
         self.h = 24
-        self.pending_size_request = False
+        self.pending_size_request = 0.0
         self.size_request_action = None
         self.re_cursor_pos = re.compile(r"\033\[([0-9]{1,4});([0-9]{1,4})R")
 
@@ -597,7 +597,7 @@ class VT100_Client(object):
         if not self.vt100:
             return False  # can't be helped
 
-        self.pending_size_request = True
+        self.pending_size_request = time.time()
         self.size_request_action = scheduled_task
         self.say(b"\033[s\033[999;999H\033[6n\033[u")
         if self.linemode:
@@ -1076,10 +1076,12 @@ class VT100_Client(object):
         line_fmt = u"\033[0;36m{0}>\033[0m {1}"
         print_fmt = u"\033[{0}H{1}\033[K"
 
-        if self.pending_size_request:
+        if self.pending_size_request and (
+            self.linemode or time.time() - self.pending_size_request > 0.5
+        ):
             line = line_fmt.format(
                 self.user.nick[: self.user.nick_len],
-                u"#\033[7m please press ENTER  (due to linemode) \033[0m",
+                u"#\033[7m             please press ENTER  (due to linemode) \033[0m",
             )
             if self.screen[self.h - (self.y_input + 1)] != line or full_redraw:
                 self.screen[self.h - (self.y_input + 1)] = line
@@ -1209,7 +1211,7 @@ class VT100_Client(object):
 
         # first ensure our cache is sane
         if not ch.vis:
-            self.scroll_cmd = None
+            self.scroll_cmd = 0
             ch.lock_to_bottom = True
             full_redraw = True
         else:
@@ -1248,7 +1250,7 @@ class VT100_Client(object):
                         )
                     )
 
-                    self.scroll_cmd = None
+                    self.scroll_cmd = 0
                     ch.lock_to_bottom = True
                     full_redraw = True
 
@@ -1262,7 +1264,7 @@ class VT100_Client(object):
             and nch.msgs[-1].sno - ch.vis[-1].msg.sno > self.h * 2
         ):
             # lots of messages since last time, no point in scrolling
-            self.scroll_cmd = None
+            self.scroll_cmd = 0
             full_redraw = True
 
         if full_redraw:
@@ -1384,7 +1386,7 @@ class VT100_Client(object):
 
             t_steps = self.scroll_cmd  # total number of scroll steps
             n_steps = 0  # number of scroll steps performed
-            self.scroll_cmd = None
+            self.scroll_cmd = 0
 
             lines_in_use = 0
             for msg in ch.vis:
@@ -2551,7 +2553,7 @@ class VT100_Client(object):
                             continue
 
                         sh, sw = [int(x) for x in m.groups()]
-                        self.pending_size_request = False
+                        self.pending_size_request = 0.0
                         self.handshake_sz = True
 
                         naws = self.size_request_action == "naws"
@@ -2612,7 +2614,7 @@ class VT100_Client(object):
                                 self.msg_hist.append(self.linebuf)
 
                             self.msg_not_from_hist = False
-                            self.pending_size_request = False
+                            self.pending_size_request = 0.0
 
                             single = self.linebuf.startswith("/")
                             double = self.linebuf.startswith("//")
@@ -2647,7 +2649,7 @@ class VT100_Client(object):
                         if act == "pgup":
                             steps *= -1
 
-                        self.scroll_cmd = steps
+                        self.scroll_cmd += steps
 
                     elif act == "redraw":
                         self.user.exec_cmd("r")
