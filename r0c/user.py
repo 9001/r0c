@@ -65,11 +65,11 @@ class User(object):
         self.world = world
         self.admin = False  # set true after challenge success
         self.client = None  # the client which this object belongs to
-        self.chans = []  # UChannel instances
-        self.active_chan = None  # UChannel
+        self.chans = []  # type: list[Chat.UChannel]
+        self.active_chan = None  # type: Chat.UChannel
         self.new_active_chan = None  # set for channel change
         self.old_active_chan = None  # last focused channel
-        self.nick = None  # str
+        self.nick = None  # type: str
         self.nick_re = None  # regex object for ping assert
         self.nick_len = None  # visible segment for self
 

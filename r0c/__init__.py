@@ -5,6 +5,11 @@ import platform
 import sys
 import os
 
+try:
+    from typing import TYPE_CHECKING
+except:
+    TYPE_CHECKING = False
+
 INTERP = platform.python_implementation()
 IRONPY = "ironpy" in INTERP.lower()
 

@@ -183,7 +183,7 @@ class Core(object):
         except:
             rap = run_ap
 
-        ar = self.ar = rap(argv, pwd)
+        ar = self.ar = rap(argv, pwd)  # type: argparse.Namespace
         Util.HEX_WIDTH = ar.hex_w
         Itelnet.init(ar)
 

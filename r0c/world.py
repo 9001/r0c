@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, INTERP
+from .__init__ import EP, PY2, INTERP, TYPE_CHECKING
 from . import util as Util
 from . import chat as Chat
 
@@ -15,11 +15,16 @@ if PY2:
 else:
     from queue import Queue
 
+if TYPE_CHECKING:
+    from . import __main__ as Main
+    from . import user as User
+
 print = Util.print
 
 
 class World(object):
     def __init__(self, core):
+        # type: (Main.Core) -> World
         self.core = core
         self.ar = core.ar
         self.users = []  # User instances
@@ -199,6 +204,7 @@ class World(object):
                 )
 
     def join_chan_obj(self, user, nchan, alias=None):
+        # type: (User.User, Chat.NChannel, str) -> Chat.UChannel
         with self.mutex:
             # print('{0} users in {1}, {2} messages; {3} is in {4} channels'.format(
             # 	len(nchan.uchans), nchan.get_name(), len(nchan.msgs), user.nick, len(user.chans)))
@@ -337,6 +343,7 @@ class World(object):
                         )
 
     def part_chan(self, uchan, quiet=False):
+        # type: (Chat.UChannel, bool) -> None
         with self.mutex:
             self.num_parts += 1
             user = uchan.user

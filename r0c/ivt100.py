@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, COLORS, IRONPY, unicode
+from .__init__ import EP, PY2, COLORS, IRONPY, TYPE_CHECKING, unicode
 from . import util as Util
 from . import chat as Chat
 from . import user as User
@@ -25,6 +25,10 @@ if PY2:
     from Queue import Queue
 else:
     from queue import Queue
+
+
+if TYPE_CHECKING:
+    from . import world as World
 
 
 class VT100_Server(object):
@@ -233,6 +237,7 @@ class VT100_Server(object):
 
 class VT100_Client(object):
     def __init__(self, host, socket, address, world, usr):
+        # type: (VT100_Server, socket.socket, tuple[str, int], World.World, User.User) -> VT100_Client
         self.ar = world.ar
         self.host = host
         self.socket = socket

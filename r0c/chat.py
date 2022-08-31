@@ -1,20 +1,26 @@
 # coding: utf-8
 from __future__ import print_function
+from .__init__ import TYPE_CHECKING
 from . import util as Util
 
 from datetime import datetime
 import calendar
+
+if TYPE_CHECKING:
+    from . import ivt100 as Ivt100
+    from . import user as User
 
 print = Util.print
 
 
 class NChannel(object):
     def __init__(self, name, topic):
-        self.uchans = []  # UChannel instances
-        self.msgs = []  # messages
+        # type: (str, str) -> NChannel
+        self.uchans = []  # type: list[UChannel]
+        self.msgs = []  # type: list[Message]
         self.name = name
         self.topic = topic
-        self.user_act_ts = {}  # str(nick) -> ts(last activity)
+        self.user_act_ts = {}  # type: dict[str, int]  # str(nick) -> ts(last activity)
 
         self.log_fh = None  # active log file
         self.log_ctr = 0  # number of messages in file
@@ -40,6 +46,7 @@ class NChannel(object):
 
 class UChannel(object):
     def __init__(self, user, nchan, alias=None):
+        # type: (Ivt100.VT100_Client, User.User, NChannel, str) -> UChannel
         self.user = user  # the user which this object belongs to
         self.nchan = nchan  # the NChannel object
         self.alias = alias  # local channel name (private)
@@ -49,7 +56,7 @@ class UChannel(object):
         self.activity = False
         self.display_notification = False
         self.lock_to_bottom = True
-        self.vis = []  # visible messages
+        self.vis = []  # type: list[VisMessage]  # visible messages
 
     def update_activity_flags(self, set_last_read=False, last_nchan_msg=0):
         if set_last_read:
@@ -112,6 +119,7 @@ class VisMessage(object):
         pass
 
     def c_new(self, msg, txt, im, car, cdr, ch):
+        # type: (Message, list[str], int, int, int, UChannel) -> VisMessage
         self.msg = msg  # the message object
         self.txt = txt  # the formatted text
         self.im = im  # offset into the channel's message list
@@ -185,6 +193,7 @@ class VisMessage(object):
 
 class Message(object):
     def __init__(self, to, ts, user, txt):
+        # type: (NChannel, int, str, str) -> Message
         self.ts = ts  # int timestamp
         self.user = user  # str username
         self.txt = txt  # str text
