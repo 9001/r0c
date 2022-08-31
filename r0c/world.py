@@ -457,12 +457,11 @@ class World(object):
 
         t3 = time.time()
         print(
-            "  chan hist:  {0} msgs, {1:.0f} kB, {2:.2f} + {3:.2f} sec, #{5}".format(
+            "  chan hist:  {0} msgs, {1:.0f} kB, {2:.2f} + {3:.2f} sec, #{4}".format(
                 self.ar.hist_rd - n_left,
                 bytes_loaded / 1024.0,
                 t2 - t1,
                 t3 - t2,
-                t3 - t1,
                 nchan.name,
             )
         )

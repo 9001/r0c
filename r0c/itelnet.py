@@ -35,7 +35,7 @@ subjects = {
     b"\x12": "LOGOUT (Logout)",
     b"\x13": "BM (Byte Macro)",
     b"\x14": "DET (Data Entry Terminal)",
-    b"\x15": "SUPDUP (SUPDUP)",
+    b"\x15": "SUPDUP (multiple monitors)",
     b"\x16": "SUPDUPOUTPUT (SUPDUP Output)",
     b"\x17": "SNDLOC (Send Location)",
     b"\x18": "TTYPE (Terminal Type)",
@@ -326,11 +326,8 @@ class TelnetClient(Ivt100.VT100_Client):
 
                                 # spec says to send \xff\xff in place of \xff
                                 # for literals in negotiations, some clients do
-                                while True:
-                                    ofs = cmd.find(b"\xff\xff")
-                                    if ofs < 0:
-                                        break
-                                    cmd = cmd[:ofs] + cmd[ofs + 1 :]
+                                while b"\xff\xff" in cmd:
+                                    cmd = cmd.replace(b"\xff\xff", b"\xff")
 
                                 if self.ar.dbg:
                                     print("           :  {0}".format(Util.b2hex(cmd)))

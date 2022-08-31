@@ -566,9 +566,9 @@ class VT100_Client(object):
 
         if self.ar.dbg:
             if self.handshake_sz:
-                print("handshake_sz  timeout")
-            else:
                 print("handshake_sz  ok")
+            else:
+                print("handshake_sz  timeout")
 
         self.handshake_sz = True
 
@@ -1473,13 +1473,7 @@ class VT100_Client(object):
                             else:
                                 anchor = ""
 
-                            print(
-                                "{0:2} {1} {2}".format(
-                                    n,
-                                    ln,
-                                    anchor,
-                                )
-                            )
+                            print("{0:2} {1} {2}".format(n, ln, anchor))
 
                     if ref.cdr > len(ref.txt) or ref.car >= ref.cdr:
                         print(
@@ -2322,7 +2316,7 @@ class VT100_Client(object):
             for n, letter in enumerate(AZ[: int(len(self.codec_map) / 2)].lower()):
                 if letter in text:
                     self.set_codec(self.codec_map[n * 2])
-                    if self.crlf == u"\r\n" and self.codec != "utf-8":
+                    if self.crlf == u"\r\n" and self.codec != "utf-8" and self.vt100:
                         self.wizard_stage = "texe"
                     else:
                         self.wizard_stage = "end"
@@ -2335,12 +2329,13 @@ class VT100_Client(object):
             m = (
                 top
                 + u"""
- are you using telnet.exe on Windows 7 or newer?
+ are you using telnet.exe on \033[1mWindows 7 \033[31mor newer\033[0m?
 
    Y:  Yes; this enables slowmo (network throttle)
        which avoids a rendering bug in telnet.exe
 
    N:  No, you are using another client
+       (including \033[1;32mtelnet.exe on Win98 or WinXP\033[0m)
 
  press Y or N&lm
 """
