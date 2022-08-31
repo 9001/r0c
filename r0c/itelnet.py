@@ -337,6 +337,13 @@ class TelnetClient(Ivt100.VT100_Client):
 
                                 self.set_term_size(*struct.unpack(">HH", cmd[3:7]))
 
+                                # microsoft forgot to set the high byte; values are mod-0x100...
+                                # workaround by placing cursor bottom-right and ask for position
+                                # (gives full 16bit on xp, w7, w10-1809)
+                                # and cheap enough to just do it for all clients
+                                if self.wizard_stage is None:
+                                    self.request_terminal_size("naws")
+
                     else:
                         print("=== invalid negotiation:")
                         Util.hexdump(self.in_bytes, "XXX ")

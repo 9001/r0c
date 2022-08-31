@@ -594,10 +594,8 @@ class VT100_Client(object):
         self.esc_tab[key] = act
 
     def request_terminal_size(self, scheduled_task=None):
-        if not self.vt100 or self.num_telnet_negotiations > 0:
-            # telnet got this covered,
-            # non-vt100 can't be helped
-            return False
+        if not self.vt100:
+            return False  # can't be helped
 
         self.pending_size_request = True
         self.size_request_action = scheduled_task
@@ -606,6 +604,7 @@ class VT100_Client(object):
             self.say(
                 b"\033[H\033[J\r\n   *** please press ENTER  (due to linemode) ***\r\n\r\n   "
             )
+        return True
 
     def say(self, message):
         self.outbox.put(message)
@@ -2390,8 +2389,7 @@ class VT100_Client(object):
                     )
                 )
 
-            if self.num_telnet_negotiations == 0:
-                self.request_terminal_size()
+            self.request_terminal_size("naws" if self.num_telnet_negotiations else None)
 
             self.host.unschedule_kick(self)
             self.wizard_stage = None
@@ -2556,7 +2554,14 @@ class VT100_Client(object):
                         self.pending_size_request = False
                         self.handshake_sz = True
 
-                        if self.w != sw or self.h != sh:
+                        naws = self.size_request_action == "naws"
+                        if (self.w != sw or self.h != sh) and (
+                            not naws or sw > self.w or sh > self.h
+                        ):
+                            if naws:
+                                t = " naws-patch:  {0}x{1} => {2}x{3}"
+                                print(t.format(self.w, self.h, sw, sh))
+
                             full_redraw = True
                             self.set_term_size(sw, sh)
 
@@ -2719,15 +2724,18 @@ class VT100_Client(object):
             self.say(msg.encode(self.codec, "backslashreplace"))
             self.too_small = True
             return
-        self.too_small = False
 
-        if (
-            self.size_request_action
-            and not self.pending_size_request
-            and self.size_request_action == "redraw"
-        ):
+        if self.size_request_action and not self.pending_size_request:
+            if self.size_request_action == "redraw":
+                full_redraw = True
+
+            if self.too_small:
+                self.say(b"\033[H\033[J")  # clear rsod asap
+                full_redraw = True
+
             self.size_request_action = None
-            full_redraw = True
+
+        self.too_small = False
 
         if self.ar.dbg:
             if self.dead:
