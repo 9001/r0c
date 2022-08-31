@@ -905,19 +905,21 @@ class VT100_Client(object):
         preface = u"\033[{0}H\033[0;37;44;48;5;235m".format(self.h - self.y_status)
         hhmmss = datetime.utcnow().strftime("%H%M%S")
         uchan = self.user.active_chan
+        nchan = uchan.nchan
 
         # print('@@@ active chan = {0}, other chans {1}'.format(
         # 	self.user.active_chan.alias or self.user.active_chan.nchan.name,
         # 	u', '.join(x.alias or x.nchan.name for x in self.user.chans)))
 
         nbuf = self.user.chans.index(uchan)
-        nchan = uchan.nchan
-        chan_name = self.user.active_chan.nchan.name
+        chan_name = nchan.name
         chan_hash = u"#"
         if chan_name is None:
             # private chat
             chan_hash = u"\033[1;37m"
-            chan_name = self.user.active_chan.alias
+            chan_name = uchan.alias
+        else:
+            chan_name = u"{0}({1})".format(chan_name, len(nchan.uchans))
 
         hilights = []
         activity = []
@@ -950,8 +952,13 @@ class VT100_Client(object):
                 len(nchan.msgs) - uchan.vis[-1].im
             )
 
+        if nchan.name:
+            online = u"\033[22;36m   here: {0}".format(nchan.usernames)
+        else:
+            online = u""
+
         line = Util.trunc(
-            u"{0}{1}   {2}: {3}{4}{5}{6}{7}\033[K".format(
+            u"{0}{1}   {2}: {3}{4}{5}{6}{7}{8}\033[K".format(
                 preface,
                 hhmmss,
                 nbuf,
@@ -960,6 +967,7 @@ class VT100_Client(object):
                 offscreen or u"",
                 hilights or u"",
                 activity or u"",
+                online,
             ),
             self.w,
         )[0]
@@ -2775,8 +2783,8 @@ class VT100_Client(object):
             prefix = txt.lower()
 
         self.tc_nicks = [prefix]
-        for usr, ts in reversed(
-            sorted(chan.user_act_ts.items(), key=operator.itemgetter(1))
+        for usr, ts in sorted(
+            chan.user_act_ts.items(), key=operator.itemgetter(1), reverse=True
         ):
             if usr != self.user.nick and usr.lower().startswith(prefix):
                 self.tc_nicks.append(usr)

@@ -153,6 +153,7 @@ class World(object):
 
             if not from_nick.startswith(u"-") and not from_nick == u"***":
                 nchan.user_act_ts[from_nick] = now
+                nchan.update_usernames()
 
             if len(nchan.msgs) > max_hist_mem:
                 new_len = len(nchan.msgs) - msg_trunc_size
@@ -218,6 +219,7 @@ class World(object):
             user.chans.append(uchan)
             nchan.uchans.append(uchan)
             nchan.user_act_ts[user.nick] = time.time()
+            nchan.update_usernames()
             self.send_chan_msg(
                 u"--",
                 nchan,
@@ -356,6 +358,7 @@ class World(object):
 
             try:
                 del nchan.user_act_ts[user.nick]
+                nchan.update_usernames()
             except:
                 pass
 
@@ -422,7 +425,7 @@ class World(object):
         n_left = self.ar.hist_rd - len(nchan.msgs)
         bytes_loaded = 0
         try:
-            for fn in reversed(sorted(files)):
+            for fn in sorted(files, reverse=True):
                 if not re_chk.match(fn):
                     # unexpected file in log folder, skip it
                     continue

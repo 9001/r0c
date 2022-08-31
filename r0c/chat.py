@@ -5,6 +5,7 @@ from . import util as Util
 
 from datetime import datetime
 import calendar
+import operator
 
 if TYPE_CHECKING:
     from . import ivt100 as Ivt100
@@ -21,6 +22,7 @@ class NChannel(object):
         self.name = name
         self.topic = topic
         self.user_act_ts = {}  # type: dict[str, int]  # str(nick) -> ts(last activity)
+        self.usernames = u""  # sorted by activity
 
         self.log_fh = None  # active log file
         self.log_ctr = 0  # number of messages in file
@@ -42,6 +44,18 @@ class NChannel(object):
 
     def __lt__(self, other):
         return self.name < other.name
+
+    def update_usernames(self):
+        self.usernames = u", ".join(
+            [
+                k
+                for k, _ in sorted(
+                    self.user_act_ts.items(),
+                    key=operator.itemgetter(1),
+                    reverse=True,
+                )[:32]
+            ]
+        )
 
 
 class UChannel(object):

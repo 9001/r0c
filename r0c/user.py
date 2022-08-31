@@ -322,6 +322,7 @@ class User(object):
                         del nchan.user_act_ts[self.nick]
                     except:
                         pass
+                    nchan.update_usernames()
 
                 # update title in DM windows
                 for nchan in self.world.priv_ch:
