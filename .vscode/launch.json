@@ -8,7 +8,10 @@
             "module": "r0c",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}",
-            "args": []
+            "args": [
+                //"--hex-rx",
+                //"--hex-tx"
+            ]
         }
     ]
 }

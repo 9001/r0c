@@ -205,11 +205,8 @@ class World(object):
 
                 nchan.log_ctr += 1
                 nchan.log_fh.write(
-                    (
-                        u" ".join(
-                            [hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt]
-                        )
-                        + u"\n"
+                    u"{0} {1} {2}\n".format(
+                        hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
                     ).encode("utf-8")
                 )
 
@@ -300,6 +297,7 @@ class World(object):
                 uchan.alias = alias
             return uchan
 
+    """
     def broadcast_banner(self, msg):
         with self.mutex:
             chans = {}
@@ -330,6 +328,7 @@ class World(object):
                         user.client.say(
                             to_send.encode(user.client.codec, "backslashreplace")
                         )
+    """
 
     def broadcast_message(self, msg, severity=1):
         """1=append, 2=append+scroll"""
@@ -377,8 +376,14 @@ class World(object):
                 user.new_active_chan = user.chans[i]
 
             if not quiet:
+                suf = u""
+                if not nchan.name:
+                    suf = u"; reinvite by typing another msg here"
+
                 self.send_chan_msg(
-                    u"--", nchan, u"\033[1;33m{0}\033[22m has left".format(user.nick)
+                    u"--",
+                    nchan,
+                    u"\033[1;33m{0}\033[22m has left{1}".format(user.nick, suf),
                 )
 
             if not nchan.uchans:
@@ -528,7 +533,7 @@ class World(object):
                 nchan.log_fh.write(
                     u"{0} {1} {2}\n".format(
                         hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
-                    )
+                    ).encode("utf-8")
                 )
 
             # potential chance that a render goes through

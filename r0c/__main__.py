@@ -224,7 +224,6 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
             print("\033[0m")
 
         print("  *  Logs at " + EP.log)
-        Util.compat_chans_in_root()
 
         self.stopping = 0
         self.threadmon = False
@@ -353,7 +352,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                 fast = {}
                 for srv in self.servers:
                     for c in srv.clients:
-                        if c.slowmo_tx or c.wizard_stage is not None:
+                        if c.slowmo_tx or (c.wizard_stage is not None and not c.is_bot):
                             slow[c.socket] = c
                         else:
                             fast[c.socket] = c

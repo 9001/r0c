@@ -27,6 +27,8 @@ def memory_dump():
                 )
 
 
+"""
+
 def get_obj_name(target_id):
     variables = {}
     variables.extend(locals())
@@ -59,6 +61,8 @@ def find_leaked_messages():
         print("obj:", obj)
         print("ref:", ref_objs)
         print()
+
+"""
 
 
 # repl notepad

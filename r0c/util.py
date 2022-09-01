@@ -124,6 +124,8 @@ def hexdump(pk, prefix="", file=None):
             ascstr += " "
 
 
+"""
+
 def test_hexdump():
     try:
         from StringIO import StringIO as bio
@@ -146,6 +148,8 @@ def test_hexdump():
         hexdump(v, ">")
 
     sys.exit(0)
+
+"""
 
 
 def trunc(txt, maxlen):
@@ -465,6 +469,8 @@ def b35dec(b35str):
     return factor * ret
 
 
+"""
+
 def visualize_all_unicode_codepoints_as_utf8():
     stats = [0] * 256
     nmax = sys.maxunicode + 1
@@ -508,6 +514,8 @@ def visualize_all_unicode_codepoints_as_utf8():
 
 
 # visualize_all_unicode_codepoints_as_utf8()
+
+"""
 
 
 def wrap(txt, maxlen, maxlen2):
@@ -601,34 +609,6 @@ def host_os():
     bitness = struct.calcsize("P") * 8
     host_os = platform.system()
     return "{0} on {1}{2}".format(py_ver, host_os, bitness)
-
-
-def compat_chans_in_root():
-    bad_dirs = []
-    good_dirs = ["pm", "chan", "wire"]
-    for (dirpath, dirnames, filenames) in os.walk(EP.log):
-        for d in dirnames:
-            if d not in good_dirs:
-                bad_dirs.append(d)
-        break
-
-    if bad_dirs:
-        print()
-        print("== performing upgrade in 5 seconds ==")
-        print()
-        print("Will move the following directories from [log] to [log/chan]:")
-        print(", ".join(bad_dirs))
-        print()
-        print("PRESS CTRL-C TO ABORT")
-        for n in range(5):
-            print("{0} ...".format(5 - n))
-            time.sleep(1)
-
-        for d in bad_dirs:
-            os.rename("{0}{1}".format(EP.log, d), "{0}chan/{1}".format(EP.log, d))
-
-        print("upgrade done \\o/")
-        print()
 
 
 def py26_threading_event_wait(event):

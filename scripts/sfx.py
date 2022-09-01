@@ -404,7 +404,6 @@ def run(tmp):
 def main():
     sysver = str(sys.version).replace("\n", "\n" + " " * 18)
     pktime = time.strftime("%Y-%m-%d, %H:%M:%S", time.gmtime(STAMP))
-    os.system("rem")  # best girl
     msg()
     msg("   this is: PKG_NAME", VER)
     msg(" packed at:", pktime, "UTC,", STAMP)

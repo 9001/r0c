@@ -821,7 +821,6 @@ class VT100_Client(object):
 
             else:
                 # always clear and resend the status bar for non-vt100
-                to_send += u"\r" + (u" " * 78) + u"\r"
                 to_send += self.update_status_bar(True)
 
             # handle keyboard strokes from non-linemode clients,
@@ -954,7 +953,7 @@ class VT100_Client(object):
                 len(nchan.msgs) - uchan.vis[-1].im
             )
 
-        if nchan.name:
+        if nchan.name and self.vt100:
             online = u"\033[22;36m   {0}".format(nchan.usernames)
         else:
             online = u""
@@ -975,17 +974,10 @@ class VT100_Client(object):
         )[0]
 
         if not self.vt100:
-            now = int(time.time())
-            ret = u""
-            if (
-                full_redraw
-                or (now % 5 == 1)
-                or ((hilights or activity) and now % 2 == 1)
-            ):
-                ret = u"\r{0}   {1}> ".format(Util.strip_ansi(line), self.user.nick)
-                self.left_chrome = ret
-
-            return ret
+            self.left_chrome = u"{0}   {1}> ".format(
+                Util.strip_ansi(line), self.user.nick
+            )
+            return u"\r{0}\r{1}".format(u" " * 78, self.left_chrome)
 
         elif full_redraw:
             if self.screen[self.h - (self.y_status + 1)] != line:
@@ -1810,6 +1802,7 @@ class VT100_Client(object):
             if self.host.re_bot.search(self.in_text_full):
                 self.wizard_stage = "bot1"
                 self.is_bot = True
+                self.world.cserial += 1
 
                 m = "{0}  {1}".format(self.user.nick, self.adr[0])
                 self.host.schedule_kick(self, 69, "    botkick:  " + m)
@@ -2074,6 +2067,7 @@ class VT100_Client(object):
 
                 # cheatcode: windows telnet + join
                 elif self.in_text.startswith("wtn"):
+                    self.slowmo_tx = 1
                     self.set_codec("cp437")
                     self.wizard_stage = "end"
                     join_ch = self.in_text[3:]

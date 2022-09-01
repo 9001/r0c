@@ -1,7 +1,7 @@
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION, S_BUILD_DT
-from .__init__ import EP, PY2
+from .__init__ import EP, PY2, TYPE_CHECKING
 from . import util as Util
 from . import chat as Chat
 from . import diag as Diag
@@ -15,6 +15,9 @@ from datetime import datetime
 # debug imports
 import code
 import gc
+
+if TYPE_CHECKING:
+    from . import world as World
 
 print = Util.print
 
@@ -61,6 +64,7 @@ if your terminal is tiny, try \033[36m/mn\033[0m and \033[36m/cy\033[0m
 
 class User(object):
     def __init__(self, world, address):
+        # type: (World.World, tuple[str, int]) -> User
         self.ar = world.ar
         self.world = world
         self.admin = False  # set true after challenge success
