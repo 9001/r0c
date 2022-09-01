@@ -53,7 +53,7 @@ class NetcatClient(Ivt100.VT100_Client):
 
             if self.wire_log and self.ar.log_rx:
                 self.wire_log.write(
-                    "{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
+                    u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
                 )
                 Util.hexdump(data, ">", self.wire_log)
 

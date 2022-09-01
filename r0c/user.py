@@ -161,10 +161,10 @@ class User(object):
 
         text = (
             text.replace(u"`", u"\033[")
-            .replace("r0c_build", S_BUILD_DT)
-            .replace("r0c_ver", S_VERSION)
-            .replace("pad1", pad1)
-            .replace("pad2", pad2)
+            .replace(u"r0c_build", S_BUILD_DT)
+            .replace(u"r0c_ver", S_VERSION)
+            .replace(u"pad1", pad1)
+            .replace(u"pad2", pad2)
         )
         text += HELP_INTRO
 
@@ -263,7 +263,7 @@ class User(object):
                 if ch in legit_chars or (ch in legit_within and new_nick):
                     new_nick += ch
                 elif not new_nick:
-                    err_extra = "  (nicks must begin with an alphanumeric character)\n"
+                    err_extra = u"  (nicks must begin with an alphanumeric character)\n"
 
             if not new_nick:
                 self.world.send_chan_msg(
@@ -716,7 +716,7 @@ class User(object):
 
         elif cmd == u"ss":
             if arg == u"0":
-                arg = "100%"
+                arg = u"100%"
 
             try:
                 int_arg = int(arg)
@@ -956,7 +956,7 @@ class User(object):
             txt = HELP_INTRO
         else:
             legit_chars = Util.azAZ
-            page = ""
+            page = u""
             for ch in arg:
                 if ch in legit_chars:
                     page += ch

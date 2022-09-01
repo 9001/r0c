@@ -173,7 +173,7 @@ class VT100_Server(object):
                 self.world.users.remove(remote.user)
             if remote.wire_log is not None:
                 remote.wire_log.write(
-                    "{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
+                    u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
                 )
                 remote.wire_log.close()
 
@@ -224,7 +224,7 @@ class VT100_Server(object):
 
             self.user_config_changed = False
             with open(self.user_config_path, "wb") as f:
-                f.write("1\n".encode("utf-8"))
+                f.write(b"1\n")
                 for k, v in sorted(self.user_config.items()):
                     f.write((u" ".join([k, v]) + u"\n").encode("utf-8"))
 
@@ -257,7 +257,7 @@ class VT100_Client(object):
                 log_fn += "_"
 
             self.wire_log = open(log_fn, "wb")
-            self.wire_log.write("{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
+            self.wire_log.write(u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
 
         self.uee_offset = 0
         try:
@@ -676,7 +676,7 @@ class VT100_Client(object):
                 print("<<--       :  [{0} byte]".format(len(msg)))
 
         if self.wire_log and self.ar.log_tx:
-            self.wire_log.write("{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
+            self.wire_log.write(u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
             Util.hexdump(msg, "<", self.wire_log)
 
         if self.slowmo_tx:
@@ -788,7 +788,7 @@ class VT100_Client(object):
 
             # invalidate screen buffer if full redraw
             if full_redraw:
-                self.screen = ["x"] * self.h
+                self.screen = [u"x"] * self.h
                 if not self.vt100:
                     to_send = u"\r\n" * self.h
 
@@ -821,7 +821,7 @@ class VT100_Client(object):
 
             else:
                 # always clear and resend the status bar for non-vt100
-                to_send += "\r" + (" " * 78) + "\r"
+                to_send += u"\r" + (u" " * 78) + u"\r"
                 to_send += self.update_status_bar(True)
 
             # handle keyboard strokes from non-linemode clients,
@@ -889,10 +889,10 @@ class VT100_Client(object):
         if nchan.name is None:
             title = uchan.alias
             if uchan.alias == self.user.nick:
-                title += " (You) (why)"
+                title += u" (You) (why)"
             else:
                 if len(uchan.nchan.uchans) < 2:
-                    title += " (disconnected)"
+                    title += u" (disconnected)"
 
             topic = topic.replace(u"[[uch_a]]", title)
 
@@ -1103,7 +1103,7 @@ class VT100_Client(object):
                 return print_fmt.format(self.h - self.y_input, line)
             return u""
 
-        if "\x0b" in self.linebuf or "\x0f" in self.linebuf:
+        if u"\x0b" in self.linebuf or u"\x0f" in self.linebuf:
             ansi = Util.convert_color_codes(self.linebuf, True)
             chi = Util.visual_indices(ansi)
         else:
@@ -1131,7 +1131,7 @@ class VT100_Client(object):
         ts = datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
 
         txt = []
-        for ln in [x.rstrip() for x in msg.txt.split("\n")]:
+        for ln in [x.rstrip() for x in msg.txt.split(u"\n")]:
             if len(ln) < msg_w or Util.visual_length(ln) < msg_w:
                 txt.append(ln)
             else:
@@ -1828,24 +1828,18 @@ class VT100_Client(object):
                 # print(b2hex(self.in_text.encode('utf-8')))
 
                 if self.wizard_stage == "bot1":
-                    self.say(
-                        "\r\nSEGMENTATION FAULT\r\n\r\nroot@IBM_3090:/# ".encode(
-                            "utf-8"
-                        )
-                    )
+                    self.say(b"\r\nSEGMENTATION FAULT\r\n\r\nroot@IBM_3090:/# ")
                     self.wizard_stage = "bot2"
 
                 elif self.wizard_stage == "bot2":
                     try:
                         self.say(
-                            "\r\nSYNTAX ERROR: {0}\r\n\r\nroot@IBM_3090:/# ".format(
+                            u"\r\nSYNTAX ERROR: {0}\r\n\r\nroot@IBM_3090:/# ".format(
                                 part1.strip(u"\x0d\x0a\x00 ")
                             ).encode("utf-8")
                         )
                     except:
-                        self.say(
-                            "\r\nSYNTAX ERROR\r\n\r\nroot@IBM_3090:/# ".encode("utf-8")
-                        )
+                        self.say(b"\r\nSYNTAX ERROR\r\n\r\nroot@IBM_3090:/# ")
 
                 else:
                     Util.whoops("bad bot stage: {0}".format(self.wizard_stage))
@@ -1894,13 +1888,11 @@ class VT100_Client(object):
             )
 
             if enc_ascii == "n/a":
-                to_say += u"    unicode / extended characters: DISABLED\r\n".encode(
-                    "utf-8"
-                )
+                to_say += b"    unicode / extended characters: DISABLED\r\n"
             else:
                 to_say += u'    this says "{0}":  " '.format(enc_ascii).encode("utf-8")
                 to_say += enc_unicode.encode(self.codec, "backslashreplace")
-                to_say += u'"\r\n'.encode("utf-8")
+                to_say += b'"\r\n'
 
             to_say += (
                 u"""\
@@ -2630,8 +2622,8 @@ class VT100_Client(object):
                             self.msg_not_from_hist = False
                             self.pending_size_request = 0.0
 
-                            single = self.linebuf.startswith("/")
-                            double = self.linebuf.startswith("//")
+                            single = self.linebuf.startswith(u"/")
+                            double = self.linebuf.startswith(u"//")
                             if single and not double:
                                 # this is a command
                                 self.user.exec_cmd(self.linebuf[1:])
@@ -2782,7 +2774,7 @@ class VT100_Client(object):
             return
 
         txt = self.linebuf[: self.linepos]
-        ofs = txt.rfind(" ")
+        ofs = txt.rfind(u" ")
         if ofs >= 0:
             prefix = txt[ofs + 1 :].lower()
         else:
@@ -2816,7 +2808,7 @@ class VT100_Client(object):
             nick_suffix = u" "
 
         nick = self.tc_nicks[self.tc_n]
-        if nick == "":
+        if nick == u"":
             nick_suffix = u""
 
         self.linebuf = self.tc_msg_pre + nick + nick_suffix

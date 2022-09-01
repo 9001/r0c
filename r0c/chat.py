@@ -21,6 +21,7 @@ class NChannel(object):
         self.msgs = []  # type: list[Message]
         self.name = name
         self.topic = topic
+        self.topic_bak = None
         self.user_act_ts = {}  # type: dict[str, int]  # str(nick) -> ts(last activity)
         self.usernames = u""  # sorted by activity
 

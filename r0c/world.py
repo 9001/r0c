@@ -259,14 +259,14 @@ class World(object):
                         ),
                     )
                 )
-                if nchan.name != "scrolltest":
+                if nchan.name != u"scrolltest":
                     self.load_chat_log(nchan)
                     # self.task_queue.put([self.load_chat_log, [nchan], {}])
                 else:
                     for n1 in range(10):
                         txt = u""
                         for n2 in range(10):
-                            txt += u"{0}{1}".format(n1, n2) * 20 + " "
+                            txt += u"{0}{1}".format(n1, n2) * 20 + u" "
 
                         msg = Chat.Message(nchan, time.time(), u"--", txt)
                         nchan.msgs.append(msg)
@@ -300,15 +300,15 @@ class World(object):
 
             if not msg:
                 for nchan in chans:
-                    if hasattr(nchan, "topic_bak"):
+                    if nchan.topic_bak is not None:
                         nchan.topic = nchan.topic_bak
-                        del nchan.topic_bak
+                        nchan.topic_bak = None
                 for user in self.users:
                     if user.active_chan:
                         user.client.refresh(False)
             else:
                 for nchan in chans:
-                    if not hasattr(nchan, "topic_bak"):
+                    if nchan.topic_bak is None:
                         nchan.topic_bak = nchan.topic
                     nchan.topic = msg
 
@@ -415,7 +415,7 @@ class World(object):
         #
         # do_broadcast = (total_size > 1024*1024)
         # if do_broadcast:
-        # 	self.broadcast_banner('\033[1;37;45m [ LOADING CHATLOG ] \033[0;42m')
+        # 	self.broadcast_banner(u'\033[1;37;45m [ LOADING CHATLOG ] \033[0;42m')
         # 	# daily dose
 
         # print('  chan hist:  reading files')
@@ -517,12 +517,9 @@ class World(object):
             for msg in chat_backlog:
                 nchan.log_ctr += 1
                 nchan.log_fh.write(
-                    (
-                        u" ".join(
-                            [hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt]
-                        )
-                        + u"\n"
-                    ).encode("utf-8")
+                    u"{0} {1} {2}\n".format(
+                        hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
+                    )
                 )
 
             # potential chance that a render goes through
