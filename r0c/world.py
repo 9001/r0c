@@ -96,8 +96,14 @@ class World(object):
 
         last_msg = nchan.msgs[-1].sno if nchan.msgs else 0
 
+        upd_users = set()  # users with clients to repaint
+
         for uchan in nchan.uchans:
-            uchan.update_activity_flags(False, last_msg)
+            if uchan.update_activity_flags(False, last_msg):
+                # update status bar immediately
+                if uchan.user.active_chan != uchan:
+                    upd_users.add(uchan.user)
+
             if uchan.user.active_chan == uchan:
                 if (
                     not uchan.user.client.handshake_sz
@@ -106,7 +112,10 @@ class World(object):
                     continue
 
                 # print('refreshing {0} for {1}'.format(nchan.get_name(), uchan.user.nick))
-                uchan.user.client.refresh(False)
+                upd_users.add(uchan.user)
+
+        for user in upd_users:
+            user.client.refresh(False)
 
     def send_chan_msg(self, from_nick, nchan, text, ping_self=True):
         max_hist_mem = self.ar.hist_mem

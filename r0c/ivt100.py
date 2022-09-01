@@ -850,7 +850,7 @@ class VT100_Client(object):
         # print('ping in {0} while in {1}'.format(uchan.nchan.get_name(), self.user.active_chan.nchan.get_name()))
 
         if self.bell and len(uchan.nchan.uchans) > 1:
-            self.say(u"\x07".encode("utf-8"))
+            self.say(b"\x07")
 
         if self.show_hilight_tutorial:
             self.show_hilight_tutorial = False
