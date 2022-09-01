@@ -417,7 +417,7 @@ class User(object):
                 return
 
             self.new_active_chan = self.chans[nch]
-            self.client.refresh(False)
+            self.client.refresh(False, True)
 
         elif cmd == u"msg" or cmd == u"m":
             if not arg1 or not arg2:
@@ -446,7 +446,7 @@ class User(object):
             uchan = self.world.join_priv_chan(self, arg1)
             self.new_active_chan = uchan
             self.world.send_chan_msg(self.nick, uchan.nchan, arg2)
-            self.client.refresh(False)
+            self.client.refresh(False, True)
 
         elif cmd == u"up" or cmd == u"u":
             self.client.scroll_cmd += -(self.client.h - 4)
@@ -558,7 +558,7 @@ class User(object):
                 self.world.send_chan_msg(u"--", inf, u"-----------------")
 
         elif cmd == u"a":
-            activity = {}
+            activity = {}  # type: dict[int, Chat.UChannel]
             for uchan in self.chans:
                 if uchan.hilights and uchan != self.active_chan:
                     activity[uchan.last_ping] = uchan
@@ -571,6 +571,11 @@ class User(object):
                 self.new_active_chan = uchan
                 nchan = uchan.nchan
                 for msg in nchan.msgs:
+                    if uchan.lock_to_bottom:
+                        # skip to end of buffer, users can rely on the
+                        # unread-message markers to scroll up if they want
+                        break
+
                     if msg.sno > uchan.last_read:
                         # print('1st unread msg ({0} > {1}) = {2}'.format(
                         # 	msg.sno, uchan.last_read, msg))

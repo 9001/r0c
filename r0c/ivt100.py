@@ -346,6 +346,8 @@ class VT100_Client(object):
         self.codec_uni = [u"├┐ ┌┬┐ ┌ ", u"Ð Ñ Ã ", u"all the above are messed up "]
         self.codec_asc = [u"hmr", u"DNA", u"n/a"]
 
+        self.read_markers = set("cl cr cu cd home end bs ret tab".split())
+
         self.esc_tab = {}
         self.add_esc(u"\x1b\x5bD", "cl")
         self.add_esc(u"\x1b\x5bC", "cr")
@@ -697,7 +699,7 @@ class VT100_Client(object):
             self.backlog = msg[sent:]
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
 
-    def refresh(self, cursor_moved):
+    def refresh(self, cursor_moved, mark_read=False):
         """compose necessary ansi text and send to client"""
         with self.world.mutex:
             if (
@@ -773,13 +775,13 @@ class VT100_Client(object):
 
             # check if user input has caused any unread messages
             # in the active channel to be considered read
-            elif cursor_moved or self.scroll_cmd:
+            elif cursor_moved or mark_read:
                 status_changed = self.user.active_chan.update_activity_flags(True)
 
-                if self.scroll_cmd:
-                    # we don't know which messages will be displayed yet,
-                    # schedule a recheck after message processing
-                    scroll_performed = True
+            if self.scroll_cmd:
+                # we don't know which messages will be displayed yet,
+                # schedule a recheck after message processing
+                scroll_performed = True
 
             to_send = u""
             fix_color = False
@@ -913,13 +915,13 @@ class VT100_Client(object):
 
         nbuf = self.user.chans.index(uchan)
         chan_name = nchan.name
-        chan_hash = u"#"
         if chan_name is None:
             # private chat
-            chan_hash = u"\033[1;37m"
-            chan_name = uchan.alias
+            chan_hash = u""
+            chan_name = uchan.alias + u"\033[22m"
         else:
-            chan_name = u"{0}({1})".format(chan_name, len(nchan.uchans))
+            chan_hash = u"#"
+            chan_name = u"{0}\033[22m({1})".format(chan_name, len(nchan.uchans))
 
         hilights = []
         activity = []
@@ -953,12 +955,12 @@ class VT100_Client(object):
             )
 
         if nchan.name:
-            online = u"\033[22;36m   here: {0}".format(nchan.usernames)
+            online = u"\033[22;36m   {0}".format(nchan.usernames)
         else:
             online = u""
 
         line = Util.trunc(
-            u"{0}{1}   {2}: {3}{4}{5}{6}{7}{8}\033[K".format(
+            u"{0}{1}   {2}: \033[1;37m{3}{4}{5}{6}{7}{8}\033[K".format(
                 preface,
                 hhmmss,
                 nbuf,
@@ -2489,6 +2491,7 @@ class VT100_Client(object):
             full_redraw = True
 
         old_cursor = self.linepos
+        mark_read = False
 
         esc_scan = True
         while esc_scan:
@@ -2566,7 +2569,7 @@ class VT100_Client(object):
 
                         naws = self.size_request_action == "naws"
                         if (self.w != sw or self.h != sh) and (
-                            not naws or sw > self.w or sh > self.h
+                            not naws or sw > self.w + 128 or sh > self.h + 128
                         ):
                             if naws:
                                 t = " naws-patch:  {0}x{1} => {2}x{3}"
@@ -2577,6 +2580,9 @@ class VT100_Client(object):
 
                         aside = aside[len(m.group(0)) :]
                         continue
+
+                    if act in self.read_markers:
+                        mark_read = True
 
                     if self.ar.dbg:
                         print(" escape seq:  {0} = {1}".format(Util.b2hex(aside), act))
@@ -2761,7 +2767,7 @@ class VT100_Client(object):
                     self.need_full_redraw = True
 
                 if self.handshake_sz:
-                    self.refresh(old_cursor != self.linepos)
+                    self.refresh(old_cursor != self.linepos, mark_read)
 
     def tabcomplete(self):
         if self.tc_nicks:
