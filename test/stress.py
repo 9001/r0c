@@ -5,7 +5,6 @@ from __future__ import print_function
 import builtins
 import multiprocessing
 import threading
-import asyncore
 import socket
 import struct
 import signal
@@ -30,13 +29,15 @@ __copyright__ = 2018
 #
 
 NUM_CLIENTS = 1
-NUM_CLIENTS = 32
+NUM_CLIENTS = 512
+NUM_PER_MPW = 32
 
 # CHANNELS = ['#1']
 CHANNELS = ["#1", "#2", "#3", "#4"]
 
 EVENT_DELAY = 0.01
 EVENT_DELAY = 0.005
+EVENT_DELAY = 5
 # EVENT_DELAY = None
 
 ITERATIONS = 1000000
@@ -146,13 +147,13 @@ tszb = struct.pack(">HH", *tsz)
 # sys.exit(0)
 
 
-class Client(asyncore.dispatcher):
-    def __init__(self, core, port, behavior, status_q):
-        asyncore.dispatcher.__init__(self)
+class Client(object):
+    def __init__(self, core, port, behavior, status_q, n):
         self.core = core
         self.port = port
         self.behavior = behavior
         self.status_q = status_q
+        self.n = n
         self.explain = True
         self.explain = False
         self.dead = False
@@ -171,17 +172,25 @@ class Client(asyncore.dispatcher):
         self.stage = "start"
         self.nick = "x"
 
-        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.connect(("127.0.0.1", self.port))
+        self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sck.connect(("127.0.0.1", self.port))
 
         thr = threading.Thread(target=self.actor)
         thr.daemon = True  # for emergency purposes
         thr.start()
 
+        thr = threading.Thread(target=self.rx_loop)
+        thr.daemon = True
+        thr.start()
+
+        thr = threading.Thread(target=self.tx_loop)
+        thr.daemon = True
+        thr.start()
+
     def send_status(self, txt):
         if False:
             print(txt)
-        self.status_q.put(txt)
+        self.status_q.put((self.n, txt))
 
     def actor(self):
         self.actor_active = True
@@ -319,6 +328,8 @@ class Client(asyncore.dispatcher):
                 time.sleep(0.2)
 
     def reconnect_loop(self):
+        # NOT IMPL, client has no shutdown sequence
+
         # print('reconnect_loop here')
         channels_avail = CHANNELS
         for chan in channels_avail:
@@ -583,12 +594,6 @@ class Client(asyncore.dispatcher):
 
         self.actor_active = False
 
-    def handle_close(self):
-        self.dead = True
-
-    def handle_error(self):
-        util.whoops()
-
     def tx(self, bv):
         self.txb(bv.encode("utf-8"))
 
@@ -596,17 +601,19 @@ class Client(asyncore.dispatcher):
         self.num_outbox += len(bv)
         self.outbox.put(bv)
 
-    def readable(self):
-        return not self.dead
+    def tx_loop(self):
+        while True:
+            self.handle_write()
 
-    def writable(self):
-        return self.backlog or not self.outbox.empty()
+    def rx_loop(self):
+        while not self.dead:
+            self.handle_read()
 
     def handle_write(self):
         msg = self.backlog
         if not msg:
             msg = self.outbox.get()
-        sent = self.send(msg)
+        sent = self.sck.send(msg)
         self.backlog = msg[sent:]
         self.num_sent += sent
         self.pkt_sent += 1
@@ -623,7 +630,7 @@ class Client(asyncore.dispatcher):
             print("!!! read when dead")
             return
 
-        data = self.recv(8192)
+        data = self.sck.recv(8192)
         if not data:
             self.dead = True
             return
@@ -639,43 +646,34 @@ class Client(asyncore.dispatcher):
 
 
 class SubCore(object):
-    def __init__(self, port, behavior, cmd_q, stat_q):
+    def __init__(self, port, behavior, cmd_q, stat_q, n1):
         self.cmd_q = cmd_q
         self.stat_q = stat_q
         self.port = port
         self.behavior = behavior
         self.stopped = False
-        self.client = Client(self, self.port, self.behavior, stat_q)
+        self.clients = []
+        for n2 in range(NUM_PER_MPW):
+            n = NUM_PER_MPW * n1 + n2
+            c = Client(self, self.port, self.behavior, stat_q, n)
+            self.clients.append(c)
 
     def run(self):
-        timeout = 0.2
         while self.cmd_q.empty():
-            asyncore.loop(timeout, count=2)
+            time.sleep(0.2)
 
-        self.client.stopping = True
+        for c in self.clients:
+            c.stopping = True
 
         clean_shutdown = False
         for n in range(40):  # 2sec
-            if not self.client.actor_active:
-                clean_shutdown = True
-                break
             time.sleep(0.05)
+            if not next((c for c in self.clients if c.actor_active), None):
+                break
 
-        self.client.close()
+        # [c.close() for c in self.clients]
         self.stopped = True
         return clean_shutdown
-
-
-class ClientAPI(object):
-    def __init__(self, mproc, cmd_q, stat_q):
-        self.mproc = mproc
-        self.cmd_q = cmd_q
-        self.stat_q = stat_q
-        self.status = "not.init"
-
-    def recv_status(self):
-        while not self.stat_q.empty():
-            self.status = self.stat_q.get()
 
 
 class Core(object):
@@ -687,34 +685,44 @@ class Core(object):
         port = int(sys.argv[1])
 
         self.stopping = False
-        self.asyncore_alive = False
 
         signal.signal(signal.SIGINT, self.signal_handler)
 
-        behaviors = ["jump_channels"] * (NUM_CLIENTS)
+        behaviors = ["jump_channels"] * int(NUM_CLIENTS / NUM_PER_MPW)
         # behaviors.append('reconnect_loop')
-        # behaviors = ['split_utf8_runes'] * (NUM_CLIENTS)
-        self.clients = []
-        for behavior in behaviors:
+        # behaviors = ['split_utf8_runes'] * int(NUM_CLIENTS / NUM_PER_MPW)
+        self.status = ["na"] * NUM_CLIENTS
+        self.procs = []
+        for n, behavior in enumerate(behaviors):
             cmd_q = multiprocessing.Queue()
             stat_q = multiprocessing.Queue()
             mproc = multiprocessing.Process(
                 target=self.new_subcore, args=(cmd_q, stat_q)
             )
-            self.clients.append(ClientAPI(mproc, cmd_q, stat_q))
             cmd_q.put(port)
             cmd_q.put(behavior)
+            cmd_q.put(n)
             mproc.start()
+            self.procs.append((mproc, cmd_q, stat_q))
+
+            t = threading.Thread(target=self.get_status, args=(stat_q,))
+            t.daemon = True
+            t.start()
+
+    def get_status(self, stat_q):
+        while True:
+            n, st = stat_q.get()
+            self.status[n] = st
 
     def new_subcore(self, cmd_q, stat_q):
-        subcore = SubCore(cmd_q.get(), cmd_q.get(), cmd_q, stat_q)
+        subcore = SubCore(cmd_q.get(), cmd_q.get(), cmd_q, stat_q, cmd_q.get())
         subcore.run()
         cmd_q.get()
 
     def print_status(self):
         msg = u""
-        for cli in self.clients:
-            msg += u"{0}, ".format(cli.status)
+        for st in self.status:
+            msg += u"{0}, ".format(st)
         print(msg)
 
     def run(self):
@@ -725,33 +733,15 @@ class Core(object):
         while not self.stopping:
             for n in range(5):
                 time.sleep(0.1)
-                for cli in self.clients:
-                    cli.recv_status()
                 if self.stopping:
                     break
             if print_status:
                 self.print_status()
 
-        print("\r\n  *  subcores stopping")
-        for subcore in self.clients:
-            subcore.cmd_q.put("x")
-
-        for n in range(40):  # 2sec
-            clean_shutdown = True
-            for subcore in self.clients:
-                if not subcore.cmd_q.empty():
-                    clean_shutdown = False
-                    break
-            if clean_shutdown:
-                print("  *  actor stopped")
-                break
-            time.sleep(0.05)
-
-        if not clean_shutdown:
-            print(" -X- some subcores are stuck")
-            for subcore in self.clients:
-                if not subcore[1].empty():
-                    subcore[0].terminate()
+        [x[1].put("x") for x in self.procs]
+        time.sleep(1)
+        for mpw in self.procs:
+            mpw[0].terminate()
 
         print("  *  test ended")
 

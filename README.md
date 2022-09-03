@@ -40,6 +40,7 @@ technical:
 * message input with readline-like editing (arrow-left/right, home/end, backspace)
   * history of sent messages (arrow-up/down)
 * bandwidth-conservative (push/pop lines instead of full redraws; scroll-regions)
+* fast enough; 1'000 clients @ 200 msgs/sec
 
 ## windows clients
 
