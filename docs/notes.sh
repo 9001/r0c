@@ -69,3 +69,18 @@ m() { sleep 0.2; printf '%s\n' "$*"; };
 cli() { (exec 147<>/dev/tcp/127.0.0.1/1531; timeout 10 cat >/dev/null <&147& (m n; m qwer asdf; m a; m y; m a; m '/join #g'; echo $$ >&2; for ((a=0;a<1000;a++)); do date; sleep 0.5; done) >&147); }
 cln() { ps -ef | awk '/bash$/{print$2}' | while read p; do [ -S /proc/$p/fd/147 ] && kill $p; done; }
 cln; for ((c=0;c<64;c++)); do cli & sleep 0.13; done
+
+
+# simulate $baud (2400) modem; listen on port 1923, relay to 2323, needs socat2
+(cat >slowpipe; chmod 755 slowpipe) <<'EOF'
+#!/bin/bash
+baud=2400
+wav_hdr() { base64 -d <<<UklGRmT///9XQVZFZm10IBAAAAABAAEAgLsAAAB3AQACABAAZGF0YUD///8=; }
+fn=pf.$1; rm -f $fn.{raw,wav}; mkfifo $fn.{raw,wav}; { wav_hdr; pv -qB1 -L97k <$fn.raw; } > $fn.wav & minimodem -rqf $fn.wav $baud & minimodem -tqf $fn.raw $baud
+EOF
+/tmp/pe-socat2/bin/socat -d -d -d tcp4-l:1923,nodelay,reuseaddr "exec1:'./slowpipe r' % exec1:'./slowpipe t' | tcp:127.0.0.1:2323,nodelay"
+./r0c.py -pt 2323 -pn 1531 --hex-rx --hex-tx
+# ...manual cleanup if teardown fails:
+ps aux | awk '/ cat pf\.[^\.]+\.[rw]aw| minimodem -[rt]f pf\.[^\.]+\.[rw]av |socat2\/bin/{print$2}' | xargs kill -9
+# ...building socat2 on alpine:
+sed -i '1i #include <stddef.h>' nestlex.c && sed -ri 's`netinet/if_ether`linux/if_ether`' sysincludes.h && sc_cv_getprotobynumber_r=2 ./configure --prefix=/tmp/pe-socat2 CFLAGS='-DNETDB_INTERNAL=\(-1\)' && make -j6 && make install
