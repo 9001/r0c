@@ -248,6 +248,7 @@ class VT100_Client(object):
         self.is_bot = False
 
         # config; values are dontcare, default_config will overwrite
+        self.m_refresh = 6
         self.slowmo_tx = 0
         self.y_input = 0
         self.y_status = 1
@@ -413,6 +414,7 @@ class VT100_Client(object):
         return id(self) != id(other)
 
     def default_config(self):
+        self.m_refresh = 6  # refresh interval, 1..6
         self.slowmo_tx = 0
         self.y_input = 0  # offset from bottom of screen
         self.y_status = 1  # offset from bottom of screen
@@ -539,38 +541,26 @@ class VT100_Client(object):
     def determine_retkey(self, verify_only=False):
         nline = b"\x0d\x0a\x00"
         btext = self.in_text.encode("utf-8")
-        nl_a = next((i for i, ch in enumerate(btext) if ch in nline), None)
-        if nl_a is None:
+        nonl = btext.rstrip(nline)
+        if nonl == btext:
             return None
 
-        nl_b = None
-        for i, ch in enumerate(btext[nl_a:], nl_a):
-            if ch not in nline:
-                break
-            nl_b = i
+        # asked for 2x Enter; verify
+        nl = btext[len(nonl) :][-4:]
+        i = len(nl) // 2
+        nl2 = nl[i:]
+        nl = nl[:i]
+        if nl != nl2:
+            return None
 
-        if nl_b is not None:
-            nl = btext[nl_a : nl_b + 1]
+        crlf = nl.decode("utf-8")
+        if verify_only:
+            return self.crlf == crlf
 
-            # asked for 2x Enter; verify
-            i = len(nl) // 2
-            nl2 = nl[i:]
-            nl = nl[:i]
-            if nl != nl2:
-                return None
-
-            crlf = nl.decode("utf-8")
-            if verify_only:
-                return self.crlf == crlf
-
-            self.reassign_retkey(crlf)
-            print(
-                "client crlf:  {0}  {1}  {2}".format(
-                    self.user.nick, self.adr[0], Util.b2hex(nl)
-                )
-            )
-
-        return nl_a
+        self.reassign_retkey(crlf)
+        t = "client crlf:  {0}  {1}  {2}"
+        print(t.format(self.user.nick, self.adr[0], Util.b2hex(nl)))
+        return len(nonl)
 
     def set_term_size(self, w, h):
         self.w = w
@@ -828,6 +818,7 @@ class VT100_Client(object):
 
             # update chat view
             to_send += self.update_chat_view(full_redraw, mark_messages_read)
+            full_redraw_0 = full_redraw
             if to_send:
                 full_redraw = True
 
@@ -842,7 +833,9 @@ class VT100_Client(object):
                 to_send += self.update_top_bar(full_redraw)
 
                 # update status bar
-                if status_changed or not cursor_moved:
+                if (status_changed or not cursor_moved) and (
+                    self.bps > 4000 or not to_send or full_redraw_0
+                ):
                     to_send += self.update_status_bar(full_redraw)
 
                 # anything sent so far would require an SGR reset
@@ -1820,6 +1813,37 @@ class VT100_Client(object):
         # print(' scroll_cmd:  {0}'.format(self.scroll_cmd))
         return ret
 
+    def adapt_to_modem(self):
+        self.m_refresh = 1
+
+        if self.bps > 12000:
+            return
+
+        if self.bps < 525:  # (1200-300)/4+300
+            self.bps = 300
+            self.m_refresh = 6
+
+        elif self.bps < 1500:
+            self.bps = 1200
+            self.m_refresh = 3
+
+        elif self.bps < 3000:
+            self.bps = 2400
+            self.m_refresh = 2
+
+        elif self.bps < 6000:
+            self.bps = 4800
+
+        else:
+            self.bps = 9600
+
+        self.world.send_chan_msg(
+            u"-nfo-",
+            self.user.chans[0].nchan,
+            u"{0} bps modem detected; simplifying\n".format(self.bps),
+            ping_self=False,
+        )
+
     def conf_wizard(self, growth):
         # print('conf_wizard:  {0}'.format(self.wizard_stage))
         if self.adr[0] == "127.0.0.1":
@@ -1970,8 +1994,11 @@ class VT100_Client(object):
 
         if self.wizard_stage == "config_reuse":
             delta = len(self.in_text) - self.wizard_lastlen
+            oldtxt = self.in_text[: self.wizard_lastlen]
             self.wizard_lastlen = len(self.in_text)
-            if self.wizard_mindelta > delta:
+
+            nline = u"\x0d\x0a\x00"
+            if self.wizard_mindelta > delta and oldtxt.rstrip(nline) == oldtxt:
                 self.wizard_mindelta = delta
 
             ret_ok = self.determine_retkey(True)
@@ -2070,9 +2097,9 @@ class VT100_Client(object):
                         self.wizard_maxdelta = delta
 
             # if any(ch in btext for ch in nline):
-            nl_a = self.determine_retkey()
-            if nl_a is not None:
-                if self.wizard_maxdelta >= nl_a / 2:
+            txt_len = self.determine_retkey()
+            if txt_len:
+                if self.wizard_maxdelta >= max(txt_len / 2, 2):
                     self.echo_on = True
                     self.linemode = True
                     print(
@@ -2590,6 +2617,7 @@ class VT100_Client(object):
                             # 1.25 = magic coeff. from ffmpeg -re
                             t = " client bps:  {0} ({1:.3f}s)"
                             print(t.format(self.bps, diff))
+                            self.adapt_to_modem()
 
                         if self.pending_size_request:
                             t = "  dsr reply:  {0:.2f} sec"

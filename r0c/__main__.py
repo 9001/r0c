@@ -405,6 +405,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         last_action_ts = time.time()
         last_its = None
         last_date = None
+        c_refresh = 0
         while not self.shutdown_flag.is_set():
             if any(srv.clients for srv in self.servers):
                 # sleep until the start of the next mod5 utc second
@@ -425,6 +426,11 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                 ts = time.time()
                 last_its = int(ts / 5) * 5
 
+            if c_refresh < 6:
+                c_refresh += 1
+            else:
+                c_refresh = 1
+
             with world.mutex:
                 if self.stopping:
                     break
@@ -439,7 +445,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
 
                 for iface in ifaces:
                     for client in iface.clients:
-                        if client.handshake_sz:
+                        if client.handshake_sz and not c_refresh % client.m_refresh:
                             client.refresh(False)
 
                     # print('next scheduled kick: {0}'.format('x' if iface.next_scheduled_kick is None else iface.next_scheduled_kick - ts))
