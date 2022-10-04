@@ -71,14 +71,15 @@ cln() { ps -ef | awk '/bash$/{print$2}' | while read p; do [ -S /proc/$p/fd/147 
 cln; for ((c=0;c<64;c++)); do cli & sleep 0.13; done
 
 
-# simulate $baud (2400) modem; listen on port 1923, relay to 2323, needs socat2
+# simulate 2400 bps modem; listen on port 1923, relay to 2323, needs socat2
 (cat >slowpipe; chmod 755 slowpipe) <<'EOF'
 #!/bin/bash
-baud=2400
+bps=$1; fn=pf.$2
 wav_hdr() { base64 -d <<<UklGRmT///9XQVZFZm10IBAAAAABAAEAgLsAAAB3AQACABAAZGF0YUD///8=; }
-fn=pf.$1; rm -f $fn.{raw,wav}; mkfifo $fn.{raw,wav}; { wav_hdr; pv -qB1 -L97k <$fn.raw; } > $fn.wav & minimodem -rqf $fn.wav $baud & minimodem -tqf $fn.raw $baud
+#rm -f $fn.{raw,wav}; mkfifo $fn.{raw,wav}; { wav_hdr; pv -qB1 -L97k <$fn.raw; } > $fn.wav & minimodem -rqf $fn.wav $bps & minimodem --tx-carrier -tqf $fn.raw $bps
+rm -f $fn.{raw,wav}; mkfifo $fn.{raw,wav}; { wav_hdr; ffmpeg -re -hide_banner -flush_packets 1 -flags +low_delay -v warning -f s16le -ar 48000 -ac 1 -channel_layout mono -i - -flush_packets 1 -flags +low_delay -f s16le - <$fn.raw; } > $fn.wav & minimodem -rqf $fn.wav $bps & minimodem --tx-carrier -tqf $fn.raw $bps
 EOF
-/tmp/pe-socat2/bin/socat -d -d -d tcp4-l:1923,nodelay,reuseaddr "exec1:'./slowpipe r' % exec1:'./slowpipe t' | tcp:127.0.0.1:2323,nodelay"
+/tmp/pe-socat2/bin/socat -d -d -d tcp4-l:1923,nodelay,reuseaddr "exec1:'./slowpipe 2400 r' % exec1:'./slowpipe 2400 t' | tcp:127.0.0.1:2323,nodelay"
 ./r0c.py -pt 2323 -pn 1531 --hex-rx --hex-tx
 # ...manual cleanup if teardown fails:
 ps aux | awk '/ cat pf\.[^\.]+\.[rw]aw| minimodem -[rt]f pf\.[^\.]+\.[rw]av |socat2\/bin/{print$2}' | xargs kill -9

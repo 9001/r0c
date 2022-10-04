@@ -205,13 +205,13 @@ class Client(object):
                 if "verify that your config" in self.in_text:
                     self.txb(termsize_rsp)
                     self.in_text = u""
-                    self.tx("n\n")
+                    self.tx("n\n\n")
 
-                if "type the text below, then hit [Enter]:" in self.in_text:
+                if "type the text below, then hit [Enter] [Enter]:" in self.in_text:
                     self.txb(termsize_rsp)
                     self.stage = "qwer"
                     self.in_text = u""
-                    for ch in u"qwer asdf\n":
+                    for ch in u"qwer asdf\n\n":
                         self.tx(ch)
                         time.sleep(0.1)
 

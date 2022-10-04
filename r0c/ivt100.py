@@ -247,6 +247,22 @@ class VT100_Client(object):
         self.dead = False  # set true at disconnect
         self.is_bot = False
 
+        # config; values are dontcare, default_config will overwrite
+        self.slowmo_tx = 0
+        self.y_input = 0
+        self.y_status = 1
+        self.linemode = False
+        self.echo_on = False
+        self.vt100 = True
+        self.cnicks = False
+        self.align = True
+        self.bell = True
+        self.crlf = u"\n"
+        self.bps = 0
+        self.codec = "utf-8"
+        self.multibyte_codec = True
+        self.inband_will_fail_decode = True
+
         self.wire_log = None
         if self.ar.log_rx or self.ar.log_tx:
             log_fn = "{0}wire/{1}_{2}_{3}".format(
@@ -314,6 +330,7 @@ class VT100_Client(object):
         self.screen = []
         self.w = 80
         self.h = 24
+        self.first_dsr = 0.0
         self.pending_size_request = 0.0
         self.size_request_action = None
         self.re_cursor_pos = re.compile(r"\033\[([0-9]{1,4});([0-9]{1,4})R")
@@ -406,6 +423,7 @@ class VT100_Client(object):
         self.align = True  # fixed left margin
         self.bell = True  # doot on hilights
         self.crlf = u"\n"  # return key
+        self.bps = 0  # will autodetect
         self.set_codec("utf-8")
 
     def load_config(self):
@@ -533,6 +551,14 @@ class VT100_Client(object):
 
         if nl_b is not None:
             nl = btext[nl_a : nl_b + 1]
+
+            # asked for 2x Enter; verify
+            i = len(nl) // 2
+            nl2 = nl[i:]
+            nl = nl[:i]
+            if nl != nl2:
+                return None
+
             crlf = nl.decode("utf-8")
             if verify_only:
                 return self.crlf == crlf
@@ -606,7 +632,11 @@ class VT100_Client(object):
 
         self.pending_size_request = time.time()
         self.size_request_action = scheduled_task
-        self.say(b"\033[s\033[999;999H\033[6n\033[u")
+        req = b"\033[s\033[999;999H\033[6n\033[u"
+        if not self.bps and not self.linemode:
+            # req+req adds 20 bytes between each dsr;
+            req += (b"\033[0m" * 30) + req  # 1120 bits
+        self.say(req)
         if self.linemode:
             self.say(
                 b"\033[H\033[J\r\n   *** please press ENTER  (due to linemode) ***\r\n\r\n   "
@@ -1911,7 +1941,7 @@ class VT100_Client(object):
     Y:  correct; continue
     N:  use another config
 
- press Y or N, followed by [Enter]
+ press Y or N, followed by [Enter] [Enter]
 """.format(
                     l_c=linemode.ljust(3),
                     c_c=vt100.ljust(3),
@@ -1986,7 +2016,7 @@ class VT100_Client(object):
 
    -- {0}
 
- type the text below, then hit [Enter]:
+ type the text below, then hit [Enter] [Enter]:
 
    qwer asdf
 
@@ -2008,7 +2038,7 @@ class VT100_Client(object):
                 (
                     top
                     + u"""
- type the text below, then hit [Enter]:
+ type the text below, then hit [Enter] [Enter]:
 
    qwer asdf
 
@@ -2366,24 +2396,26 @@ class VT100_Client(object):
             self.save_config()
             if not COLORS:
                 print(
-                    "client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}\n           :  {4}  {5}".format(
+                    "client conf:  stream={0}  vt100={1}  no-echo={2}  enc={3}\n           :  {4}  {5}  #{6}".format(
                         u"n" if self.linemode else u"Y",
                         u"Y" if self.vt100 else u"n",
                         u"n" if self.echo_on else u"Y",
                         self.codec,
                         self.user.nick,
                         self.adr[0],
+                        len(self.host.clients),
                     )
                 )
             else:
                 print(
-                    "client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}\n           :  {4}  {5}".format(
+                    "client conf:  {0}stream  {1}vt100  {2}no-echo  \033[0m{3}\n           :  {4}  {5}  #{6}".format(
                         u"\033[1;31m" if self.linemode else u"\033[1;32m",
                         u"\033[32m" if self.vt100 else u"\033[31m",
                         u"\033[31m" if self.echo_on else u"\033[32m",
                         self.codec,
                         self.user.nick,
                         self.adr[0],
+                        len(self.host.clients),
                     )
                 )
 
@@ -2548,6 +2580,20 @@ class VT100_Client(object):
                         m = self.re_cursor_pos.match(aside)
                         if not m:
                             continue
+
+                        now = time.time()
+                        if not self.first_dsr:
+                            self.first_dsr = now
+                        elif not self.bps and not self.linemode:
+                            diff = 0.001 + now - self.first_dsr
+                            self.bps = int(1120 * 1.25 / diff)
+                            # 1.25 = magic coeff. from ffmpeg -re
+                            t = " client bps:  {0} ({1:.3f}s)"
+                            print(t.format(self.bps, diff))
+
+                        if self.pending_size_request:
+                            t = "  dsr reply:  {0:.2f} sec"
+                            print(t.format(now - self.pending_size_request))
 
                         sh, sw = [int(x) for x in m.groups()]
                         self.pending_size_request = 0.0
