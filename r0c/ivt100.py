@@ -1107,7 +1107,9 @@ class VT100_Client(object):
         print_fmt = u"\033[{0}H{1}\033[K"
 
         if self.pending_size_request and (
-            self.linemode or time.time() - self.pending_size_request > 0.5
+            self.linemode
+            or time.time() - self.pending_size_request
+            > (0.5 if self.bps > 12000 else 10)
         ):
             line = line_fmt.format(
                 self.user.nick[: self.user.nick_len],
@@ -1137,10 +1139,40 @@ class VT100_Client(object):
             ansi += u"\033[0m"
 
         line = line_fmt.format(self.user.nick[: self.user.nick_len], ansi)
-        if self.screen[self.h - (self.y_input + 1)] != line or full_redraw:
-            self.screen[self.h - (self.y_input + 1)] = line
-            return print_fmt.format(self.h - self.y_input, line)
-        return u""
+        was = self.screen[self.h - (self.y_input + 1)]
+        if line == was and not full_redraw:
+            return u""
+
+        self.screen[self.h - (self.y_input + 1)] = line
+        coord = self.h - self.y_input
+
+        if self.bps < 12000 and not full_redraw:
+            endpos = min(len(was), len(line))
+            ofs = next((i for i in range(endpos) if was[i] != line[i]), endpos)
+
+            # dont corrupt color terminators
+            color = u""
+            eofs = was[:ofs].rfind(u"\033")
+            if eofs + 1 and ofs - eofs < 5:
+                ofs = eofs
+            else:
+                # reapply active colorset
+                colors = was[1:ofs].split(u"\033[")
+                for ctxt in reversed(colors[1:]):
+                    cval = ctxt.split(u"m")[0]
+                    if cval == u"0":
+                        break
+                    elif len(cval) < 5:
+                        color = u"{0};{1}".format(cval, color)
+
+                if color:
+                    color = u"\033[{0}m".format(color.rstrip(u";"))
+
+            vtxt = Util.strip_ansi(was[:ofs])
+            coord = u"{0};{1}".format(coord, len(vtxt) + 1)
+            line = color + line[ofs:]
+
+        return print_fmt.format(coord, line)
 
     def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w):
         ts = datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
@@ -2096,10 +2128,9 @@ class VT100_Client(object):
                     if self.wizard_maxdelta < delta:
                         self.wizard_maxdelta = delta
 
-            # if any(ch in btext for ch in nline):
-            txt_len = self.determine_retkey()
-            if txt_len:
-                if self.wizard_maxdelta >= max(txt_len / 2, 2):
+            if self.determine_retkey():
+                non_nl = [x for x in btext if x not in nline]
+                if self.wizard_maxdelta >= max(len(non_nl) - 2, 2):
                     self.echo_on = True
                     self.linemode = True
                     print(
