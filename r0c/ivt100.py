@@ -1153,7 +1153,7 @@ class VT100_Client(object):
             # dont corrupt color terminators
             color = u""
             eofs = was[:ofs].rfind(u"\033")
-            if eofs + 1 and ofs - eofs < 5:
+            if eofs + 1 and ofs - eofs < 10:  # "0;33;44m"
                 ofs = eofs
             else:
                 # reapply active colorset
@@ -1162,7 +1162,7 @@ class VT100_Client(object):
                     cval = ctxt.split(u"m")[0]
                     if cval == u"0":
                         break
-                    elif len(cval) < 5:
+                    elif len(cval) < 8:  # "0;33;44"
                         color = u"{0};{1}".format(cval, color)
 
                 if color:
@@ -1872,7 +1872,7 @@ class VT100_Client(object):
         self.world.send_chan_msg(
             u"-nfo-",
             self.user.chans[0].nchan,
-            u"{0} bps modem detected; simplifying\n".format(self.bps),
+            u"optimizing for {0} bps modem\n".format(self.bps),
             ping_self=False,
         )
 
