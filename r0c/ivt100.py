@@ -1872,7 +1872,7 @@ class VT100_Client(object):
         self.world.send_chan_msg(
             u"-nfo-",
             self.user.chans[0].nchan,
-            u"optimizing for {0} bps modem\n".format(self.bps),
+            u"detected {0} bps modem; optimizing\n".format(self.bps),
             ping_self=False,
         )
 

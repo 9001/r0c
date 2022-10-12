@@ -471,7 +471,7 @@ class User(object):
             self.client.need_full_redraw = True
             self.client.refresh(False)
 
-        elif cmd == u"cls":
+        elif cmd == u"cls" or cmd == u"clear":
             if not self.active_chan.alias and not self.admin:
                 self.world.send_chan_msg(
                     u"-err-",
@@ -482,12 +482,12 @@ class User(object):
                 )
                 return
 
+            msg = u"\033[33mchannel wiped by \033[1m{0}".format(self.nick)
+            if self.active_chan.alias:
+                msg = u""
+
             self.active_chan.nchan.msgs = []
-            self.world.send_chan_msg(
-                u"***",
-                self.active_chan.nchan,
-                u"\033[33mchannel wiped by \033[1m{0}".format(self.nick),
-            )
+            self.world.send_chan_msg(u"***", self.active_chan.nchan, msg)
 
         elif cmd == u"fill":
             if not self.admin_test(cmd, arg):
