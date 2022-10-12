@@ -17,6 +17,7 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 * tries to be irssi
 * zero dependencies on python 2.6, 2.7, 3.x
 * supports telnet, netcat, /dev/tcp, TLS clients
+* [modem-aware](https://ocv.me/r0c-2400.webm); comfortable at 1200 bps
 * fallbacks for inhumane conditions
   * linemode
   * no vt100 / ansi escape codes
