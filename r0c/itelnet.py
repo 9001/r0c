@@ -332,6 +332,10 @@ class TelnetClient(Ivt100.VT100_Client):
                                 if self.ar.dbg:
                                     print("           :  {0}".format(Util.b2hex(cmd)))
 
+                                if self.bps and self.bps < 12000 and self.first_dsr:
+                                    self.say(b"\033[H\033[7m press CTRL-L \033[0m")
+                                    return
+
                                 self.set_term_size(*struct.unpack(">HH", cmd[3:7]))
 
                                 # microsoft forgot to set the high byte; values are mod-0x100...
