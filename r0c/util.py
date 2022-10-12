@@ -318,10 +318,11 @@ def visual_indices(txt):
 
 def sanitize_ctl_codes(aside):
     plain = u""
+    passthru = (0x02, 0x0B, 0x0F)  # bold, color, reset
     for pch in aside:
         nch = ord(pch)
         # print('read_cb inner  {0} / {1}'.format(b2hex(pch.encode('utf-8', 'backslashreplace')), nch))
-        if nch < 0x20 and nch != 0x0B and nch != 0x0F:
+        if nch < 0x20 and nch not in passthru:
             print("substituting non-printable \\x{0:02x}".format(nch))
             plain += u"?"
         else:
@@ -418,6 +419,17 @@ def convert_color_codes(txt, preview=False):
             txt = u"{0}{1}m{2}{3}".format(txt[:ofs], fg, preview_k, txt[resume_txt:])
         else:
             txt = u"{0}K{1}".format(txt[:ofs], txt[resume_txt:])
+
+    scan_from = 0
+    while txt:
+        ofs = txt.find(u"\x02", scan_from)
+        if ofs < 0:
+            break
+
+        scan_from = ofs + 1
+        txt = u"{0}\033[1m{2}{1}".format(
+            txt[:ofs], txt[scan_from:], u"B" if preview else u""
+        )
 
     scan_from = 0
     while txt:

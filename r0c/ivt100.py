@@ -1120,7 +1120,11 @@ class VT100_Client(object):
                 return print_fmt.format(self.h - self.y_input, line)
             return u""
 
-        if u"\x0b" in self.linebuf or u"\x0f" in self.linebuf:
+        if (
+            u"\x02" in self.linebuf
+            or u"\x0b" in self.linebuf
+            or u"\x0f" in self.linebuf
+        ):
             ansi = Util.convert_color_codes(self.linebuf, True)
             chi = Util.visual_indices(ansi)
         else:

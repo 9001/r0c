@@ -28,8 +28,8 @@ Useful commands:
    \033[36m/help\033[0m  how-to and about
 
 Text formatting:
-  \033[36mCTRL-O\033[0m  reset text formatting
-  \033[36mCTRL-B\033[0m  bold/bright text on/off
+  \033[36mCTRL-O\033[0m  reset to default
+  \033[36mCTRL-B\033[0m  enable bold/bright
   \033[36mCTRL-K\033[0m  followed by a colour code:
        \033[36m2\033[0m  - \033[32mgreen\033[0m,
     \033[36m15,4\033[0m  - \033[1;37;44mbold white on blue\033[0m --
