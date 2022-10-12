@@ -260,6 +260,12 @@ def unpack():
         shutil.move(t2, tar)
 
     tf = tarfile.open(tar, tm)
+    # this is safe against traversal
+    # skip 1
+    # since it will never process user-provided data;
+    # the only possible input is a single tar.bz2
+    # which gets hardcoded into this script at build stage
+    # skip 0
     tf.extractall(mine)
     tf.close()
     os.remove(tar)

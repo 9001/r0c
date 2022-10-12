@@ -154,13 +154,20 @@ args=(--owner=1000 --group=1000)
 (for d in clients site-packages; do
 	find $d -type f;
 done) |
-LC_ALL=C sort |
+#LC_ALL=C sort |
+shuf |
 tar -cvf tar "${args[@]}" --numeric-owner -T-
 
 echo
 echo compressing tar
 # detect best level; bzip2 -7 is usually better than -9
-for n in {2..9}; do cp tar t.$n; bzip2 -$n t.$n & done; wait; mv -v $(ls -1S t.*.bz2 | tail -n 1) tar.bz2
+for n in {2..9}; do cp tar t.$n; nice bzip2 -$n t.$n & done; wait
+minf=$(for f in t.*; do
+	s1=$(wc -c <$f)
+	s2=$(tr -d '\r\n\0' <$f | wc -c)
+	echo "$(( s2+(s1-s2)*3 )) $f"
+done | sort -n | awk '{print$2;exit}')
+mv -v $minf tar.bz2
 rm t.*
 
 echo creating sfx
