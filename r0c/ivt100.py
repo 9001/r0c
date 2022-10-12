@@ -834,7 +834,7 @@ class VT100_Client(object):
 
                 # update status bar
                 if (status_changed or not cursor_moved) and (
-                    self.bps > 4000 or not to_send or full_redraw_0
+                    self.bps > 3000 or not to_send or full_redraw_0
                 ):
                     to_send += self.update_status_bar(full_redraw)
 
@@ -848,14 +848,19 @@ class VT100_Client(object):
 
             # handle keyboard strokes from non-linemode clients,
             # but redraw text input field for linemode clients
-            to_send += self.update_text_input(full_redraw or self.echo_on)
+            txi = self.update_text_input(full_redraw or self.echo_on)
+            to_send += txi
 
             # reset colours if necessary
             if u"\033[" in self.linebuf or fix_color:
                 to_send += u"\033[0m"
 
             # position cursor after CLeft/CRight/Home/End
-            if self.vt100 and (to_send or cursor_moved):
+            if (
+                self.vt100
+                and (to_send or cursor_moved)
+                and (not txi or self.bps > 3000 or full_redraw)
+            ):
                 to_send += u"\033[{0};{1}H".format(
                     self.h - self.y_input,
                     self.user.nick_len + 2 + self.linepos + 1 - self.lineview,
@@ -2481,6 +2486,7 @@ class VT100_Client(object):
                     )
                 )
 
+            self.say(b"\n running speedtest...")
             self.request_terminal_size("naws" if self.num_telnet_negotiations else None)
 
             self.host.unschedule_kick(self)
