@@ -859,7 +859,12 @@ class VT100_Client(object):
             if (
                 self.vt100
                 and (to_send or cursor_moved)
-                and (not txi or self.bps > 3000 or full_redraw)
+                and (
+                    not txi
+                    or self.bps > 3000
+                    or full_redraw
+                    or len(self.linebuf) > self.linepos
+                )
             ):
                 to_send += u"\033[{0};{1}H".format(
                     self.h - self.y_input,
@@ -2486,7 +2491,7 @@ class VT100_Client(object):
                     )
                 )
 
-            self.say(b"\n running speedtest...")
+            self.say(b"\n running speedtest... ")
             self.request_terminal_size("naws" if self.num_telnet_negotiations else None)
 
             self.host.unschedule_kick(self)
@@ -2652,6 +2657,10 @@ class VT100_Client(object):
                         now = time.time()
                         if not self.first_dsr:
                             self.first_dsr = now
+                            if self.pending_size_request:
+                                t = "  dsr reply:  {0:.2f} sec"
+                                print(t.format(now - self.pending_size_request))
+
                         elif not self.bps and not self.linemode:
                             diff = 0.001 + now - self.first_dsr
                             self.bps = int(1120 * 1.25 / diff)
@@ -2659,10 +2668,6 @@ class VT100_Client(object):
                             t = " client bps:  {0} ({1:.3f}s)"
                             print(t.format(self.bps, diff))
                             self.adapt_to_modem()
-
-                        if self.pending_size_request:
-                            t = "  dsr reply:  {0:.2f} sec"
-                            print(t.format(now - self.pending_size_request))
 
                         sh, sw = [int(x) for x in m.groups()]
                         self.pending_size_request = 0.0

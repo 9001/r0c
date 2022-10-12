@@ -14,4 +14,6 @@
 
 **`CTRL-K`** followed by a number `0-9` or letter `a-f` changes colour mid-message, see `/cmap`
 
+**`CTRL-B`** enables bold/bright text
+
 **`CTRL-O`** changes back to default colour

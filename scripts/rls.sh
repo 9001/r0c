@@ -9,6 +9,8 @@ set -e
 
 v=$1
 
+rm -f ../dist/r0c.sfx*
+
 [ "$v" = sfx ] || {
     printf '%s\n' "$v" | grep -qE '^[0-9\.]+$' || exit 1
     grep -E "(${v//./, })" ../r0c/__version__.py || exit 1

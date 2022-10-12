@@ -81,6 +81,8 @@
 **`/fill`** floods the channel with messages  
 `/fill 30 desu`
 
+**`/cls`** wipes channel scrollback (but keeps a copy on disk)
+
 **`/sd`** shuts down the server
 
 **`/mem`** dumps server memory to file
