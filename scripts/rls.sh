@@ -9,7 +9,7 @@ set -e
 
 v=$1
 
-rm -f ../dist/r0c.sfx*
+rm -f ../dist/r0c.py*
 
 [ "$v" = sfx ] || {
     printf '%s\n' "$v" | grep -qE '^[0-9\.]+$' || exit 1

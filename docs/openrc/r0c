@@ -1,0 +1,19 @@
+#!/sbin/openrc-run
+
+# this will start `/usr/local/bin/r0c.py`
+#
+# complete installation instructions:
+#   wget https://github.com/9001/r0c/releases/latest/download/r0c.py -O /usr/local/bin/r0c.py
+#   cp -pv r0c /etc/init.d && rc-update add r0c && service r0c start
+#
+# you may want to:
+#   change '/usr/bin/python3' to another interpreter
+
+name="$SVCNAME"
+command_background=true
+pidfile="/var/run/$SVCNAME.pid"
+output_log="/var/log/$SVCNAME.log"
+error_log="/var/log/$SVCNAME.err"
+
+command="/usr/bin/python3 /usr/local/bin/r0c.py"
+command_args="-pt 23 -pn 531"

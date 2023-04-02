@@ -6,7 +6,7 @@
 
 ![screenshot of telnet connected to a r0c server](docs/r0c.png)
 
-* download the latest release (standalone): **[r0c.py](https://github.com/9001/r0c/releases/latest/download/r0c.py)**
+* see [installation](#installation) or grab the latest release: **[r0c.py](https://github.com/9001/r0c/releases/latest/download/r0c.py)**
 
 ## summary
 
@@ -77,7 +77,26 @@ if you enable TLS with `-tpt 2424` (telnet) and/or `-tpn 1515` (netcat) you can 
 * `stty -icanon; ncat --ssl --ssl-trustfile r0c.crt -v r0c.int 1515`
 * `stty -icanon; openssl s_client -CAfile ~/.r0c/cert.crt -connect r0c.int:1515`
 
+
+
+# installation
+
+just run **[r0c.py](https://github.com/9001/r0c/releases/latest/download/r0c.py)** and that's it (usually)
+
+* or install through pypi (python3 only): `python3 -m pip install --user -U r0c`
+
+you can run it as a service so it autostarts on boot:
+
+* on most linux distros: [systemd service](docs/systemd/r0c.service) (automatically does port-forwarding)
+* on alpine / gentoo: [openrc service](docs/openrc/r0c)
+* on windows: [nssm](https://nssm.cc/) probably
+
 ## firewall rules
+
+skip this section if:
+* you are using the systemd service
+* or you are running as root and do not have a firewall
+* or you're on windows
 
 telnet uses port 23 by default, so on the server you'll want to port-forward `23` to `2323` (and `531` to `1531` for plaintext):
 
@@ -86,9 +105,13 @@ iptables -A INPUT -p tcp --dport 23 -m state --state NEW -j ACCEPT
 iptables -A INPUT -p tcp --dport 531 -m state --state NEW -j ACCEPT
 iptables -A INPUT -p tcp --dport 2323 -m state --state NEW -j ACCEPT
 iptables -A INPUT -p tcp --dport 1531 -m state --state NEW -j ACCEPT
+iptables -A INPUT -p tcp --dport 2424 -m state --state NEW -j ACCEPT  # tls telnet
+iptables -A INPUT -p tcp --dport 1515 -m state --state NEW -j ACCEPT  # tls netcat
 iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 23 -j REDIRECT --to-port 2323
 iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 531 -j REDIRECT --to-port 1531
 ```
+
+(you'll have to do this on every reboot)
 
 ## documentation
 

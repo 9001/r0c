@@ -1,0 +1,47 @@
+# this will start `/usr/local/bin/r0c.py`
+# and do port-forwarding (23->2323, 531->1531)
+#
+# complete installation instructions:
+#   wget https://github.com/9001/r0c/releases/latest/download/r0c.py -O /usr/local/bin/r0c.py
+#   cp -pv r0c.service /etc/systemd/system/
+#   restorecon -vr /etc/systemd/system/r0c.service  # on fedora/rhel
+#   firewall-cmd --permanent --add-port={23,531,2323,1531}/tcp  # --zone=libvirt
+#   firewall-cmd --reload
+#   systemctl daemon-reload && systemctl enable --now r0c
+#
+# if it fails to start, first check this: systemctl status r0c
+# then try starting it while viewing logs: journalctl -fan 100
+#
+# you may want to:
+#   change "User=root" to another user
+#   remove the nft lines to only listen on port 2323/1531
+# and in the ExecStart= line:
+#   change '/usr/bin/python3' to another interpreter, for example /usr/libexec/platform-python on rhel/rocky
+#   change 2323/1531 to 23/531 if you're running as root
+#
+# keep ExecStartPre before ExecStart
+
+[Unit]
+Description=retr0chat server
+
+[Service]
+SyslogIdentifier=r0c
+Environment=PYTHONUNBUFFERED=x
+User=root
+
+# OPTIONAL, not necessary if you are running as root:
+# setup forwarding from ports 23 to 2323, and 531 to 1531
+ExecStartPre=+/bin/bash -c 'nft -n -a list table nat | awk "/ to :(2323|1531) /{print\$NF}" | xargs -rL1 nft delete rule nat prerouting handle; true'
+ExecStartPre=+nft add table ip nat
+ExecStartPre=+nft -- add chain ip nat prerouting { type nat hook prerouting priority -100 \; }
+ExecStartPre=+nft add rule ip nat prerouting tcp dport 23 redirect to :2323
+ExecStartPre=+nft add rule ip nat prerouting tcp dport 531 redirect to :1531
+
+# stop systemd-tmpfiles-clean.timer from deleting r0c while it's running
+ExecStartPre=+/bin/bash -c 'mkdir -p /run/tmpfiles.d/ && echo "x /tmp/pe-r0c*" > /run/tmpfiles.d/r0c.conf'
+
+# r0c settings
+ExecStart=/usr/bin/python3 /usr/local/bin/r0c.py -pt 2323 -pn 1531
+
+[Install]
+WantedBy=multi-user.target
