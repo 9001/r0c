@@ -8,16 +8,18 @@ import os, sys, time, bz2, shutil, threading, tarfile, hashlib, platform, tempfi
 to edit this file, use HxD or "vim -b"
   (there is compressed stuff at the end)
 
-run me with any version of python, i will unpack and run PKG_NAME
+run me with python 2.6, 2.7, or 3.3+ to unpack and run PKG_NAME
 
 there's zero binaries! just plaintext python scripts all the way down
   so you can easily unpack the archive and inspect it for shady stuff
 
 the archive data is attached after the b"\n# eof\n" archive marker,
-  b"\n#n" decodes to b"\n"
-  b"\n#r" decodes to b"\r"
-  b"\n# " decodes to b""
+  b"?0" decodes to b"\x00"
+  b"?n" decodes to b"\n"
+  b"?r" decodes to b"\r"
+  b"??" decodes to b"?"
 """
+
 
 # set by make-sfx.sh
 VER = None
@@ -26,7 +28,7 @@ CKSUM = None
 STAMP = None
 
 NAME = "r0c"
-PY2 = sys.version_info[0] == 2
+PY2 = sys.version_info < (3,)
 WINDOWS = sys.platform in ["win32", "msys"]
 IRONPY = "ironpy" in platform.python_implementation().lower()
 
@@ -143,6 +145,7 @@ def testchk(cdata):
 
 def encode(data, size, cksum, ver, ts):
     """creates a new sfx; `data` should yield bufs to attach"""
+    nb = 0
     nin = 0
     nout = 0
     skip = False
@@ -153,11 +156,22 @@ def encode(data, size, cksum, ver, ts):
         for ln in src.split("\n"):
             if ln.endswith("# skip 0"):
                 skip = False
+                nb = 9
                 continue
 
             if ln.endswith("# skip 1") or skip:
                 skip = True
                 continue
+
+            if ln.strip().startswith("# fmt: "):
+                continue
+
+            if ln:
+                nb = 0
+            else:
+                nb += 1
+                if nb > 2:
+                    continue
 
             unpk += ln + "\n"
 
@@ -176,14 +190,30 @@ def encode(data, size, cksum, ver, ts):
             unpk = unpk.replace("\t    ", "\t\t")
 
     with open("sfx.out", "wb") as f:
-        f.write(unpk.encode("utf-8") + b"\n\n# eof\n# ")
+        f.write(unpk.encode("utf-8").rstrip(b"\n") + b"\n\n\n# eof")
         for buf in data:
-            ebuf = buf.replace(b"\n", b"\n#n").replace(b"\r", b"\n#r")
-            f.write(ebuf)
+            ebuf = (
+                buf.replace(b"?", b"??")
+                .replace(b"\x00", b"?0")
+                .replace(b"\r", b"?r")
+                .replace(b"\n", b"?n")
+            )
             nin += len(buf)
             nout += len(ebuf)
+            while ebuf:
+                ep = 4090
+                while True:
+                    a = ebuf.rfind(b"?", 0, ep)
+                    if a < 0 or ep - a > 2:
+                        break
+                    ep = a
+                buf = ebuf[:ep]
+                ebuf = ebuf[ep:]
+                f.write(b"\n#" + buf)
 
-    msg("wrote {:x}H bytes ({:x}H after encode)".format(nin, nout))
+        f.write(b"\n\n")
+
+    msg("wrote {0:x}H bytes ({1:x}H after encode)".format(nin, nout))
 
 
 def makesfx(tar_src, ver, ts):
@@ -213,26 +243,37 @@ def yieldfile(fn):
 
 
 def hashfile(fn):
-    h = hashlib.md5()
+    h = hashlib.sha1()
     for block in yieldfile(fn):
         h.update(block)
 
-    return h.hexdigest()
+    return h.hexdigest()[:24]
 
 
 def unpack():
     """unpacks the tar yielded by `data`"""
     name = "pe-" + NAME
+    try:
+        name += "." + str(os.geteuid())
+    except:
+        pass
+
     tag = "v" + str(STAMP)
-    withpid = "{0}.{1}".format(name, os.getpid())
     top = tempfile.gettempdir()
     opj = os.path.join
+    ofe = os.path.exists
     final = opj(top, name)
-    mine = opj(top, withpid)
+    san = opj(final, "copyparty/up2k.py")
+    for suf in range(0, 9001):
+        withpid = "{0}.{1}.{2}".format(name, os.getpid(), suf)
+        mine = opj(top, withpid)
+        if not ofe(mine):
+            break
+
     tar = opj(mine, "tar")
 
     try:
-        if tag in os.listdir(final):
+        if tag in os.listdir(final) and ofe(san):
             msg("found early")
             return final
     except:
@@ -274,7 +315,7 @@ def unpack():
         f.write(b"h\n")
 
     try:
-        if tag in os.listdir(final):
+        if tag in os.listdir(final) and ofe(san):
             msg("found late")
             return final
     except:
@@ -312,73 +353,49 @@ def unpack():
 def get_payload():
     """yields the binary data attached to script"""
     with open(me, "rb") as f:
-        ptn = b"\n# eof\n# "
-        buf = b""
-        for n in range(64):
-            buf += f.read(4096)
-            ofs = buf.find(ptn)
-            if ofs >= 0:
-                break
+        buf = f.read().rstrip(b"\r\n")
 
-        if ofs < 0:
-            raise Exception("could not find archive marker")
+    ptn = b"\n# eof\n#"
+    a = buf.find(ptn)
+    if a < 0:
+        raise Exception("could not find archive marker")
 
-        # start at final b"\n"
-        fpos = ofs + len(ptn) - 3
-        f.seek(fpos)
-        dpos = 0
-        rem = b""
-        while True:
-            rbuf = f.read(1024 * 32)
-            if rbuf:
-                buf = rem + rbuf
-                ofs = buf.rfind(b"\n")
-                if len(buf) <= 4:
-                    rem = buf
-                    continue
-
-                if ofs >= len(buf) - 4:
-                    rem = buf[ofs:]
-                    buf = buf[:ofs]
-                else:
-                    rem = b"\n# "
-            else:
-                buf = rem
-
-            fpos += len(buf) + 1
-            for a, b in [[b"\n# ", b""], [b"\n#r", b"\r"], [b"\n#n", b"\n"]]:
-                buf = buf.replace(a, b)
-
-            dpos += len(buf) - 1
-            yield buf
-
-            if not rbuf:
-                break
+    esc = {b"??": b"?", b"?r": b"\r", b"?n": b"\n", b"?0": b"\x00"}
+    buf = buf[a + len(ptn) :].replace(b"\n#", b"")
+    p = 0
+    while buf:
+        a = buf.find(b"?", p)
+        if a < 0:
+            yield buf[p:]
+            break
+        elif a == p:
+            yield esc[buf[p : p + 2]]
+            p += 2
+        else:
+            yield buf[p:a]
+            p = a
 
 
 def utime(top):
-    i = 0
+    # avoid cleaners
     files = [os.path.join(dp, p) for dp, dd, df in os.walk(top) for p in dd + df]
-    while WINDOWS:
+    while True:
         t = int(time.time())
-        if i:
-            msg("utime {0}, {1}".format(i, t))
-
-        for f in files:
+        for f in [top] + files:
             os.utime(f, (t, t))
 
-        i += 1
         time.sleep(78123)
 
 
 def confirm(rv):
     msg()
     msg("retcode", rv if rv else traceback.format_exc())
-    msg("*** hit enter to exit ***")
-    try:
-        raw_input() if PY2 else input()
-    except:
-        pass
+    if WINDOWS:
+        msg("*** hit enter to exit ***")
+        try:
+            raw_input() if PY2 else input()
+        except:
+            pass
 
     sys.exit(rv or 1)
 
@@ -386,16 +403,6 @@ def confirm(rv):
 def run(tmp):
     msg("sfxdir:", tmp)
     msg()
-
-    # block systemd-tmpfiles-clean.timer
-    try:
-        import fcntl
-
-        fd = os.open(tmp, os.O_RDONLY)
-        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except Exception as ex:
-        if not WINDOWS:
-            msg("\033[31mflock:{!r}\033[0m".format(ex))
 
     t = threading.Thread(target=utime, args=(tmp,))
     t.daemon = True
