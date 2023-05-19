@@ -137,6 +137,7 @@ args = {
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: Implementation :: CPython",
         "Programming Language :: Python :: Implementation :: IronPython",
         "Programming Language :: Python :: Implementation :: Jython",
@@ -144,6 +145,7 @@ args = {
         "Environment :: Console",
         "Environment :: No Input/Output (Daemon)",
         "Topic :: Communications :: Chat",
+        "Topic :: Terminals :: Telnet",
     ],
     "cmdclass": {"clean2": clean2},
 }

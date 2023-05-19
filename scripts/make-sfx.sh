@@ -35,9 +35,11 @@ resources=(
 gtar=$(command -v gtar || command -v gnutar) || true
 [ ! -z "$gtar" ] && command -v gfind >/dev/null && {
 	tar()  { $gtar "$@"; }
+	tr()   { gtr   "$@"; }
 	sed()  { gsed  "$@"; }
 	find() { gfind "$@"; }
 	sort() { gsort "$@"; }
+	shuf() { gshuf "$@"; }
 	command -v grealpath >/dev/null &&
 		realpath() { grealpath "$@"; }
 
@@ -143,7 +145,7 @@ unc="$HOME/dev/copyparty/scripts/uncomment.py"
 	find | grep -E '\.py$' |
 		grep -vE '__version__' |
 		tr '\n' '\0' |
-		xargs -0 python3 $unc
+		xargs -0 python3 $unc 1
 
 echo
 echo creating tar
