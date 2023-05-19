@@ -263,7 +263,7 @@ def unpack():
     opj = os.path.join
     ofe = os.path.exists
     final = opj(top, name)
-    san = opj(final, "copyparty/up2k.py")
+    san = opj(final, "site-packages/r0c/ivt100.py")
     for suf in range(0, 9001):
         withpid = "{0}.{1}.{2}".format(name, os.getpid(), suf)
         mine = opj(top, withpid)

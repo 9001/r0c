@@ -26,7 +26,7 @@ f=~/dev/r0c/dist/r0c.py
 min=999999
 while true; do
     ./make-sfx.sh
-    s=$(stat -c%s $f)
+    s=$(stat -c%s $f || gstat -c%s $f)
     [ $s -lt $min ] ||
         continue
     
