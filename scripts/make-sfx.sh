@@ -5,8 +5,7 @@ echo
 
 # optional args:
 #
-# `clean` uses files from git (everything except web/deps),
-#   so local changes won't affect the produced sfx
+# `clean` uses files from git so local changes won't affect the produced sfx
 
 
 # differences from copyparty sfx:
@@ -20,8 +19,7 @@ echo
 name=r0c
 
 [ -e $name/__main__.py ] || cd ..
-[ -e $name/__main__.py ] ||
-{
+[ -e $name/__main__.py ] || {
 	printf "run me from within the project root folder\n\n"
 	exit 1
 }
@@ -45,6 +43,11 @@ gtar=$(command -v gtar || command -v gnutar) || true
 
 	[ -e /opt/local/bin/bzip2 ] &&
 		bzip2() { /opt/local/bin/bzip2 "$@"; }
+}
+
+pybin=$(command -v python3 || command -v python) || {
+	echo need python
+	exit 1
 }
 
 while [ ! -z "$1" ]; do
@@ -145,7 +148,7 @@ unc="$HOME/dev/copyparty/scripts/uncomment.py"
 	find | grep -E '\.py$' |
 		grep -vE '__version__' |
 		tr '\n' '\0' |
-		xargs -0 python3 $unc 1
+		xargs -0 $pybin $unc 1
 
 echo
 echo creating tar
@@ -173,7 +176,7 @@ mv -v $minf tar.bz2
 rm t.*
 
 echo creating sfx
-python3 ../scripts/sfx.py --sfx-make tar.bz2 $ver $ts
+$pybin ../scripts/sfx.py --sfx-make tar.bz2 $ver $ts
 mv sfx.out $sfx_out.py
 chmod 755 $sfx_out.*
 

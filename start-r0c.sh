@@ -1,23 +1,9 @@
 #!/bin/bash
 
-preferred_ports="23 531"
-fallback_ports="2323 1531"
+python3 -m r0c.__main__ "$@"
 
-# use preferred ports if root,
-# otherwise use fallback ports
-[ $(id -u) -eq 0 ] &&
-	ports="$preferred_ports" ||
-	ports="$fallback_ports"
-
-# if no arguments:
-# start r0c with password from config file
-[ "x$1" == "x" ] &&
-	python3 -m r0c.__main__ $ports
-
-# otherwise,
-# start r0c with the provided password
-[ "x$1" == "x" ] ||
-	python3 -m r0c.__main__ $ports "$1"
-
-# usually just "r0c" is enough,
-# but python 2.6 needs the full "r0c.__main__"
+# additional arguments can be given to this batch file, for example
+#   -pw goodpassword
+#   -tpt 2424   (enable tls telnet on port 2424)
+#   -tpn 1515   (enable tls netcat on port 1515)
+#   --old-tls   (allow old/buggy software to connect (centos6, powershell))

@@ -43,8 +43,8 @@ def optgen(ap, pwd):
     ac.add_argument("-i", metavar="IP", type=u, default="0.0.0.0", help="address to listen on")
     ac.add_argument("-pt", metavar="PORT", type=int, default=pt, help="telnet port (disable with 0)")
     ac.add_argument("-pn", metavar="PORT", type=int, default=pn, help="netcat port (disable with 0)")
-    ac.add_argument("-tpt", metavar="PORT", type=int, default=0, help="TLS telnet port (disable with 0)")
-    ac.add_argument("-tpn", metavar="PORT", type=int, default=0, help="TLS netcat port (disable with 0)")
+    ac.add_argument("-tpt", metavar="PORT", type=int, default=0, help="TLS telnet port, e.g. 2424 (disable with 0)")
+    ac.add_argument("-tpn", metavar="PORT", type=int, default=0, help="TLS netcat port, e.g. 1515 (disable with 0)")
     ac.add_argument("-pw", metavar="PWD", type=u, default=pwd, help="admin password")
     ac.add_argument("--nsalt", metavar="TXT", type=u, default="lammo/", help="salt for generated nicknames based on IP")
 
@@ -90,7 +90,7 @@ def run_fap(argv, pwd):
     ap = Fargparse()
     optgen(ap, pwd)
 
-    if "-h" in unicode(argv + [""])[1]:
+    if "-h" in unicode(([""] + argv)[-1]):
         print()
         print("arg 1: Telnet port (0=disable), default: {0}".format(ap.pt))
         print("arg 2: NetCat port (0=disable), default: {0}".format(ap.pn))
@@ -227,9 +227,9 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
 
         if ar.pw == "hunter2":
             print("\033[1;31m")
-            print("  using the default password;")
-            print("  change it with argument -pw")
-            print("  or save it here: " + pwd_file)
+            print("  using default password '{0}'".format(ar.pw))
+            print("  change it with argument -pw or save it here:")
+            print("  " + pwd_file)
             print("\033[0m")
 
         print("  *  Logs at " + EP.log)

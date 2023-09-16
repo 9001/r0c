@@ -1,5 +1,5 @@
 try {
-    Invoke-Expression "python -m r0c.__main__ 23 531 $args"
+    Invoke-Expression "python -m r0c.__main__ $args"
 }
 catch {
     Write-Host -NoNewLine "press ENTER to terminate "
@@ -13,9 +13,8 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# if an argument is provided to this ps1 file,
-# it will be used as the admin password.
-#
-# "r0c.__main__" is required by python 2.6;
-# all other python versions are happy with:
-#   python -m r0c 23 531
+# additional arguments can be given to this batch file, for example
+#   -pw goodpassword
+#   -tpt 2424   (enable tls telnet on port 2424)
+#   -tpn 1515   (enable tls netcat on port 1515)
+#   --old-tls   (allow old/buggy software to connect (centos6, powershell))
