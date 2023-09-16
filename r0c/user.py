@@ -896,6 +896,12 @@ class User(object):
             msg += u"\033[0m\n"
             self.world.send_chan_msg(u"-nfo-", inf, msg)
 
+        elif cmd == u"bc":
+            if not self.admin_test(cmd, arg):
+                return
+
+            self.world.broadcast_message(u"\033[31m{0}".format(arg), 2)
+
         elif cmd == u"sd":
             if not self.admin_test(cmd, arg):
                 return

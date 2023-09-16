@@ -333,11 +333,10 @@ class World(object):
     def broadcast_message(self, msg, severity=1):
         """1=append, 2=append+scroll"""
         with self.mutex:
-            for nchan in self.pub_ch:
-                self.send_chan_msg(u"--", nchan, msg)
+            msg = Util.convert_color_codes(msg, False)
 
-            for nchan in self.priv_ch:
-                self.send_chan_msg(u"--", nchan, msg)
+            for nchan in self.pub_ch + self.priv_ch:
+                self.send_chan_msg(u"-!-", nchan, msg)
 
             if severity > 1:
                 for user in self.users:

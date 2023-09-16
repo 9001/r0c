@@ -81,6 +81,9 @@
 **`/fill`** floods the channel with messages  
 `/fill 30 desu`
 
+**`/bc`** broadcast message to all channels  
+`/bc voting ends in 10`
+
 **`/cls`** wipes channel scrollback (but keeps a copy on disk)
 
 **`/sd`** shuts down the server
