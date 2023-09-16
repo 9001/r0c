@@ -2,8 +2,13 @@
 #   powershell .\powershell.ps1 127.0.0.1:531
 #   (or just doubleclick this script in win10)
 #
+# to connect over TLS, add a leading '+' to the port, e.g. +1515
+#
 # fix permissions on win7 by running this in a powershell console:
 #   Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy Unrestricted
+#
+# or run the client like this instead,
+#   powershell -executionpolicy bypass .\powershell.ps1 127.0.0.1:531
 
 #######################################################################
 
@@ -18,10 +23,10 @@ function Seppuku {
 
 function Test-IsISE {
     try {    
-        return $null -ne $psISE;
+        return $null -ne $psISE
     }
     catch {
-        return $false;
+        return $false
     }
 }
 
@@ -59,8 +64,8 @@ $r0chost = if ($args.count -ge 1) {$args[0]} else {""}
 $r0cport = if ($args.count -ge 2) {$args[1]} else {""}
 $arr = $r0chost.Split(":")
 if ($arr.count -eq 2) {
-    $r0chost = $arr[0];
-    $r0cport = $arr[1];
+    $r0chost = $arr[0]
+    $r0cport = $arr[1]
 }
 if ([string]::IsNullOrEmpty($r0chost)) {
     $r0chost = Read-Host "Input r0c address, default 127.0.0.1 if blank"
@@ -69,24 +74,33 @@ if ([string]::IsNullOrEmpty($r0chost)) {
     }
 }
 if ([string]::IsNullOrEmpty($r0cport)) {
-    $r0cport = Read-Host "Input r0c port, default 531 if blank"
+    $r0cport = Read-Host "Input r0c port, default 531 if blank, enable TLS with +1515"
     if ([string]::IsNullOrEmpty($r0cport)) {
         $r0cport = "531"
     }
+}
+$tls = ([string]$r0cport).StartsWith("+")
+if ($tls) {
+    $r0cport = [int]($r0cport.substring(1))
 }
 $r0cport = [int]$r0cport
 
 $socket = New-Object System.Net.Sockets.TcpClient
 $socket.connect($r0chost, $r0cport)
-$stream = $socket.GetStream()
+$stream = $stream0 = $socket.GetStream()
+if ($tls) {
+    # the .net api for verifying a self-signed certificate is entirely impossible to operate and i have given up
+    $stream = New-Object System.Net.Security.SslStream($stream, $false, ({$True} -as [Net.Security.RemoteCertificateValidationCallback]))
+    $stream.AuthenticateAsClient($r0chost)
+}
 $buf = New-Object byte[] 4096
 $messages_lost = 0
 
 # TODO: figure out how this works
 [console]::TreatControlCAsInput = $true
 
-while ($socket.Connected) {
-    while ($stream.DataAvailable) {
+function mainloop {
+    while ($socket.Connected -and $stream0.DataAvailable -and $stream0.CanRead) {
         $n_read = $stream.Read($buf, 0, $buf.Length)
         $text = [System.Text.Encoding]::UTF8.GetString($buf, 0, $n_read)
         Write-Host $text -NoNewLine
@@ -135,4 +149,15 @@ while ($socket.Connected) {
         # for powershell versions with busted scrolling
     }
     Start-Sleep -Milliseconds 10
+}
+
+$err = 0
+while ($socket.Connected -and $err -eq 0) {
+    try {
+        mainloop
+    }
+    catch {
+        $err = 1
+        throw
+    }
 }

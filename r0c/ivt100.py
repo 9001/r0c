@@ -119,10 +119,40 @@ class VT100_Server(object):
             if self.tls:
                 try:
                     ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    if self.ar.ciphers:
+                        ctx.set_ciphers(self.ar.ciphers)
+
+                    minver = self.ar.tls_min
+                    if minver == "TLSv1_0":
+                        minver = "TLSv1"
+
+                    if minver:
+                        names = "SSLv3 TLSv1 TLSv1_1 TLSv1_2 TLSv1_3".split(" ")
+                        if minver not in names:
+                            err = "unknown TLS version {0}, only know {1}"
+                            raise Exception(err.format(minver, names))
+
+                        try:
+                            en = False
+                            for name in names:
+                                bit = getattr(ssl, "OP_NO_" + name)
+                                if minver == name:
+                                    en = True
+                                if en:
+                                    ctx.options &= ~bit
+                                else:
+                                    ctx.options |= bit
+                        except Exception as ex:
+                            print("[*] TLS client failed to apply --tls-min: " + str(ex))
+
+                        if hasattr(ctx, "minimum_version"):
+                            ctx.minimum_version = getattr(ssl.TLSVersion, minver)
+
                     ctx.load_cert_chain(EP.app + "cert.pem")
                     socket = ctx.wrap_socket(socket, server_side=True)
                 except Exception as ex:
                     print("[*] TLS client: " + str(ex))
+                    print("  `- if you want to support old/insecure clients (centos6, powershell) please run r0c with argument --old-tls")
                     return
 
             usr = User.User(self.world, adr)

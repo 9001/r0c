@@ -53,6 +53,11 @@ def optgen(ap, pwd):
     ac.add_argument("--log-tx", action="store_true", help="log outgoing traffic to clients")
     ac.add_argument("--rot-msg", metavar="N", type=int, default=131072, help="max num msgs per logfile")
 
+    ac = ap.add_argument_group("tls")
+    ac.add_argument("--ciphers", metavar="S", type=u, default="", help="specify allowed TLS ciphers; python default if unset")
+    ac.add_argument("--tls-min", metavar="S", type=u, default="", help="oldest ver to allow; SSLv3 TLSv1 TLSv1_1 TLSv1_2 TLSv1_3")
+    ac.add_argument("--old-tls", action="store_true", help="support old clients (centos6/powershell), bad ciphers")
+
     ac = ap.add_argument_group("perf")
     ac.add_argument("--hist-rd", metavar="N", type=int, default=65535, help="max num msgs to load from disk when joining a channel")
     ac.add_argument("--hist-mem", metavar="N", type=int, default=98303, help="max num msgs to keep in channel scrollback")
@@ -189,7 +194,7 @@ class Core(object):
 
         cert = EP.app + "cert.pem"
         if ar.tpt or ar.tpn:
-            print("Loading OpenSSL")
+            print("  *  Loading certificate {0}".format(cert))
             import ssl
 
             if not os.path.exists(cert):
@@ -198,12 +203,16 @@ class Core(object):
 tls was requested, but certificate not found at {0}pem
 create the certificate (replacing "r0c.int" with the server's external ip or fqdn) and try again:
 
-printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyout {0}key -nodes -x509 -days 365 -out {0}crt && cat {0}key {0}crt > {0}pem
+printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyout "{0}key" -nodes -x509 -days 365 -out "{0}crt" && cat "{0}key" "{0}crt" > "{0}pem"
 \033[0m""".format(
                         EP.app + "cert."
                     )
                 )
                 raise Exception("TLS certificate not found")
+
+            if ar.old_tls:
+                ar.tls_min = ar.tls_min or "TLSv1"
+                ar.ciphers = "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:ECDHE-RSA-AES128-GCM-SHA384:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA128:DHE-RSA-AES128-GCM-SHA384:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA128:ECDHE-RSA-AES128-SHA384:ECDHE-RSA-AES128-SHA128:ECDHE-RSA-AES128-SHA:ECDHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA128:DHE-RSA-AES128-SHA128:DHE-RSA-AES128-SHA:DHE-RSA-AES128-SHA:ECDHE-RSA-DES-CBC3-SHA:EDH-RSA-DES-CBC3-SHA:AES128-GCM-SHA384:AES128-GCM-SHA128:AES128-SHA128:AES128-SHA128:AES128-SHA:AES128-SHA:DES-CBC3-SHA:HIGH:!aNULL:!eNULL:!EXPORT:!DES:!MD5:!PSK:!RC4"
 
         for srv, port in [
             ["Telnet", ar.pt],

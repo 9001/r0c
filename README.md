@@ -75,7 +75,9 @@ if you enable TLS with `-tpt 2424` (telnet) and/or `-tpn 1515` (netcat) you can 
 * `telnet-ssl -zssl -zsecure -zcacert=r0c.crt r0c.int 2424`
 * `socat -,raw,echo=0 openssl:r0c.int:1515,cafile=cert.crt`
 * `stty -icanon; ncat --ssl --ssl-trustfile r0c.crt -v r0c.int 1515`
-* `stty -icanon; openssl s_client -CAfile ~/.r0c/cert.crt -connect r0c.int:1515`
+* `stty -icanon; openssl s_client -CAfile ~/.r0c/cert.crt -nbio -connect r0c.int:1515`
+* windows: powershell client with port `+1515` (the `+` enables TLS)
+  * powershell does not verify certificate; the other clients do
 
 
 
