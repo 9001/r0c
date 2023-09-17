@@ -201,9 +201,11 @@ class VT100_Server(object):
                 self.world.part_chan(uchan)
             if remote.user and remote.user in self.world.users:
                 self.world.users.remove(remote.user)
+                if remote.user.lnick in self.world.lusers:
+                    del self.world.lusers[remote.user.lnick]
             if remote.wire_log is not None:
                 remote.wire_log.write(
-                    u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
+                    unicode(int(time.time() * 1000)).encode("utf-8") + b"\n"
                 )
                 remote.wire_log.close()
 
@@ -305,7 +307,9 @@ class VT100_Client(object):
                 log_fn += "_"
 
             self.wire_log = open(log_fn, "wb")
-            self.wire_log.write(u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
+            self.wire_log.write(
+                unicode(int(time.time() * 1000)).encode("utf-8") + b"\n"
+            )
 
         self.uee_offset = 0
         try:
@@ -315,8 +319,8 @@ class VT100_Client(object):
             self.uee_offset = -uee.start
 
         # outgoing data
-        self.outbox = Queue()
-        self.replies = Queue()
+        self.outbox = []
+        self.replies = []
         self.last_tx = None
 
         # incoming data
@@ -668,7 +672,7 @@ class VT100_Client(object):
         return True
 
     def say(self, message):
-        self.outbox.put(message)
+        self.outbox.append(message)
 
     def readable(self):
         return not self.dead
@@ -690,9 +694,7 @@ class VT100_Client(object):
         # looks like we might end up here after all,
         # TODO: safeguard against similar issues (thanks asyncore)
         try:
-            return not self.dead and (
-                self.backlog or not self.replies.empty() or not self.outbox.empty()
-            )
+            return not self.dead and (self.backlog or self.replies or self.outbox)
         except:
             # terrible print-once guard
             try:
@@ -720,8 +722,8 @@ class VT100_Client(object):
         self.backlog = b""
 
         for src in [self.replies, self.outbox]:
-            while len(msg) < 480 and not src.empty():
-                msg += src.get()
+            while len(msg) < 480 and src:
+                msg += src.pop(0)
 
         if self.ar.hex_tx:
             if len(msg) < self.ar.hex_lim:
@@ -730,7 +732,9 @@ class VT100_Client(object):
                 print("<<--       :  [{0} byte]".format(len(msg)))
 
         if self.wire_log and self.ar.log_tx:
-            self.wire_log.write(u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8"))
+            self.wire_log.write(
+                unicode(int(time.time() * 1000)).encode("utf-8") + b"\n"
+            )
             Util.hexdump(msg, "<", self.wire_log)
 
         if self.slowmo_tx:
@@ -900,7 +904,7 @@ class VT100_Client(object):
                     or len(self.linebuf) > self.linepos
                 )
             ):
-                to_send += u"\033[{0};{1}H".format(
+                to_send += u"\033[%d;%dH" % (
                     self.h - self.y_input,
                     self.user.nick_len + 2 + self.linepos + 1 - self.lineview,
                 )
@@ -974,7 +978,7 @@ class VT100_Client(object):
 
             topic = topic.replace(u"[[uch_a]]", title)
 
-        top_bar = u"\033[1H\033[44;48;5;235;38;5;220m{0}\033[K".format(topic)
+        top_bar = u"\033[1H\033[44;48;5;235;38;5;220m%s\033[K" % (topic,)
 
         if self.screen[0] != top_bar:
             self.screen[0] = top_bar
@@ -982,7 +986,7 @@ class VT100_Client(object):
         return u""
 
     def update_status_bar(self, full_redraw):
-        preface = u"\033[{0}H\033[0;37;44;48;5;235m".format(self.h - self.y_status)
+        preface = u"\033[%dH\033[0;37;44;48;5;235m" % (self.h - self.y_status,)
         hhmmss = datetime.utcnow().strftime("%H%M%S")
         uchan = self.user.active_chan
         nchan = uchan.nchan
@@ -999,7 +1003,7 @@ class VT100_Client(object):
             chan_name = uchan.alias + u"\033[22m"
         else:
             chan_hash = u"#"
-            chan_name = u"{0}\033[22m({1})".format(chan_name, len(nchan.uchans))
+            chan_name = u"%s\033[22m(%d)" % (chan_name, len(nchan.uchans),)
 
         hilights = []
         activity = []
@@ -1017,28 +1021,28 @@ class VT100_Client(object):
                 activity.append(i)
 
         if hilights:
-            hilights = u"   \033[33mh:\033[1m{0}\033[22;39m".format(
-                u",".join(str(x) for x in hilights)
+            hilights = u"   \033[33mh:\033[1m%s\033[22;39m" % (
+                u",".join(str(x) for x in hilights),
             )
 
         if activity:
-            activity = u"   \033[32ma:\033[1m{0}\033[22;39m".format(
-                u",".join(str(x) for x in activity)
+            activity = u"   \033[32ma:\033[1m%s\033[22;39m" % (
+                u",".join(str(x) for x in activity),
             )
 
         offscreen = None
         if not uchan.lock_to_bottom and uchan.vis[-1].im < len(nchan.msgs):
-            offscreen = u"  \033[1;36m+{0}\033[22;39m".format(
-                len(nchan.msgs) - uchan.vis[-1].im
+            offscreen = u"  \033[1;36m+%d\033[22;39m" % (
+                len(nchan.msgs) - uchan.vis[-1].im,
             )
 
         if nchan.name and self.vt100:
-            online = u"\033[22;36m   {0}".format(nchan.usernames)
+            online = u"\033[22;36m   %s" % (nchan.usernames,)
         else:
             online = u""
 
         line = Util.trunc(
-            u"{0}{1}   {2}: \033[1;37m{3}{4}{5}{6}{7}{8}\033[K".format(
+            u"%s%s   %s: \033[1;37m%s%s%s%s%s%s\033[K" % (
                 preface,
                 hhmmss,
                 nbuf,
@@ -1053,10 +1057,10 @@ class VT100_Client(object):
         )[0]
 
         if not self.vt100:
-            self.left_chrome = u"{0}   {1}> ".format(
+            self.left_chrome = u"%s   %s> " % (
                 Util.strip_ansi(line), self.user.nick
             )
-            return u"\r{0}\r{1}".format(u" " * 78, self.left_chrome)
+            return u"\r%s\r%s" % (u" " * 78, self.left_chrome)
 
         elif full_redraw:
             if self.screen[self.h - (self.y_status + 1)] != line:
@@ -1159,21 +1163,21 @@ class VT100_Client(object):
         if not full_redraw and not self.linebuf and self.linemode:
             return u""
 
-        line_fmt = u"\033[0;36m{0}>\033[0m {1}"
-        print_fmt = u"\033[{0}H{1}\033[K"
+        line_fmt = u"\033[0;36m%s>\033[0m %s"
+        print_fmt = u"\033[%sH%s\033[K"
 
         if self.pending_size_request and (
             self.linemode
             or time.time() - self.pending_size_request
             > (0.5 if self.bps > 12000 else 10)
         ):
-            line = line_fmt.format(
+            line = line_fmt % (
                 self.user.nick[: self.user.nick_len],
                 u"#\033[7m             please press ENTER  (due to linemode) \033[0m",
             )
             if self.screen[self.h - (self.y_input + 1)] != line or full_redraw:
                 self.screen[self.h - (self.y_input + 1)] = line
-                return print_fmt.format(self.h - self.y_input, line)
+                return print_fmt % (self.h - self.y_input, line,)
             return u""
 
         if (
@@ -1198,7 +1202,7 @@ class VT100_Client(object):
             # reset colours if the visible segment contains any
             ansi += u"\033[0m"
 
-        line = line_fmt.format(self.user.nick[: self.user.nick_len], ansi)
+        line = line_fmt % (self.user.nick[: self.user.nick_len], ansi,)
         was = self.screen[self.h - (self.y_input + 1)]
         if line == was and not full_redraw:
             return u""
@@ -1223,19 +1227,19 @@ class VT100_Client(object):
                     if cval == u"0":
                         break
                     elif len(cval) < 8:  # "0;33;44"
-                        color = u"{0};{1}".format(cval, color)
+                        color = u"%s;%s" % (cval, color,)
 
                 if color:
-                    color = u"\033[{0}m".format(color.rstrip(u";"))
+                    color = u"\033[%sm" % (color.rstrip(u";"),)
 
             vtxt = Util.strip_ansi(was[:ofs])
-            coord = u"{0};{1}".format(coord, len(vtxt) + 1)
+            coord = u"%s;%d" % (coord, len(vtxt) + 1,)
             line = color + line[ofs:]
 
-        return print_fmt.format(coord, line)
+        return print_fmt % (coord, line,)
 
-    def msg2ansi(self, msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w):
-        ts = datetime.utcfromtimestamp(msg.ts).strftime(ts_fmt)
+    def msg2ansi(self, msg, msg_fmt, nfmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w):
+        ts = ts_fmt % { "h": msg.dt.hour, "m": msg.dt.minute, "s": msg.dt.second }
 
         txt = []
         for ln in [x.rstrip() for x in msg.txt.split(u"\n")]:
@@ -1269,10 +1273,15 @@ class VT100_Client(object):
                         except:
                             crc = zlib.crc32(msg.user.encode("utf-8")) & 0xFFFFFFFF
                             c1 = Util.BRI_256[crc % len(Util.BRI_256)]
-                            c1 = u"\033[1;48;5;16;38;5;{0}m".format(c1)
+                            c1 = u"\033[1;48;5;16;38;5;%dm" % (c1,)
                             self.world.cntab[msg.user] = c1
 
-                txt[n] = msg_fmt.format(ts, c1, msg.user[:nick_w], c2, line)
+                if nfmt == 1:
+                    txt[n] = msg_fmt % (line,)
+                elif nfmt == 4:
+                    txt[n] = msg_fmt % (c1, msg.user[:nick_w], c2, line,)
+                else:
+                    txt[n] = msg_fmt % (ts, c1, msg.user[:nick_w], c2, line,)
             else:
                 txt[n] = msg_nl + line
 
@@ -1299,37 +1308,43 @@ class VT100_Client(object):
             msg_w = self.w
             msg_nl = u""
             ts_fmt = ""
-            msg_fmt = u"{4}"
+            msg_fmt = u"%s"
+            nfmt = 1  # line
         elif self.w >= 140:
             nick_w = nick_w or 18
             msg_w = self.w - (nick_w + 11)
             msg_nl = u" " * (nick_w + 11)
-            ts_fmt = "%H:%M:%S"
-            msg_fmt = u"{{0}}  {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
+            ts_fmt = "%(h)02d:%(m)02d:%(s)02d"
+            msg_fmt = u"%%s  %%s%%%ds%%s %%s" % (nick_w,)
+            nfmt = 5  # ts,c1,nick,c2,line
         elif self.w >= 100:
             nick_w = nick_w or 14
             msg_w = self.w - (nick_w + 11)
             msg_nl = u" " * (nick_w + 11)
-            ts_fmt = "%H:%M:%S"
-            msg_fmt = u"{{0}}  {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
+            ts_fmt = "%(h)02d:%(m)02d:%(s)02d"
+            msg_fmt = u"%%s  %%s%%%ds%%s %%s" % (nick_w,)
+            nfmt = 5  # ts,c1,nick,c2,line
         elif self.w >= 80:
             nick_w = nick_w or 12
             msg_w = self.w - (nick_w + 8)
             msg_nl = u" " * (nick_w + 8)
-            ts_fmt = "%H%M%S"
-            msg_fmt = u"{{0}} {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
+            ts_fmt = "%(h)02d%(m)02d%(s)02d"
+            msg_fmt = u"%%s %%s%%%ds%%s %%s" % (nick_w,)
+            nfmt = 5  # ts,c1,nick,c2,line
         elif self.w >= 60:
             nick_w = nick_w or 8
             msg_w = self.w - (nick_w + 7)
             msg_nl = u" " * (nick_w + 7)
-            ts_fmt = "%H:%M"
-            msg_fmt = u"{{0}} {{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
+            ts_fmt = "%(h)02d:%(m)02d"
+            msg_fmt = u"%%s %%s%%%ds%%s %%s" % (nick_w,)
+            nfmt = 5  # ts,c1,nick,c2,line
         else:
             nick_w = nick_w or 8
             msg_w = self.w - (nick_w + 1)
             msg_nl = u" " * (nick_w + 1)
-            ts_fmt = "%H%M"
-            msg_fmt = u"{{1}}{{2:>{0}}}{{3}} {{4}}".format(nick_w)
+            ts_fmt = ""
+            msg_fmt = u"%%s%%%ds%%s %%s" % (nick_w,)
+            nfmt = 4  # c1,nick,c2,line
 
         if self.align:
             msg_w2 = msg_w
@@ -1412,7 +1427,7 @@ class VT100_Client(object):
                 ch.vis = []
                 for n, msg in enumerate(nch.msgs[imsg : imsg + self.h - 3]):
                     txt = self.msg2ansi(
-                        msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
+                        msg, msg_fmt, nfmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
                     )
 
                     if top_msg is not None and len(top_msg.txt) == len(txt):
@@ -1465,7 +1480,7 @@ class VT100_Client(object):
                 for n, msg in enumerate(reversed(nch.msgs)):
                     imsg = (len(nch.msgs) - 1) - n
                     txt = self.msg2ansi(
-                        msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
+                        msg, msg_fmt, nfmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
                     )
 
                     n_vis = len(txt)
@@ -1498,7 +1513,7 @@ class VT100_Client(object):
                     # print('sending {0} of {1}'.format(ln, len(lines)))
                     # if isinstance(lines, list):
                     # 	print('lines is list')
-                    ret += u"\r{0}{1}\r\n".format(ln, u" " * ((self.w - len(ln)) - 2))
+                    ret += u"\r%s%s\r\n" % (ln, u" " * ((self.w - len(ln)) - 2),)
                 return ret
 
             while len(lines) < self.h - 3:
@@ -1506,7 +1521,7 @@ class VT100_Client(object):
 
             for n in range(self.h - 3):
                 self.screen[n + 1] = lines[n]
-                ret += u"\033[{0}H\033[K{1}".format(n + 2, self.screen[n + 1])
+                ret += u"\033[%dH\033[K%s" % (n + 2, self.screen[n + 1],)
 
         else:
             # full_redraw = False,
@@ -1548,7 +1563,7 @@ class VT100_Client(object):
 
             # set scroll region:  chat pane
             if self.vt100:
-                ret += u"\033[2;{0}r".format(self.h - 2)
+                ret += u"\033[2;%dr" % (self.h - 2,)
 
             # first / last visible message might have lines off-screen;
             # check those first
@@ -1673,7 +1688,7 @@ class VT100_Client(object):
 
                     msg = nch.msgs[imsg]
                     txt = self.msg2ansi(
-                        msg, msg_fmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
+                        msg, msg_fmt, nfmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w
                     )
 
                     vmsg = Chat.VisMessage().c_new(msg, txt, imsg, 0, len(txt), ch)
@@ -1692,12 +1707,12 @@ class VT100_Client(object):
                     # print(u'@@@ vis{0:2} stp{1:2} += {2}'.format(n_vis, n_steps, ln))
 
                     if not self.vt100:
-                        ret += u"\r{0}{1}\r\n".format(
+                        ret += u"\r%s%s\r\n" % (
                             ln, u" " * ((self.w - len(ln)) - 2)
                         )
 
                     elif lines_in_use < self.h - 3:
-                        ret += u"\033[{0}H\033[K{1}".format(lines_in_use + 2, ln)
+                        ret += u"\033[%dH\033[K%s" % (lines_in_use + 2, ln,)
                         lines_in_use += 1
 
                     elif t_steps > 0:
@@ -1709,7 +1724,7 @@ class VT100_Client(object):
                         # ret += u"\033[{0}H\033D\033[K{1}".format(self.h - 2, ln)
 
                         # ok
-                        ret += u"\033[{0}H\n\n\033[K{1}".format(self.h - 3, ln)
+                        ret += u"\033[%dH\n\n\033[K%s" % (self.h - 3, ln,)
 
                     else:
                         # official way according to docs,
@@ -1717,7 +1732,7 @@ class VT100_Client(object):
                         # ret += u'\033[2H\033[T\033[K{0}'.format(ln)
 
                         # also works
-                        ret += u"\033[2H\033M\033[K{0}".format(ln)
+                        ret += u"\033[2H\033M\033[K%s" % (ln,)
 
                     n_vis += 1
                     n_steps += 1
@@ -1846,7 +1861,7 @@ class VT100_Client(object):
                         vmsg.apply_markup()
                         v = vmsg.txt[0]
                         if v and not v.startswith(u" "):
-                            ret += u"\033[{0}H{1} ".format(y_pos, v[: v.find(" ")])
+                            ret += u"\033[%dH%s " % (y_pos, v[: v.find(" ")],)
 
                     y_pos += vmsg.cdr - vmsg.car
 
@@ -1994,7 +2009,7 @@ class VT100_Client(object):
 
             return
 
-        sep = u"{0}{1}{0}\033[2A".format(u"\n", u"/" * 71)
+        sep = u"\n%s\n\033[2A" % (u"/" * 71,)
         ftop = u"\n" * 20 + u"\033[H\033[J"
         top = ftop + u" [ r0c configurator ]\n"
 

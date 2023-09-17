@@ -455,7 +455,9 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                 if self.stopping:
                     break
 
-                date = datetime.utcfromtimestamp(ts).strftime("%Y-%m-%d")
+                zd = datetime.utcfromtimestamp(ts)
+                date = "%04d-%02d-%02d" % (zd.year, zd.month, zd.day)
+
                 if date != last_date:
                     if last_date:
                         world.broadcast_message(

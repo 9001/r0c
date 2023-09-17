@@ -28,6 +28,7 @@ class World(object):
         self.core = core
         self.ar = core.ar
         self.users = []  # User instances
+        self.lusers = {}  # lowercase hashmap
         self.pub_ch = []  # NChannel instances (public)
         self.priv_ch = []  # NChannel instances (private)
         self.dirty_ch = {}  # Channels that have pending tx
@@ -60,14 +61,12 @@ class World(object):
     def add_user(self, user):
         with self.mutex:
             self.users.append(user)
+            if user.lnick:
+                self.lusers[user.lnick] = user
 
     def find_user(self, nick):
         with self.mutex:
-            nick = nick.lower()
-            for usr in self.users:
-                if usr.nick and usr.nick.lower() == nick:
-                    return usr
-            return None
+            return self.lusers.get(nick.lower(), None)
 
     def refresh_chans(self):
         while not self.core.shutdown_flag.is_set():
@@ -204,12 +203,11 @@ class World(object):
                 if nchan.log_ctr >= self.messages_per_log_file:
                     self.start_logging(nchan)
 
-                nchan.log_ctr += 1
-                nchan.log_fh.write(
-                    u"{0} {1} {2}\n".format(
-                        hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
-                    ).encode("utf-8")
+                ltxt = u"%s %s %s\n" % (
+                    hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
                 )
+                nchan.log_fh.write(ltxt.encode("utf-8"))
+                nchan.log_ctr += 1
 
     def join_chan_obj(self, user, nchan, alias=None):
         # type: (User.User, Chat.NChannel, str) -> Chat.UChannel
@@ -529,12 +527,11 @@ class World(object):
         if chat_backlog:
             # print('appending backlog ({0} messages)'.format(len(chat_backlog)))
             for msg in chat_backlog:
-                nchan.log_ctr += 1
-                nchan.log_fh.write(
-                    u"{0} {1} {2}\n".format(
-                        hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
-                    ).encode("utf-8")
+                ltxt = u"%s %s %s\n" % (
+                    hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
                 )
+                nchan.log_fh.write(ltxt.encode("utf-8"))
+                nchan.log_ctr += 1
 
             # potential chance that a render goes through
             # before the async job processor kicks in

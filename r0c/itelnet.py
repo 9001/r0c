@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2
+from .__init__ import EP, PY2, unicode
 from . import util as Util
 from . import ivt100 as Ivt100
 
@@ -145,7 +145,7 @@ class TelnetClient(Ivt100.VT100_Client):
         #     self.y_input, self.y_status = self.y_status, self.y_input
 
         self.neg_done = []
-        self.replies.put(initial_neg)
+        self.replies.append(initial_neg)
 
     def handle_read(self):
         with self.world.mutex:
@@ -166,7 +166,7 @@ class TelnetClient(Ivt100.VT100_Client):
 
             if self.wire_log and self.ar.log_rx:
                 self.wire_log.write(
-                    u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
+                    unicode(int(time.time() * 1000)).encode("utf-8") + b"\n"
                 )
                 Util.hexdump(data, ">", self.wire_log)
 
@@ -187,7 +187,7 @@ class TelnetClient(Ivt100.VT100_Client):
                         decode_until = ofs
 
                 try:
-                    src = u"{0}".format(self.in_bytes[:decode_until].decode(self.codec))
+                    src = unicode(self.in_bytes[:decode_until].decode(self.codec))
                     # print('got {0} no prob'.format(src))
                     # print('got {0} runes: {1}'.format(len(src),
                     # 	b2hex(src.encode('utf-8'))))
@@ -214,7 +214,7 @@ class TelnetClient(Ivt100.VT100_Client):
                                 "XXX ",
                             )
 
-                        src = u"{0}".format(
+                        src = unicode(
                             self.in_bytes[: uee.start].decode(self.codec)
                         )
                         self.in_bytes = self.in_bytes[uee.start :]
@@ -234,7 +234,7 @@ class TelnetClient(Ivt100.VT100_Client):
 
                         Util.hexdump(self.in_bytes, "XXX ")
                         try:
-                            src = u"{0}".format(
+                            src = unicode(
                                 self.in_bytes[:decode_until].decode(
                                     self.codec, "backslashreplace"
                                 )
@@ -299,7 +299,7 @@ class TelnetClient(Ivt100.VT100_Client):
                                         verbs.get(response[0]),
                                     )
                                 )
-                            self.replies.put(b"".join([b"\xff", response, cmd[2:3]]))
+                            self.replies.append(b"".join([b"\xff", response, cmd[2:3]]))
                             self.neg_done.append(cmd)
 
                     elif cmd[1] == b"\xfa"[0] and len(self.in_bytes) >= 3:

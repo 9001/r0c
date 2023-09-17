@@ -265,7 +265,7 @@ def unpack():
     final = opj(top, name)
     san = opj(final, "site-packages/r0c/ivt100.py")
     for suf in range(0, 9001):
-        withpid = "{0}.{1}.{2}".format(name, os.getpid(), suf)
+        withpid = "%s.%s.%s" % (name, os.getpid(), suf)
         mine = opj(top, withpid)
         if not ofe(mine):
             break
@@ -288,8 +288,8 @@ def unpack():
 
     ck = hashfile(tar)
     if ck != CKSUM:
-        t = "\n\nexpected {0} ({1} byte)\nobtained {2} ({3} byte)\nsfx corrupt"
-        raise Exception(t.format(CKSUM, SIZE, ck, sz))
+        t = "\n\nexpected %s (%s byte)\nobtained %s (%s byte)\nsfx corrupt"
+        raise Exception(t % (CKSUM, SIZE, ck, sz))
 
     tm = "r:bz2"
     if IRONPY:

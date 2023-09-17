@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, WINDOWS, COLORS, INTERP
+from .__init__ import EP, PY2, WINDOWS, COLORS, INTERP, unicode
 
 import traceback
 import threading
@@ -189,7 +189,7 @@ def trunc(txt, maxlen):
                 pend = None
             else:
                 if ch == u"\033":
-                    pend = u"{0}".format(ch)
+                    pend = unicode(ch)
                 else:
                     ret += ch
                     clen += 1
@@ -264,7 +264,7 @@ def visual_length(txt):
                 pend = None
             else:
                 if ch == u"\033":
-                    pend = u"{0}".format(ch)
+                    pend = unicode(ch)
                 else:
                     co = ord(ch)
                     # the safe parts of latin1 and cp437 (no greek stuff)
@@ -417,13 +417,13 @@ def convert_color_codes(txt, preview=False):
                 preview_k = u"K"
 
         if fg and bg:
-            txt = u"{0}{1}{2}m{3}{4}".format(
+            txt = u"%s%s%sm%s%s" % (
                 txt[:ofs], fg, bg, preview_k, txt[resume_txt:]
             )
         elif fg:
-            txt = u"{0}{1}m{2}{3}".format(txt[:ofs], fg, preview_k, txt[resume_txt:])
+            txt = u"%s%sm%s%s" % (txt[:ofs], fg, preview_k, txt[resume_txt:],)
         else:
-            txt = u"{0}K{1}".format(txt[:ofs], txt[resume_txt:])
+            txt = u"%sK%s" % (txt[:ofs], txt[resume_txt:],)
 
     scan_from = 0
     while txt:
@@ -432,8 +432,8 @@ def convert_color_codes(txt, preview=False):
             break
 
         scan_from = ofs + 1
-        txt = u"{0}\033[1m{2}{1}".format(
-            txt[:ofs], txt[scan_from:], u"B" if preview else u""
+        txt = u"%s\033[1m%s%s" % (
+            txt[:ofs], u"B" if preview else u"", txt[scan_from:],
         )
 
     scan_from = 0
@@ -443,47 +443,11 @@ def convert_color_codes(txt, preview=False):
             break
 
         scan_from = ofs + 1
-        txt = u"{0}\033[0m{2}{1}".format(
-            txt[:ofs], txt[scan_from:], u"O" if preview else u""
+        txt = u"%s\033[0m%s%s" % (
+            txt[:ofs], u"O" if preview else u"", txt[scan_from:],
         )
 
     return txt
-
-
-# B35_CHARS = tuple(u'0123456789abcdefghijkmnopqrstuvwxyz')
-B35_CHARS = tuple(u"abcdefghijkmnopqrstuvwxyz")
-B35_ATLAS = dict((c, i) for i, c in enumerate(B35_CHARS))
-B35_BASE = len(B35_CHARS)
-
-
-def b35enc(number):
-    if not number:
-        return B35_CHARS[0]
-
-    prefix = u""
-    if number < 0:
-        prefix = u"-"
-        number = abs(number)
-
-    ret = u""
-    while number:
-        number, rem = divmod(number, B35_BASE)
-        ret = B35_CHARS[rem] + ret
-
-    return prefix + ret
-
-
-def b35dec(b35str):
-    factor = 1
-    if b35str.startswith(u"-"):
-        b35str = b35str[1:]
-        factor = -1
-
-    ret = 0
-    for c in b35str:
-        ret = ret * B35_BASE + B35_ATLAS[c]
-
-    return factor * ret
 
 
 """

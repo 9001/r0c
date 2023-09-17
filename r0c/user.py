@@ -1,13 +1,14 @@
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION, S_BUILD_DT
-from .__init__ import EP, PY2, TYPE_CHECKING
+from .__init__ import EP, PY2, TYPE_CHECKING, unicode
 from . import util as Util
 from . import chat as Chat
 from . import diag as Diag
 
 import re
 import time
+import base64
 import hashlib
 import threading
 from datetime import datetime
@@ -74,6 +75,7 @@ class User(object):
         self.new_active_chan = None  # set for channel change
         self.old_active_chan = None  # last focused channel
         self.nick = None  # type: str
+        self.lnick = None  # type: str
         self.nick_re = None  # regex object for ping assert
         self.nick_len = None  # visible segment for self
 
@@ -100,16 +102,13 @@ class User(object):
                     yield ch1 + ch2
 
     def set_rand_nick(self):
-        plain_base = self.ar.nsalt + u"{0}".format(self.client.adr[0])
+        plain_base = self.ar.nsalt + unicode(self.client.adr[0])
         for suffix in self.pattern_gen():
             plain = plain_base + suffix
-            nv = hashlib.sha256(plain.encode("utf-8")).digest()
-            if PY2:
-                nv = int(nv.encode("hex"), 16)
-            else:
-                nv = int.from_bytes(nv, "big")
-
-            nv = Util.b35enc(nv)[:6]
+            zb = hashlib.sha512(plain.encode("utf-8")).digest()
+            zb = base64.b32encode(zb[:20]).lower()
+            zs = re.sub("[^a-km-z]", "", zb.decode("utf-8"))
+            nv = zs[:6]
 
             if not self.world.find_user(nv):
                 self.set_nick(nv)
@@ -649,7 +648,7 @@ class User(object):
 """.format(
                         nch.get_name(),
                         len(nch.msgs),
-                        datetime.utcfromtimestamp(nch.msgs[0].ts).strftime(
+                        nch.msgs[0].dt.strftime(
                             "%Y-%m-%d, %H:%M"
                         ),
                     ),
@@ -963,6 +962,9 @@ class User(object):
             )
 
     def set_nick(self, new_nick):
+        if self.lnick in self.world.lusers:
+            del self.world.lusers[self.lnick]
+
         nick_re = u""
         # re.IGNORECASE doesn't work
         # this is dumb
@@ -971,13 +973,17 @@ class User(object):
                 nick_re += ch
             else:
                 nick_re += u"[{0}{1}]".format(ch.lower(), ch.upper())
+                # surprisingly equally fast or faster than haystack.lower()
 
         self.nick = new_nick
+        self.lnick = new_nick.lower()
         self.nick_re = re.compile("(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)".format(nick_re))
 
         self.nick_len = len(new_nick)
         if self.nick_len > self.client.w * 0.25:
             self.nick_len = int(self.client.w * 0.25)
+
+        self.world.lusers[self.lnick] = self
 
         if self.active_chan:
             self.client.save_config()

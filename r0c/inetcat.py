@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP
+from .__init__ import EP, unicode
 from . import util as Util
 from . import ivt100 as Ivt100
 
@@ -31,7 +31,7 @@ class NetcatClient(Ivt100.VT100_Client):
         }
         # trick telnet into revealing itself:
         # request client status and location
-        self.replies.put(b"\xff\xfd\x05\xff\xfd\x17")
+        self.replies.append(b"\xff\xfd\x05\xff\xfd\x17")
 
     def handle_read(self):
         with self.world.mutex:
@@ -53,7 +53,7 @@ class NetcatClient(Ivt100.VT100_Client):
 
             if self.wire_log and self.ar.log_rx:
                 self.wire_log.write(
-                    u"{0:.0f}\n".format(time.time() * 1000).encode("utf-8")
+                    unicode(int(time.time() * 1000)).encode("utf-8") + b"\n"
                 )
                 Util.hexdump(data, ">", self.wire_log)
 
@@ -69,7 +69,7 @@ class NetcatClient(Ivt100.VT100_Client):
                         self.num_telnet_negotiations += 1
                     ofs = ofs + 1
             try:
-                src = u"{0}".format(self.in_bytes.decode(self.codec))
+                src = unicode(self.in_bytes.decode(self.codec))
                 self.in_bytes = self.in_bytes[0:0]
 
             except UnicodeDecodeError as uee:

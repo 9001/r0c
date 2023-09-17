@@ -29,7 +29,7 @@ __copyright__ = 2018
 #
 
 NUM_CLIENTS = 1
-NUM_CLIENTS = 512
+NUM_CLIENTS = 320
 NUM_PER_MPW = 32
 
 # CHANNELS = ['#1']
@@ -37,7 +37,7 @@ CHANNELS = ["#1", "#2", "#3", "#4"]
 
 EVENT_DELAY = 0.01
 EVENT_DELAY = 0.005
-EVENT_DELAY = 5
+EVENT_DELAY = 1
 # EVENT_DELAY = None
 
 ITERATIONS = 1000000
@@ -756,4 +756,11 @@ if __name__ == "__main__":
     core = Core()
     core.run()
 
+
 # cat log | grep -E ' adding msg ' | awk '{printf "%.3f\n", $1-v; v=$1}' | sed -r 's/\.//;s/^0*//;s/^$/0/' | awk 'BEGIN {sum=0} $1<10000 {sum=sum+$1} NR%10==0 {v=sum/32; sum=0; printf "%" v "s\n", "" }' | tr ' ' '#'
+
+
+# (1x) rm -rf log/chan/{1,2,3,4,a} log/pm/ && timeout 110 python3 -u -m r0c --bench | tee bench
+# (3x) cd ~/dev/r0c/test/ && ./run-stress.sh 2323
+# grep -E '^[0-9]{6} [0-9]{9}' bench
+# ps auxwww | awk '/python3[ ]stress.py[ ]2323/{print$2}' | xargs kill

@@ -201,7 +201,7 @@ class VisMessage(object):
         if postfix and not self.unformatted.startswith(u" "):
             # print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
             ofs = self.unformatted.find(u" ")
-            self.txt[0] = u"{0}{1}{2}{3}".format(
+            self.txt[0] = u"%s%s%s%s" % (
                 prefix, self.unformatted[:ofs], postfix, self.unformatted[ofs + 1 :]
             )
         else:
@@ -211,7 +211,8 @@ class VisMessage(object):
 class Message(object):
     def __init__(self, to, ts, user, txt):
         # type: (NChannel, int, str, str) -> Message
-        self.ts = ts  # int timestamp
+        self.ts = ts  # int timestamp; 1M msgs = 38MiB
+        self.dt = datetime.utcfromtimestamp(ts)  # 1M msgs = 53MiB
         self.user = user  # str username
         self.txt = txt  # str text
 
@@ -222,13 +223,13 @@ class Message(object):
             self.sno = 0
 
     def __unicode__(self):
-        hhmmss = datetime.utcfromtimestamp(self.ts).strftime("%Y-%m%d-%H%M%S")
+        hhmmss = self.dt.strftime("%Y-%m%d-%H%M%S")
         return u"Message {0:x} time({1},{2}) from({3}) body({4})".format(
             id(self), self.ts, hhmmss, self.user, self.txt
         )
 
     def __str__(self):
-        hhmmss = datetime.utcfromtimestamp(self.ts).strftime("%Y-%m%d-%H%M%S")
+        hhmmss = self.dt.strftime("%Y-%m%d-%H%M%S")
         return "Message {0:x} time({1},{2}) from({3}) body({4})".format(
             id(self), self.ts, hhmmss, self.user, self.txt
         )
