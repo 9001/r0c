@@ -36,6 +36,7 @@ class World(object):
         self.task_queue = Queue()  # Delayed processing of expensive tasks
         self.mutex = threading.RLock()
         self.dirty_flag = threading.Event()  # raise after setting dirty_ch
+        self.last_dirty = 0  # scheduler hint
         Util.py26_threading_event_wait(self.dirty_flag)
 
         # config
@@ -74,13 +75,13 @@ class World(object):
             time.sleep(0.05)
 
             self.dirty_flag.wait()
-            self.dirty_flag.clear()
-
             with self.mutex:
+                self.dirty_flag.clear()
                 if not self.dirty_ch:
                     # raised with no pending work; maybe shutdown signal
                     continue
 
+                self.last_dirty = time.time()
                 dirty_ch = list(self.dirty_ch)
                 self.dirty_ch = {}
 

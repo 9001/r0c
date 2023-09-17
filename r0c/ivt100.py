@@ -355,6 +355,7 @@ class VT100_Client(object):
         self.iface_confirmed = False
         self.handshake_sz = False
         self.handshake_world = False
+        self.last_2smol = 0
         self.last_beep = 0
         self.show_hilight_tutorial = True
         self.need_full_redraw = False
@@ -2885,7 +2886,10 @@ class VT100_Client(object):
             x = int((self.w - len(msg)) / 2)
             x += 1
             y += 1
-            print("2smol @ {0} {1}".format(x, y))
+            now = time.time()
+            if now - self.last_2smol > 1:
+                print("2smol @ {0} {1}".format(x, y))
+                self.last_2smol = now
             msg = u"\033[H\033[1;37;41m\033[J\033[{0};{1}H{2}\033[0m".format(y, x, msg)
             self.say(msg.encode(self.codec, "backslashreplace"))
             self.too_small = True

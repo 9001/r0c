@@ -10,6 +10,7 @@ import sys
 import os
 import platform
 import itertools
+from datetime import datetime
 
 
 print_mutex = threading.Lock()
@@ -43,7 +44,11 @@ def print(*args, **kwargs):
         pass
 
     with print_mutex:
-        t = time.strftime("%H%M%S ")
+        zd = datetime.utcnow()
+        t = "%06d " % (
+            (zd.hour * 100 + zd.minute) * 100 + zd.second,
+            # zd.microsecond // 1000
+        )
         builtins.print(
             t + str(args[0] if args else u"").replace(u"\n", u"\n" + t),
             *args[1:],

@@ -350,6 +350,8 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         sc = {}
         slow = {}  # sck:cli
         fast = {}
+        nfast = 0
+        dirty_ref = 0
         next_slow = 0
         timeout = None
         while not self.shutdown_flag.is_set():
@@ -368,7 +370,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
 
                         sc[c.socket] = c
 
-                timeout = 0.2 if slow else 0.34 if fast else 69
+                timeout = 0.2 if slow else 1 if fast else 69
 
             want_tx = [s for s, c in fast.items() if c.writable()]
             want_rx = [s for s, c in sc.items() if c.readable()]
@@ -386,8 +388,17 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                     s for s, c in slow.items() if c.writable() and not c.slowmo_skips
                 ]
 
+            if dirty_ref != self.world.last_dirty or self.world.dirty_flag.is_set():
+                dirty_ref = self.world.last_dirty
+                nfast = 0
+            else:
+                nfast += 1
+
+            ct = 0.09 if nfast < 2 else timeout
+
             try:
-                rxs, txs, _ = select.select(want_rx, want_tx, [], timeout)
+                # print("sel", len(want_rx), len(want_tx), ct)
+                rxs, txs, _ = select.select(want_rx, want_tx, [], ct)
                 if self.stopping:
                     break
 
