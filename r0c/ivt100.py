@@ -1860,8 +1860,15 @@ class VT100_Client(object):
                         vmsg.unread = False
                         vmsg.apply_markup()
                         v = vmsg.txt[0]
-                        if v and not v.startswith(u" "):
-                            ret += u"\033[%dH%s " % (y_pos, v[: v.find(" ")],)
+                        if not v:
+                            continue
+                        elif self.view:
+                            if u"\033" not in v:
+                                ret += u"\033[%dH\033[1m%s\033[0;36m%s\033[0m " % (y_pos, v[:1], v[1:],)
+                            else:
+                                ret += u"\033[%dH%s " % (y_pos, v,)
+                        elif not v.startswith(u" "):
+                            ret += u"\033[%dH%s " % (y_pos, v[: v.find(u" ")],)
 
                     y_pos += vmsg.cdr - vmsg.car
 

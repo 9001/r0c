@@ -142,7 +142,7 @@ class VisMessage(object):
         self.im = im  # offset into the channel's message list
         self.car = car  # first visible line
         self.cdr = cdr  # last visible line PLUS ONE
-        self.vt100 = ch.user.client.vt100
+        self.cli = ch.user.client
 
         if not msg or not msg.user:
             Util.whoops("msg bad")
@@ -165,7 +165,7 @@ class VisMessage(object):
         self.im = other.im
         self.car = new_car
         self.cdr = new_cdr
-        self.vt100 = ch.user.client.vt100
+        self.cli = ch.user.client
 
         self.hilight = other.hilight
         self.unread = other.unread
@@ -180,7 +180,7 @@ class VisMessage(object):
         return [self.unformatted] + self.txt[1:]
 
     def apply_markup(self):
-        if self.vt100:
+        if self.cli.vt100:
             postfix = u"\033[0m "
             if self.hilight and self.unread:
                 prefix = u"\033[1;35;7m"
@@ -198,7 +198,16 @@ class VisMessage(object):
             else:
                 postfix = None
 
-        if postfix and not self.unformatted.startswith(u" "):
+        if self.cli.view:
+            if prefix:
+                self.txt[0] = u"%s%s%s" % (prefix, self.unformatted, postfix)
+            elif self.cli.vt100 and u"\033" not in self.txt[0]:
+                self.txt[0] = u"\033[0;1m%s\033[0;36m%s\033[0m" % (self.unformatted[:1], self.unformatted[1:],)
+            else:
+                self.txt[0] = u"%s\033[0m" % (self.unformatted,)
+        elif postfix is None:
+            self.txt[0] = self.unformatted
+        elif not self.unformatted.startswith(u" "):
             # print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
             ofs = self.unformatted.find(u" ")
             self.txt[0] = u"%s%s%s%s" % (
