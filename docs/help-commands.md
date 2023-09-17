@@ -35,7 +35,8 @@
 
 **`/sy`** and **`/sn`** turns on/off slowmo (avoids bug in telnet.exe on windows)
 
-**`/by`** and **`/bn`** turns on/off audible alerts when someone mentions your name
+**`/b1`** and **`/b0`** turns on/off audible alerts when someone mentions your name;  
+**`/b2`** makes it also trigger in active channels, and **`/b3`** beeps on any activity at all
 
 **`/cy`** and **`/cn`** turns on/off colored nicknames
 

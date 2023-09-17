@@ -97,8 +97,10 @@ class UChannel(object):
             # when chan is active and bottom messages are visible
             self.display_notification = False
 
-        if hilights and hilights != self.hilights:
+        if hilights:
             self.user.client.notify_new_hilight(self)
+        elif activity:
+            self.user.client.beep(3)
 
         if self.hilights != hilights or self.activity != activity:
             self.hilights = hilights

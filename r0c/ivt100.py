@@ -287,7 +287,7 @@ class VT100_Client(object):
         self.vt100 = True
         self.cnicks = False
         self.align = True
-        self.bell = True
+        self.bell = 1
         self.crlf = u"\n"
         self.bps = 0
         self.codec = "utf-8"
@@ -355,6 +355,7 @@ class VT100_Client(object):
         self.iface_confirmed = False
         self.handshake_sz = False
         self.handshake_world = False
+        self.last_beep = 0
         self.show_hilight_tutorial = True
         self.need_full_redraw = False
         self.too_small = False
@@ -453,7 +454,7 @@ class VT100_Client(object):
         self.vt100 = True  # set nope by butty clients
         self.cnicks = False  # colored nicknames
         self.align = True  # fixed left margin
-        self.bell = True  # doot on hilights
+        self.bell = 1  # doot on hilights in other channels
         self.crlf = u"\n"  # return key
         self.bps = 0  # will autodetect
         self.set_codec("utf-8")
@@ -491,7 +492,7 @@ class VT100_Client(object):
                 self.set_codec(codec)
 
                 # user config
-                self.bell = 1 == int(bell)
+                self.bell = int(bell)
                 self.cnicks = 1 == int(cnicks)
                 self.align = 1 == int(align)
 
@@ -528,7 +529,7 @@ class VT100_Client(object):
                     binascii.hexlify(self.crlf.encode("utf-8")).decode("utf-8"),
                     self.codec,
                     # user config
-                    u"1" if self.bell else u"0",
+                    unicode(self.bell),
                     u"1" if self.cnicks else u"0",
                     u"1" if self.align else u"0",
                 ]
@@ -905,14 +906,26 @@ class VT100_Client(object):
             if to_send:
                 self.say(to_send.encode(self.codec, "backslashreplace"))
 
+    def beep(self, min_lvl):
+        if self.bell < min_lvl:
+            return
+
+        now = time.time()
+        if now - self.last_beep < 1:
+            return
+        
+        self.last_beep = now
+        self.say(b"\x07")
+
     def notify_new_hilight(self, uchan):
+        self.beep(2)
         if uchan == self.user.active_chan:
             return
 
         # print('ping in {0} while in {1}'.format(uchan.nchan.get_name(), self.user.active_chan.nchan.get_name()))
 
-        if self.bell and len(uchan.nchan.uchans) > 1:
-            self.say(b"\x07")
+        if len(uchan.nchan.uchans) > 1:
+            self.beep(1)
 
         if self.show_hilight_tutorial:
             self.show_hilight_tutorial = False
@@ -935,7 +948,7 @@ class VT100_Client(object):
   press CTRL-E or use the command /a
 
   to disable audible alerts,
-  use the command /bn
+  use the command /b0
 """.format(
                     cause
                 ),
@@ -2756,6 +2769,7 @@ class VT100_Client(object):
                             )
                             self.linepos -= 1
                     elif act == "ret":
+                        self.last_beep = time.time() - 0.9
                         if self.echo_on:
                             self.need_full_redraw = True
                         if self.linebuf:

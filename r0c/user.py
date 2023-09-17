@@ -793,19 +793,21 @@ class User(object):
                 )
             return
 
-        elif cmd == u"by":
-            self.client.bell = True
-            self.world.send_chan_msg(
-                u"--", inf, u"Audible alerts enabled. Disable with /bn", False
-            )
-            self.client.save_config()
+        elif cmd in (u"b?", u"b0", u"b1", u"b2", u"b3"):
+            zi = self.client.bell if cmd == u"b?" else int(cmd[1:])
+            if zi == 0:
+                t = u"disabled. Enable with /b1 or /b2"
+            elif zi == 1:
+                t = u"enabled for hilights in other channels. Disable with /b0"
+            elif zi == 2:
+                t = u"enabled for all hilights, even in active channel. Disable with /b0"
+            elif zi == 3:
+                t = u"enabled for every message, not just hilights. Disable with /b0"
 
-        elif cmd == u"bn":
-            self.client.bell = False
-            self.world.send_chan_msg(
-                u"--", inf, u"Audible alerts disabled. Enable with /by", False
-            )
-            self.client.save_config()
+            self.world.send_chan_msg(u"--", inf, u"Audible alerts %s" % (t,), False)
+            if self.client.bell != zi:
+                self.client.bell = zi
+                self.client.save_config()
 
         elif cmd == u"cy":
             self.client.cnicks = True
