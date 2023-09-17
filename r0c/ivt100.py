@@ -287,6 +287,7 @@ class VT100_Client(object):
         self.vt100 = True
         self.cnicks = False
         self.align = True
+        self.view = False
         self.bell = 1
         self.crlf = u"\n"
         self.bps = 0
@@ -427,6 +428,7 @@ class VT100_Client(object):
         # hotkeys
         self.add_esc(u"\x0c", "redraw")  # ^L (readline-compat)
         self.add_esc(u"\x12", "redraw")  # ^R
+        self.add_esc(u"\x0e", "view")  # ^N
         self.add_esc(u"\x01", "prev-chan")  # ^A
         self.add_esc(u"\x18", "next-chan")  # ^X
         self.add_esc(u"\x05", "alt-tab")  # ^E
@@ -1292,7 +1294,13 @@ class VT100_Client(object):
         if self.user.active_chan.alias == u"r0c-status":
             nick_w = 6
 
-        if self.w >= 140:
+        if self.view:
+            nick_w = 0
+            msg_w = self.w
+            msg_nl = u""
+            ts_fmt = ""
+            msg_fmt = u"{4}"
+        elif self.w >= 140:
             nick_w = nick_w or 18
             msg_w = self.w - (nick_w + 11)
             msg_nl = u" " * (nick_w + 11)
@@ -2818,6 +2826,8 @@ class VT100_Client(object):
 
                     elif act == "redraw":
                         self.user.exec_cmd("r")
+                    elif act == "view":
+                        self.user.exec_cmd("v")
                     elif act == "prev-chan":
                         chan_shift = -1
                     elif act == "next-chan":

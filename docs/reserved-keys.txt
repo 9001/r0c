@@ -21,7 +21,7 @@ G .                     bell
 H .                     backspace
 J newline               line feed
 K .                     vertical tab
-L .                     form feed
+L repaint               form feed
 
 Z background            substitute
 X .                     cancel

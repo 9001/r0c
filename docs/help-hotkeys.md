@@ -8,9 +8,11 @@
 
 **`CTRL-X`** switches to the next channel
 
-**`CTRL-E`** jumps to the oldest unread message in another channel, or alt-tabs between two channels otherwise
+**`CTRL-E`** is the `/a` command, jumps to the oldest unread message in another channel, or alt-tabs between two channels otherwise
 
 **`CTRL-L`** is the `/r` command, redraws the screen to fix corruption. Use this if things are glitchy after resizing the terminal
+
+**`CTRL-N`** is the `/v` command, toggle visibility of names in messages
 
 **`CTRL-K`** followed by a number `0-9` or letter `a-f` changes colour mid-message, see `/cmap`
 

@@ -31,7 +31,7 @@
 
 # control
 
-**`/r`** or **`/redraw`** redraws the screen to fix corruption, use this if things are glitchy after resizing the window
+**`/r`** or **`/redraw`** or `CTRL-L` redraws the screen to fix corruption, use this if things are glitchy after resizing the window
 
 **`/sy`** and **`/sn`** turns on/off slowmo (avoids bug in telnet.exe on windows)
 
@@ -41,6 +41,8 @@
 **`/cy`** and **`/cn`** turns on/off colored nicknames
 
 **`/my`** and **`/mn`** turns on/off wordwrap margins
+
+**`/v`** or **`/view`** or `CTRL-N` toggles visibility of names in messages
 
 **`/sw`** and **`/sh`** sets the terminal width/height in case the detection fails  
 `/sw 80`  
@@ -56,7 +58,7 @@
 
 # navigation
 
-**`/a`** jumps to the oldest unread message across all your channels
+**`/a`** or `CTRL-E` jumps to the oldest unread message across all your channels
 
 **`/3`** jumps to your 3rd window
 

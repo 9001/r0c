@@ -463,6 +463,11 @@ class User(object):
             self.client.need_full_redraw = True
             self.client.refresh(False)
 
+        elif cmd == u"view" or cmd == u"v":
+            self.client.view = not self.client.view
+            self.client.need_full_redraw = True
+            self.client.refresh(False)
+
         elif cmd == u"redraw" or cmd == u"r":
             if self.client.request_terminal_size("redraw"):
                 # returns true if event was scheduled for later
