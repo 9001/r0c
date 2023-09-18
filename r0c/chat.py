@@ -180,16 +180,19 @@ class VisMessage(object):
         return [self.unformatted] + self.txt[1:]
 
     def apply_markup(self):
+        ln = self.unformatted
         if self.cli.vt100:
-            postfix = u"\033[0m "
             if self.hilight and self.unread:
                 prefix = u"\033[1;35;7m"
+                postfix = u"\033[0m "
             elif self.hilight:
                 prefix = u"\033[1;35m"
+                postfix = u"\033[0m "
             elif self.unread:
                 prefix = u"\033[7m"
+                postfix = u"\033[0m "
             else:
-                prefix = u""
+                prefix = None
                 postfix = None
         else:
             prefix = u""
@@ -199,22 +202,18 @@ class VisMessage(object):
                 postfix = None
 
         if self.cli.view:
-            if prefix:
-                self.txt[0] = u"%s%s%s" % (prefix, self.unformatted, postfix)
-            elif self.cli.vt100 and u"\033" not in self.txt[0]:
-                self.txt[0] = u"\033[0;1m%s\033[0;36m%s\033[0m" % (self.unformatted[:1], self.unformatted[1:],)
+            if postfix:
+                self.txt[0] = u"%s%s%s" % (prefix, ln, postfix)
+            elif self.cli.vt100 and u"\033" not in ln:
+                ofs = 1 + len(ln) - len(ln.lstrip())
+                self.txt[0] = u"\033[0;1m%s\033[0;36m%s\033[0m" % (ln[:ofs], ln[ofs:])
             else:
-                self.txt[0] = u"%s\033[0m" % (self.unformatted,)
-        elif postfix is None:
-            self.txt[0] = self.unformatted
-        elif not self.unformatted.startswith(u" "):
-            # print('applying prefix {0}'.format(b2hex(prefix.encode('utf-8'))))
-            ofs = self.unformatted.find(u" ")
-            self.txt[0] = u"%s%s%s%s" % (
-                prefix, self.unformatted[:ofs], postfix, self.unformatted[ofs + 1 :]
-            )
+                self.txt[0] = ln
+        elif postfix and not ln.startswith(u" "):
+            ofs = ln.find(u" ")
+            self.txt[0] = u"%s%s%s%s" % (prefix, ln[:ofs], postfix, ln[ofs + 1 :])
         else:
-            self.txt[0] = self.unformatted
+            self.txt[0] = ln
 
 
 class Message(object):
