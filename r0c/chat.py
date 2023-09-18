@@ -74,14 +74,14 @@ class UChannel(object):
         self.vis = []  # type: list[VisMessage]  # visible messages
 
     def update_activity_flags(self, set_last_read=False, last_nchan_msg=0):
+        if not last_nchan_msg and self.nchan.msgs:
+            last_nchan_msg = self.nchan.msgs[-1].sno
+
         if set_last_read:
             if self.vis:
                 self.last_read = max(self.last_read, self.vis[-1].msg.sno)
             else:
-                self.last_read = 0
-
-        if not last_nchan_msg and self.nchan.msgs:
-            last_nchan_msg = self.nchan.msgs[-1].sno
+                self.last_read = last_nchan_msg
 
         hilights = self.last_read < self.last_ping
         activity = self.last_read < last_nchan_msg

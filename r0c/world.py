@@ -233,7 +233,9 @@ class World(object):
                 u"\033[1;32m{0}\033[22m has joined".format(user.nick),
                 False,
             )
-            uchan.last_read = nchan.msgs[-1].sno
+            if not alias:
+                uchan.last_read = -1
+
             return uchan
 
     def get_pub_chan(self, name):

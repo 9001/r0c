@@ -69,8 +69,18 @@ class VT100_Server(object):
         self.ep = (host, port)
         self.srv_sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.srv_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.srv_sck.bind(self.ep)
-        self.srv_sck.listen(1)
+        try:
+            self.srv_sck.bind(self.ep)
+            self.srv_sck.listen(1)
+        except:
+            print("\nERROR: failed to listen on", host, "port", port)
+            try:
+                if port < 1024 and os.geteuid():
+                    t = "ports below 1024 cannot be used without root, so try a higher port"
+                    print(t)
+            except:
+                pass
+            raise
 
         if IRONPY:
             self.__eq__ = self.ipy__eq__
@@ -403,7 +413,7 @@ class VT100_Client(object):
         self.codec_uni = [u"├┐ ┌┬┐ ┌ ", u"Ð Ñ Ã ", u"all the above are messed up "]
         self.codec_asc = [u"hmr", u"DNA", u"n/a"]
 
-        self.read_markers = set("cl cr cu cd home end bs ret tab".split())
+        self.read_markers = set("cl cr cu cd home end bs tab".split())
 
         self.esc_tab = {}
         self.add_esc(u"\x1b\x5bD", "cl")
@@ -835,7 +845,8 @@ class VT100_Client(object):
 
             # check if user input has caused any unread messages
             # in the active channel to be considered read
-            elif cursor_moved or mark_read:
+            # (check linepos/linebuf to not trigger on CR after /join)
+            elif mark_read or (cursor_moved and (self.linepos or self.linebuf)):
                 status_changed = self.user.active_chan.update_activity_flags(True)
 
             if self.scroll_cmd:
