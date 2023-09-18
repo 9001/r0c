@@ -10,7 +10,6 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 # features: whatever
 
-* nick colours
 * rate limiting
 * modals with command feedback
 * filter bots somehow?
@@ -63,7 +62,7 @@ the other lists are roughly sorted by importance (and additionally split in two 
 * pings are case-sensitive
 * can't message uppercase nicks
 * offer to skip wizard if IP has connected before
-* bell on by default, disable with /bn
+* bell on by default, disable with /b0
 * preview colours in text input
 * check if AYT can be used as ping/pong  (not really)
   * can use crazy options where you expect a nope in return and then get a nope every time you ask
@@ -88,3 +87,4 @@ the other lists are roughly sorted by importance (and additionally split in two 
 
 * check pwd dir
 * check we're in $PATH
+* nick colours

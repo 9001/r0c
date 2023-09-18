@@ -1,6 +1,6 @@
 # coding: utf-8
 from __future__ import print_function
-from .__init__ import EP, PY2, COLORS, IRONPY, TYPE_CHECKING, unicode
+from .__init__ import EP, PY2, COLORS, IRONPY, TYPE_CHECKING, WINDOWS, unicode
 from . import util as Util
 from . import chat as Chat
 from . import user as User
@@ -68,7 +68,9 @@ class VT100_Server(object):
 
         self.ep = (host, port)
         self.srv_sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.srv_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if not WINDOWS or self.ar.reuseaddr:
+            self.srv_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
         try:
             self.srv_sck.bind(self.ep)
             self.srv_sck.listen(1)

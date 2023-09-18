@@ -71,6 +71,8 @@ def optgen(ap, pwd):
     ac.add_argument("--hex-w", metavar="N", type=int, default=16, help="width of the hexdump, in bytes per line, mod-8")
     ac.add_argument("--dev", action="store_true", help="enable dangerous shortcuts (devmode)")
     ac.add_argument("--thr-mon", action="store_true", help="start monitoring threads on ctrl-c")
+    if WINDOWS:
+        ac.add_argument("--reuseaddr", action="store_true", help="allow rapid server restart (DANGER: lets you accidentally start multiple instances)")
     ac.add_argument("--linemode", action="store_true", help="force clients into linemode (to debug linemode UI)")
     ac.add_argument("--bench", action="store_true", help="dump statistics every 2 sec")
     # fmt: on
