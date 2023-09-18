@@ -1964,7 +1964,7 @@ class VT100_Client(object):
 
     def conf_wizard(self, growth):
         # print('conf_wizard:  {0}'.format(self.wizard_stage))
-        if self.adr[0] == "127.0.0.1":
+        if self.ar.dev and self.adr[0] == "127.0.0.1":
             if u"\x03" in self.in_text:
                 self.world.core.shutdown()
 

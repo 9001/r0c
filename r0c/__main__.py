@@ -69,6 +69,7 @@ def optgen(ap, pwd):
     ac.add_argument("--hex-tx", action="store_true", help="print outgoing traffic to clients")
     ac.add_argument("--hex-lim", metavar="N", type=int, default=128, help="filter packets larger than N bytes from being hexdumped")
     ac.add_argument("--hex-w", metavar="N", type=int, default=16, help="width of the hexdump, in bytes per line, mod-8")
+    ac.add_argument("--dev", action="store_true", help="enable dangerous shortcuts (devmode)")
     ac.add_argument("--thr-mon", action="store_true", help="start monitoring threads on ctrl-c")
     ac.add_argument("--linemode", action="store_true", help="force clients into linemode (to debug linemode UI)")
     ac.add_argument("--bench", action="store_true", help="dump statistics every 2 sec")
