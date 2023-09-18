@@ -143,7 +143,7 @@ class VT100_Server(object):
                                 else:
                                     ctx.options |= bit
                         except Exception as ex:
-                            print("[*] TLS client failed to apply --tls-min: " + str(ex))
+                            print("[*] failed to apply --tls-min: " + str(ex))
 
                         if hasattr(ctx, "minimum_version"):
                             ctx.minimum_version = getattr(ssl.TLSVersion, minver)
@@ -152,7 +152,9 @@ class VT100_Server(object):
                     socket = ctx.wrap_socket(socket, server_side=True)
                 except Exception as ex:
                     print("[*] TLS client: " + str(ex))
-                    print("  `- if you want to support old/insecure clients (centos6, powershell) please run r0c with argument --old-tls")
+                    print(
+                        "  `- if you want to support old/insecure clients (centos6, powershell) please run r0c with argument --old-tls"
+                    )
                     return
 
             usr = User.User(self.world, adr)
@@ -920,7 +922,7 @@ class VT100_Client(object):
         now = time.time()
         if now - self.last_beep < 1:
             return
-        
+
         self.last_beep = now
         self.say(b"\x07")
 
@@ -1003,7 +1005,7 @@ class VT100_Client(object):
             chan_name = uchan.alias + u"\033[22m"
         else:
             chan_hash = u"#"
-            chan_name = u"%s\033[22m(%d)" % (chan_name, len(nchan.uchans),)
+            chan_name = u"%s\033[22m(%d)" % (chan_name, len(nchan.uchans))
 
         hilights = []
         activity = []
@@ -1058,7 +1060,8 @@ class VT100_Client(object):
 
         if not self.vt100:
             self.left_chrome = u"%s   %s> " % (
-                Util.strip_ansi(line), self.user.nick
+                Util.strip_ansi(line),
+                self.user.nick,
             )
             return u"\r%s\r%s" % (u" " * 78, self.left_chrome)
 
@@ -1177,7 +1180,7 @@ class VT100_Client(object):
             )
             if self.screen[self.h - (self.y_input + 1)] != line or full_redraw:
                 self.screen[self.h - (self.y_input + 1)] = line
-                return print_fmt % (self.h - self.y_input, line,)
+                return print_fmt % (self.h - self.y_input, line)
             return u""
 
         if (
@@ -1202,7 +1205,7 @@ class VT100_Client(object):
             # reset colours if the visible segment contains any
             ansi += u"\033[0m"
 
-        line = line_fmt % (self.user.nick[: self.user.nick_len], ansi,)
+        line = line_fmt % (self.user.nick[: self.user.nick_len], ansi)
         was = self.screen[self.h - (self.y_input + 1)]
         if line == was and not full_redraw:
             return u""
@@ -1227,19 +1230,19 @@ class VT100_Client(object):
                     if cval == u"0":
                         break
                     elif len(cval) < 8:  # "0;33;44"
-                        color = u"%s;%s" % (cval, color,)
+                        color = u"%s;%s" % (cval, color)
 
                 if color:
                     color = u"\033[%sm" % (color.rstrip(u";"),)
 
             vtxt = Util.strip_ansi(was[:ofs])
-            coord = u"%s;%d" % (coord, len(vtxt) + 1,)
+            coord = u"%s;%d" % (coord, len(vtxt) + 1)
             line = color + line[ofs:]
 
-        return print_fmt % (coord, line,)
+        return print_fmt % (coord, line)
 
     def msg2ansi(self, msg, msg_fmt, nfmt, ts_fmt, msg_nl, msg_w, msg_w2, nick_w):
-        ts = ts_fmt % { "h": msg.dt.hour, "m": msg.dt.minute, "s": msg.dt.second }
+        ts = ts_fmt % {"h": msg.dt.hour, "m": msg.dt.minute, "s": msg.dt.second}
 
         txt = []
         for ln in [x.rstrip() for x in msg.txt.split(u"\n")]:
@@ -1279,9 +1282,9 @@ class VT100_Client(object):
                 if nfmt == 1:
                     txt[n] = msg_fmt % (line,)
                 elif nfmt == 4:
-                    txt[n] = msg_fmt % (c1, msg.user[:nick_w], c2, line,)
+                    txt[n] = msg_fmt % (c1, msg.user[:nick_w], c2, line)
                 else:
-                    txt[n] = msg_fmt % (ts, c1, msg.user[:nick_w], c2, line,)
+                    txt[n] = msg_fmt % (ts, c1, msg.user[:nick_w], c2, line)
             else:
                 txt[n] = msg_nl + line
 
@@ -1513,7 +1516,7 @@ class VT100_Client(object):
                     # print('sending {0} of {1}'.format(ln, len(lines)))
                     # if isinstance(lines, list):
                     # 	print('lines is list')
-                    ret += u"\r%s%s\r\n" % (ln, u" " * ((self.w - len(ln)) - 2),)
+                    ret += u"\r%s%s\r\n" % (ln, u" " * ((self.w - len(ln)) - 2))
                 return ret
 
             while len(lines) < self.h - 3:
@@ -1521,7 +1524,7 @@ class VT100_Client(object):
 
             for n in range(self.h - 3):
                 self.screen[n + 1] = lines[n]
-                ret += u"\033[%dH\033[K%s" % (n + 2, self.screen[n + 1],)
+                ret += u"\033[%dH\033[K%s" % (n + 2, self.screen[n + 1])
 
         else:
             # full_redraw = False,
@@ -1707,12 +1710,10 @@ class VT100_Client(object):
                     # print(u'@@@ vis{0:2} stp{1:2} += {2}'.format(n_vis, n_steps, ln))
 
                     if not self.vt100:
-                        ret += u"\r%s%s\r\n" % (
-                            ln, u" " * ((self.w - len(ln)) - 2)
-                        )
+                        ret += u"\r%s%s\r\n" % (ln, u" " * ((self.w - len(ln)) - 2))
 
                     elif lines_in_use < self.h - 3:
-                        ret += u"\033[%dH\033[K%s" % (lines_in_use + 2, ln,)
+                        ret += u"\033[%dH\033[K%s" % (lines_in_use + 2, ln)
                         lines_in_use += 1
 
                     elif t_steps > 0:
@@ -1724,7 +1725,7 @@ class VT100_Client(object):
                         # ret += u"\033[{0}H\033D\033[K{1}".format(self.h - 2, ln)
 
                         # ok
-                        ret += u"\033[%dH\n\n\033[K%s" % (self.h - 3, ln,)
+                        ret += u"\033[%dH\n\n\033[K%s" % (self.h - 3, ln)
 
                     else:
                         # official way according to docs,

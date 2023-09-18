@@ -204,7 +204,9 @@ class World(object):
                     self.start_logging(nchan)
 
                 ltxt = u"%s %s %s\n" % (
-                    hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
+                    hex(int(msg.ts * 8.0))[2:].rstrip("L"),
+                    msg.user,
+                    msg.txt,
                 )
                 nchan.log_fh.write(ltxt.encode("utf-8"))
                 nchan.log_ctr += 1
@@ -528,7 +530,9 @@ class World(object):
             # print('appending backlog ({0} messages)'.format(len(chat_backlog)))
             for msg in chat_backlog:
                 ltxt = u"%s %s %s\n" % (
-                    hex(int(msg.ts * 8.0))[2:].rstrip("L"), msg.user, msg.txt
+                    hex(int(msg.ts * 8.0))[2:].rstrip("L"),
+                    msg.user,
+                    msg.txt,
                 )
                 nchan.log_fh.write(ltxt.encode("utf-8"))
                 nchan.log_ctr += 1

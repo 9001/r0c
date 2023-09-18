@@ -214,9 +214,7 @@ class TelnetClient(Ivt100.VT100_Client):
                                 "XXX ",
                             )
 
-                        src = unicode(
-                            self.in_bytes[: uee.start].decode(self.codec)
-                        )
+                        src = unicode(self.in_bytes[: uee.start].decode(self.codec))
                         self.in_bytes = self.in_bytes[uee.start :]
 
                         if is_partial and not is_inband:

@@ -417,13 +417,11 @@ def convert_color_codes(txt, preview=False):
                 preview_k = u"K"
 
         if fg and bg:
-            txt = u"%s%s%sm%s%s" % (
-                txt[:ofs], fg, bg, preview_k, txt[resume_txt:]
-            )
+            txt = u"%s%s%sm%s%s" % (txt[:ofs], fg, bg, preview_k, txt[resume_txt:])
         elif fg:
-            txt = u"%s%sm%s%s" % (txt[:ofs], fg, preview_k, txt[resume_txt:],)
+            txt = u"%s%sm%s%s" % (txt[:ofs], fg, preview_k, txt[resume_txt:])
         else:
-            txt = u"%sK%s" % (txt[:ofs], txt[resume_txt:],)
+            txt = u"%sK%s" % (txt[:ofs], txt[resume_txt:])
 
     scan_from = 0
     while txt:
@@ -433,7 +431,9 @@ def convert_color_codes(txt, preview=False):
 
         scan_from = ofs + 1
         txt = u"%s\033[1m%s%s" % (
-            txt[:ofs], u"B" if preview else u"", txt[scan_from:],
+            txt[:ofs],
+            u"B" if preview else u"",
+            txt[scan_from:],
         )
 
     scan_from = 0
@@ -444,7 +444,9 @@ def convert_color_codes(txt, preview=False):
 
         scan_from = ofs + 1
         txt = u"%s\033[0m%s%s" % (
-            txt[:ofs], u"O" if preview else u"", txt[scan_from:],
+            txt[:ofs],
+            u"O" if preview else u"",
+            txt[scan_from:],
         )
 
     return txt

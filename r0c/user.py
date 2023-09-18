@@ -648,9 +648,7 @@ class User(object):
 """.format(
                         nch.get_name(),
                         len(nch.msgs),
-                        nch.msgs[0].dt.strftime(
-                            "%Y-%m-%d, %H:%M"
-                        ),
+                        nch.msgs[0].dt.strftime("%Y-%m-%d, %H:%M"),
                     ),
                 )
 
