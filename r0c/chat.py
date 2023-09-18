@@ -196,7 +196,7 @@ class VisMessage(object):
                 postfix = None
         else:
             prefix = u""
-            if self.hilight:
+            if self.hilight and not self.cli.view:
                 postfix = u"="
             else:
                 postfix = None

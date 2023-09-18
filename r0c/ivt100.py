@@ -1248,6 +1248,8 @@ class VT100_Client(object):
         for ln in [x.rstrip() for x in msg.txt.split(u"\n")]:
             if len(ln) < msg_w or Util.visual_length(ln) < msg_w:
                 txt.append(ln)
+            elif self.view:
+                txt.extend(Util.hardwrap(ln.rstrip(), msg_w, self.vt100))
             else:
                 txt.extend(Util.wrap(ln.rstrip(), msg_w, msg_w2))
 
@@ -1314,21 +1316,21 @@ class VT100_Client(object):
             msg_fmt = u"%s"
             nfmt = 1  # line
         elif self.w >= 140:
-            nick_w = nick_w or 18
-            msg_w = self.w - (nick_w + 11)
-            msg_nl = u" " * (nick_w + 11)
+            nick_w = nick_w or 14
+            msg_w = self.w - (nick_w + 10)
+            msg_nl = u" " * (nick_w + 10)
             ts_fmt = "%(h)02d:%(m)02d:%(s)02d"
-            msg_fmt = u"%%s  %%s%%%ds%%s %%s" % (nick_w,)
+            msg_fmt = u"%%s %%s%%%ds%%s %%s" % (nick_w,)
             nfmt = 5  # ts,c1,nick,c2,line
         elif self.w >= 100:
-            nick_w = nick_w or 14
-            msg_w = self.w - (nick_w + 11)
-            msg_nl = u" " * (nick_w + 11)
+            nick_w = nick_w or 12
+            msg_w = self.w - (nick_w + 10)
+            msg_nl = u" " * (nick_w + 10)
             ts_fmt = "%(h)02d:%(m)02d:%(s)02d"
-            msg_fmt = u"%%s  %%s%%%ds%%s %%s" % (nick_w,)
+            msg_fmt = u"%%s %%s%%%ds%%s %%s" % (nick_w,)
             nfmt = 5  # ts,c1,nick,c2,line
         elif self.w >= 80:
-            nick_w = nick_w or 12
+            nick_w = nick_w or 10
             msg_w = self.w - (nick_w + 8)
             msg_nl = u" " * (nick_w + 8)
             ts_fmt = "%(h)02d%(m)02d%(s)02d"
@@ -1336,9 +1338,9 @@ class VT100_Client(object):
             nfmt = 5  # ts,c1,nick,c2,line
         elif self.w >= 60:
             nick_w = nick_w or 8
-            msg_w = self.w - (nick_w + 7)
-            msg_nl = u" " * (nick_w + 7)
-            ts_fmt = "%(h)02d:%(m)02d"
+            msg_w = self.w - (nick_w + 6)
+            msg_nl = u" " * (nick_w + 6)
+            ts_fmt = "%(h)02d%(m)02d"
             msg_fmt = u"%%s %%s%%%ds%%s %%s" % (nick_w,)
             nfmt = 5  # ts,c1,nick,c2,line
         else:

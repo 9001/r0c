@@ -533,6 +533,20 @@ def wrap(txt, maxlen, maxlen2):
     return ret
 
 
+def hardwrap(txt, maxlen, vt100):
+    # safer than wrap() since it discards escape sequences, making it splittable anywhere
+    ret = []
+    prefix = u""
+    txt = strip_ansi(txt)
+    while txt:
+        ret.append(prefix + txt[:maxlen])
+        txt = txt[maxlen:]
+        if vt100:
+            prefix = u"\033[36m"
+
+    return ret
+
+
 def whoops(extra=None):
     msg = r"""
              __

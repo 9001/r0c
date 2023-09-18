@@ -79,6 +79,7 @@ if you enable TLS with `-tpt 2424` (telnet) and/or `-tpn 1515` (netcat) you can 
 * windows: [powershell client](https://github.com/9001/r0c/blob/master/clients/powershell.ps1) with port `+1515` (the `+` enables TLS)
   * powershell does not verify certificate; the other clients do
 
+the powershell client and bash client comes bundled with the server; see [protips](#protips)
 
 
 # installation
@@ -115,6 +116,22 @@ iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 531 -j REDIRECT --to-port 1
 
 (you'll have to do this on every reboot)
 
-## documentation
+
+
+# documentation
 
 not really but there is a [list of commands](docs/help-commands.md) and a [list of hotkeys](docs/help-hotkeys.md)
+
+## protips
+
+try the following commands and hotkeys after connecting:
+
+* `/cy` enables colored nicknames
+* `/b3` (max cowbell) beeps on every message
+* `/v` or `ctrl-n` hides names and makes wordwrap more obvious; good for viewing a wall of text that somebody pasted
+
+## other surprises
+
+* when running **[r0c.py](https://github.com/9001/r0c/releases/latest/download/r0c.py)** it will extract a few bundled clients for your convenience (powershell and bash); look for the `[SFX] sfxdir: /tmp/pe-r0c.1000` message during startup, they'll be in a `clients` subfolder over there
+
+  * if you installed r0c through `pip` instead then the clients will be somewhere crazy like `C:\Users\ed\AppData\Roaming\Python\share\doc\r0c\clients\powershell.ps1` or `/home/ed/.local/share/doc/r0c/clients/powershell.ps1`, good luck!
