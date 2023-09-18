@@ -73,6 +73,8 @@ if ([string]::IsNullOrEmpty($r0chost)) {
         $r0chost = "127.0.0.1"
     }
 }
+$host.UI.RawUI.WindowTitle = "r0c @ $r0chost"
+
 if ([string]::IsNullOrEmpty($r0cport)) {
     $r0cport = Read-Host "Input r0c port, default 531 if blank, enable TLS with +1515"
     if ([string]::IsNullOrEmpty($r0cport)) {
@@ -85,8 +87,15 @@ if ($tls) {
 }
 $r0cport = [int]$r0cport
 
-$socket = New-Object System.Net.Sockets.TcpClient
-$socket.connect($r0chost, $r0cport)
+Write-Host -NoNewLine "Connecting... "
+try {
+    $socket = New-Object System.Net.Sockets.TcpClient
+    $socket.connect($r0chost, $r0cport)
+}
+catch {
+    Write-Host "nei pokker,`n"
+    $_; Seppuku
+}
 $stream = $stream0 = $socket.GetStream()
 if ($tls) {
     # the .net api for verifying a self-signed certificate is entirely impossible to operate and i have given up
@@ -96,7 +105,6 @@ if ($tls) {
 $buf = New-Object byte[] 4096
 $messages_lost = 0
 
-# TODO: figure out how this works
 [console]::TreatControlCAsInput = $true
 
 function mainloop {
@@ -116,17 +124,15 @@ function mainloop {
         $messages_lost = 0
     }
     while ([console]::KeyAvailable) {
-    	$key = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    	$key = $host.UI.RawUI.ReadKey("AllowCtrlC,NoEcho,IncludeKeyDown")
         $kc = $key.VirtualKeyCode
-        if ($kc -eq 3) {
-            # TODO: doesn't work since TreatControlCAsInput does nothing
-            Write-Host "`n`n*** shutting down`n`n"
+        $text = $key.Character
+        if ([Int]$text -eq 3) {
+            Clear-Host
             $socket.Close()
-            $socket.Dispose()
-            Start-Sleep -Milliseconds 200
+            Start-Sleep -Milliseconds 300
             exit 0
         }
-        $text = $key.Character
         $bytes = [System.Text.Encoding]::UTF8.GetBytes($text)
         if ($text -split "" -contains "`n" -or
             $text -split "" -contains "`r") {
