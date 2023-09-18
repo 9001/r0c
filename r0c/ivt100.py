@@ -1966,9 +1966,13 @@ class VT100_Client(object):
 
     def conf_wizard(self, growth):
         # print('conf_wizard:  {0}'.format(self.wizard_stage))
-        if self.ar.dev and self.adr[0] == "127.0.0.1":
-            if u"\x03" in self.in_text:
+        if u"\x03" in self.in_text:
+            if self.ar.dev and self.adr[0] == "127.0.0.1":
                 self.world.core.shutdown()
+            else:
+                self.socket.send(b"ok bye\r\n")
+                self.host.part(self)
+            return
 
         # print('{0:8s} {1:12s} {2}'.format(self.wizard_stage, self.in_text, self.in_text_full).replace('\r','.').replace('\n','.'))
 

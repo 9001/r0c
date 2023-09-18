@@ -101,6 +101,15 @@ skip this section if:
 * or you are running as root and do not have a firewall
 * or you're on windows
 
+if you're using firewalld, and just want to open up the high ports (not 23 and 531) then this is probably enough:
+
+```bash
+firewall-cmd --permanent --add-port={23,531,2323,1531,2424,1515}/tcp
+firewall-cmd --reload
+```
+
+but having to specify the port when connecting is lame so consider the folllowing --
+
 telnet uses port 23 by default, so on the server you'll want to port-forward `23` to `2323` (and `531` to `1531` for plaintext):
 
 ```bash

@@ -91,7 +91,7 @@ def run_fap(argv, pwd):
     ap = Fargparse()
     optgen(ap, pwd)
 
-    if "-h" in unicode(([""] + argv)[-1]):
+    if u"-h" in unicode(([""] + argv)[-1]):
         print()
         print("arg 1: Telnet port (0=disable), default: {0}".format(ap.pt))
         print("arg 2: NetCat port (0=disable), default: {0}".format(ap.pn))
@@ -457,7 +457,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                     break
 
                 zd = datetime.utcfromtimestamp(ts)
-                date = "%04d-%02d-%02d" % (zd.year, zd.month, zd.day)
+                date = u"%04d-%02d-%02d" % (zd.year, zd.month, zd.day)
 
                 if date != last_date:
                     if last_date:
