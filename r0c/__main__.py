@@ -58,6 +58,9 @@ def optgen(ap, pwd):
     ac.add_argument("--tls-min", metavar="S", type=u, default="", help="oldest ver to allow; SSLv3 TLSv1 TLSv1_1 TLSv1_2 TLSv1_3")
     ac.add_argument("--old-tls", action="store_true", help="support old clients (centos6/powershell), bad ciphers")
 
+    ac = ap.add_argument_group("ux")
+    ac.add_argument("--no-all", action="store_true", help="default-disable @all / @everyone")
+
     ac = ap.add_argument_group("perf")
     ac.add_argument("--hist-rd", metavar="N", type=int, default=65535, help="max num msgs to load from disk when joining a channel")
     ac.add_argument("--hist-mem", metavar="N", type=int, default=98303, help="max num msgs to keep in channel scrollback")

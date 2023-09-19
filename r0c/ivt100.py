@@ -305,6 +305,7 @@ class VT100_Client(object):
         self.align = True
         self.view = False
         self.bell = 1
+        self.atall = True
         self.crlf = u"\n"
         self.bps = 0
         self.codec = "utf-8"
@@ -476,6 +477,7 @@ class VT100_Client(object):
         self.cnicks = False  # colored nicknames
         self.align = True  # fixed left margin
         self.bell = 1  # doot on hilights in other channels
+        self.atall = not self.ar.no_all  # hilight on @all / @everyone
         self.crlf = u"\n"  # return key
         self.bps = 0  # will autodetect
         self.set_codec("utf-8")
@@ -498,6 +500,7 @@ class VT100_Client(object):
                     crlf,
                     codec,
                     bell,
+                    atall,
                     cnicks,
                     align,
                 ) = self.host.user_config[self.adr[0]].split(u" ")
@@ -514,6 +517,7 @@ class VT100_Client(object):
 
                 # user config
                 self.bell = int(bell)
+                self.atall = int(atall)
                 self.cnicks = 1 == int(cnicks)
                 self.align = 1 == int(align)
 
@@ -551,6 +555,7 @@ class VT100_Client(object):
                     self.codec,
                     # user config
                     unicode(self.bell),
+                    u"1" if self.atall else u"0",
                     u"1" if self.cnicks else u"0",
                     u"1" if self.align else u"0",
                 ]

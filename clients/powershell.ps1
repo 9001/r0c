@@ -12,6 +12,11 @@
 
 #######################################################################
 
+$default_host = "127.0.0.1"
+$default_port = "531"
+
+#######################################################################
+
 function Seppuku {
     Write-Host ""
     Write-Host -NoNewLine "press ENTER to terminate "
@@ -68,17 +73,17 @@ if ($arr.count -eq 2) {
     $r0cport = $arr[1]
 }
 if ([string]::IsNullOrEmpty($r0chost)) {
-    $r0chost = Read-Host "Input r0c address, default 127.0.0.1 if blank"
+    $r0chost = Read-Host "Input r0c address, default $default_host if blank"
     if ([string]::IsNullOrEmpty($r0chost)) {
-        $r0chost = "127.0.0.1"
+        $r0chost = $default_host
     }
 }
 $host.UI.RawUI.WindowTitle = "r0c @ $r0chost"
 
 if ([string]::IsNullOrEmpty($r0cport)) {
-    $r0cport = Read-Host "Input r0c port, default 531 if blank, enable TLS with +1515"
+    $r0cport = Read-Host "Input r0c port, default $default_port if blank, enable TLS with +1515"
     if ([string]::IsNullOrEmpty($r0cport)) {
-        $r0cport = "531"
+        $r0cport = $default_port
     }
 }
 $tls = ([string]$r0cport).StartsWith("+")

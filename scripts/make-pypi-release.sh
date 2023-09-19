@@ -66,7 +66,7 @@ EOF
 
 	# if PY3: create build env
 	cd ~/dev/r0c && python3 -m venv buildenv
-	(. buildenv/bin/activate && pip install twine wheel)
+	(. buildenv/bin/activate && pip install twine wheel setuptools)
 }
 
 

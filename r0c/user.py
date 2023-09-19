@@ -77,6 +77,7 @@ class User(object):
         self.nick = None  # type: str
         self.lnick = None  # type: str
         self.nick_re = None  # regex object for ping assert
+        self.nick_rep = ""  # nickname part of nick_re pattern
         self.nick_len = None  # visible segment for self
 
     def __unicode__(self):
@@ -811,6 +812,22 @@ class User(object):
                 self.client.bell = zi
                 self.client.save_config()
 
+        elif cmd == u"ey":
+            self.client.atall = True
+            self.world.send_chan_msg(
+                u"--", inf, u"Hilight on @all / @everyone enabled. Disable with /en", False
+            )
+            self.build_nick_re()
+            self.client.save_config()
+
+        elif cmd == u"en":
+            self.client.atall = False
+            self.world.send_chan_msg(
+                u"--", inf, u"Hilight on @all / @everyone disabled. Enable with /en", False
+            )
+            self.build_nick_re()
+            self.client.save_config()
+
         elif cmd == u"cy":
             self.client.cnicks = True
             self.client.need_full_redraw = True
@@ -869,7 +886,7 @@ class User(object):
 
         elif cmd == u"cfg":
             m = []
-            keys = "slowmo_tx linemode echo_on vt100 crlf codec bell cnicks align"
+            keys = "slowmo_tx linemode echo_on vt100 crlf codec bell atall cnicks align"
             fmt = u"\033[36m{0}=\033[0m{1!r}" if self.client.vt100 else u"{0}={1!r}"
             for k in keys.split(" "):
                 m.append(fmt.format(k, getattr(self.client, k)))
@@ -975,7 +992,8 @@ class User(object):
 
         self.nick = new_nick
         self.lnick = new_nick.lower()
-        self.nick_re = re.compile("(^|[^a-zA-Z0-9]){0}([^a-zA-Z0-9]|$)".format(nick_re))
+        self.nick_rep = nick_re
+        self.build_nick_re()
 
         self.nick_len = len(new_nick)
         if self.nick_len > self.client.w * 0.25:
@@ -985,6 +1003,13 @@ class User(object):
 
         if self.active_chan:
             self.client.save_config()
+
+    def build_nick_re(self):
+        ptn = self.nick_rep
+        if self.client.atall:
+            ptn = "(%s|@(all|everyone))" % (ptn,)
+
+        self.nick_re = re.compile("(^|[^a-zA-Z0-9])%s([^a-zA-Z0-9]|$)" % (ptn,))
 
     def help(self, arg, inf):
         if not arg:
