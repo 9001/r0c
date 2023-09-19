@@ -841,10 +841,22 @@ class VT100_Client(object):
             # switch to new channel,
             # storing the last viewed message for notification purposes
             if self.user.new_active_chan:
+                usr = self.user
+                if usr.new_active_chan not in usr.chans:
+                    t = "new_active_chan (%s) not in user.chans (%s |%d|)"
+                    Util.whoops(t % (usr.new_active_chan, usr, len(usr.chans)))
+                    usr.new_active_chan = usr.chans[0]
+
                 if self.user.active_chan:
                     self.user.active_chan.update_activity_flags(True)
 
-                self.user.old_active_chan = self.user.active_chan
+                # print("         /w:  %s  %s" % (usr.active_chan, usr.new_active_chan))
+
+                if usr.active_chan in usr.chans:
+                    usr.old_active_chan = usr.active_chan
+                else:
+                    usr.old_active_chan = None
+
                 self.user.active_chan = self.user.new_active_chan
                 self.user.active_chan.update_activity_flags(True)
                 self.user.new_active_chan = None
@@ -2169,7 +2181,9 @@ class VT100_Client(object):
 
             elif u"n" in text:
                 self.default_config()
+                old_nick = self.user.nick
                 self.user.set_rand_nick()
+                print(" regen nick:  %s  %s" % (old_nick, self.user.nick))
                 if not self.check_correct_iface("qwer_prompt"):
                     return
 
@@ -2599,11 +2613,9 @@ class VT100_Client(object):
                 self.world.cserial += 1
 
     def check_correct_iface(self, next_stage):
-        if not self.host.other_if:
-            return True
-
         self.wizard_stage = next_stage
-        if self.iface_confirmed:
+
+        if self.iface_confirmed or not self.host.other_if:
             return True
 
         self.iface_confirmed = True

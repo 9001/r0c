@@ -73,6 +73,15 @@ class UChannel(object):
         self.lock_to_bottom = True
         self.vis = []  # type: list[VisMessage]  # visible messages
 
+    def __unicode__(self):
+        return u"UChannel <%s> @ <%s>" % (self.user, self.nchan)
+
+    def __str__(self):
+        return "UChannel <%s> @ <%s>" % (self.user, self.nchan)
+
+    def __repr__(self):
+        return "UChannel(%r, %r, %r)" % (self.user, self.nchan, self.alias)
+
     def update_activity_flags(self, set_last_read=False, last_nchan_msg=0):
         if not last_nchan_msg and self.nchan.msgs:
             last_nchan_msg = self.nchan.msgs[-1].sno

@@ -41,7 +41,7 @@ technical:
 * message input with readline-like editing (arrow-left/right, home/end, backspace)
   * history of sent messages (arrow-up/down)
 * bandwidth-conservative (push/pop lines instead of full redraws; scroll-regions)
-* fast enough; 1'000 clients @ 700 msgs/sec
+* fast enough; 600 clients @ 750 msgs/sec, or 1'000 cli @ 350 msg/s
 
 ## windows clients
 
@@ -74,6 +74,7 @@ if you enable TLS with `-tpt 2424` (telnet) and/or `-tpn 1515` (netcat) you can 
 
 * `telnet-ssl -zssl -zsecure -zcacert=r0c.crt r0c.int 2424`
 * `socat -,raw,echo=0 openssl:r0c.int:1515,cafile=cert.crt`
+* `socat -,raw,echo=0 openssl:127.0.0.1:1515,verify=0`
 * `stty -icanon; ncat --ssl --ssl-trustfile r0c.crt -v r0c.int 1515`
 * `stty -icanon; openssl s_client -CAfile ~/.r0c/cert.crt -nbio -connect r0c.int:1515`
 * windows: [powershell client](https://github.com/9001/r0c/blob/master/clients/powershell.ps1) with port `+1515` (the `+` enables TLS)
@@ -129,7 +130,7 @@ iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 531 -j REDIRECT --to-port 1
 
 # documentation
 
-not really but there is a [list of commands](docs/help-commands.md) and a [list of hotkeys](docs/help-hotkeys.md)
+not really but there is a [list of commands](docs/help-commands.md) and a [list of hotkeys](docs/help-hotkeys.md), and also [UI demystified](docs/help-ui.md)
 
 ## protips
 

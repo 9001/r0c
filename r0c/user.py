@@ -385,6 +385,7 @@ class User(object):
                 )
                 return
 
+            print("       join:  %s  %s" % (arg, self.nick))
             nchan = self.world.join_pub_chan(self, arg[1:]).nchan
             # this is in charge of activating the new channel,
             # rapid part/join will crash us without this
@@ -401,6 +402,9 @@ class User(object):
                 )
                 return
 
+            ac = self.active_chan
+            ch_name = "#" + ac.nchan.name if ac.nchan.name else ac.alias
+            print("       part:  %s  %s" % (ch_name, self.nick))
             self.world.part_chan(self.active_chan)
             # this is in charge of activating the new channel,
             # rapid part/join will crash us without this
@@ -447,6 +451,7 @@ class User(object):
                 )
                 return
 
+            print("       /msg:  %s  %s" % (self.nick, arg1))
             uchan = self.world.join_priv_chan(self, arg1)
             self.new_active_chan = uchan
             self.world.send_chan_msg(self.nick, uchan.nchan, arg2)
@@ -625,6 +630,12 @@ class User(object):
                 # 	self.new_active_chan.nchan.get_name()))
             else:
                 print("cannot jump, no hilights or prev chan")
+                return
+
+            if self.new_active_chan not in self.chans:
+                t = "/a tried to new_active_chan (%s) not in self.chans (%s |%d|)"
+                Util.whoops(t % (self.new_active_chan, self, len(self.chans)))
+                self.new_active_chan = self.chans[0]
 
             self.client.need_full_redraw = True
             self.client.refresh(False)
@@ -813,18 +824,16 @@ class User(object):
                 self.client.save_config()
 
         elif cmd == u"ey":
+            t = u"Hilight on @all / @everyone enabled. Disable with /en"
             self.client.atall = True
-            self.world.send_chan_msg(
-                u"--", inf, u"Hilight on @all / @everyone enabled. Disable with /en", False
-            )
+            self.world.send_chan_msg(u"--", inf, t, False)
             self.build_nick_re()
             self.client.save_config()
 
         elif cmd == u"en":
+            t = u"Hilight on @all / @everyone disabled. Enable with /en"
             self.client.atall = False
-            self.world.send_chan_msg(
-                u"--", inf, u"Hilight on @all / @everyone disabled. Enable with /en", False
-            )
+            self.world.send_chan_msg(u"--", inf, t, False)
             self.build_nick_re()
             self.client.save_config()
 

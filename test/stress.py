@@ -29,7 +29,7 @@ __copyright__ = 2018
 #
 
 NUM_CLIENTS = 1
-NUM_CLIENTS = 320
+NUM_CLIENTS = 512
 NUM_PER_MPW = 32
 
 # CHANNELS = ['#1']
@@ -37,7 +37,7 @@ CHANNELS = ["#1", "#2", "#3", "#4"]
 
 EVENT_DELAY = 0.01
 EVENT_DELAY = 0.005
-EVENT_DELAY = 1
+EVENT_DELAY = 3
 # EVENT_DELAY = None
 
 ITERATIONS = 1000000
@@ -380,6 +380,7 @@ class Client(object):
         chance = [10, 5, 4, 18]
         chance = [10, 3, 2, 30]
         chance = [10, 30, 2, 130]
+        chance = [10, 30, 2, 330]
 
         for n in range(len(chance) - 1):
             chance[n + 1] += chance[n]
@@ -657,6 +658,7 @@ class SubCore(object):
             n = NUM_PER_MPW * n1 + n2
             c = Client(self, self.port, self.behavior, stat_q, n)
             self.clients.append(c)
+            time.sleep(0.2)
 
     def run(self):
         while self.cmd_q.empty():
@@ -761,6 +763,6 @@ if __name__ == "__main__":
 
 
 # (1x) rm -rf log/chan/{1,2,3,4,a} log/pm/ && timeout 110 python3 -u -m r0c --bench | tee bench
-# (3x) cd ~/dev/r0c/test/ && ./run-stress.sh 2323
+# (2x) cd ~/dev/r0c/test/ && ./run-stress.sh 2323
 # grep -E '^[0-9]{6} [0-9]{9}' bench
 # ps auxwww | awk '/python3[ ]stress.py[ ]2323/{print$2}' | xargs kill

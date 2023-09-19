@@ -296,8 +296,7 @@ class World(object):
             if uchan is None:
                 nchan = Chat.NChannel(None, u"DM with [[uch_a]]")
                 self.priv_ch.append(nchan)
-                uchan = self.join_chan_obj(user, nchan)
-                uchan.alias = alias
+                uchan = self.join_chan_obj(user, nchan, alias)
             return uchan
 
     """
