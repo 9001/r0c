@@ -385,7 +385,7 @@ class User(object):
                 )
                 return
 
-            print("       join:  %s  %s" % (arg, self.nick))
+            print("     ->join:  %s  %s" % (arg, self.nick))
             nchan = self.world.join_pub_chan(self, arg[1:]).nchan
             # this is in charge of activating the new channel,
             # rapid part/join will crash us without this
@@ -404,7 +404,7 @@ class User(object):
 
             ac = self.active_chan
             ch_name = "#" + ac.nchan.name if ac.nchan.name else ac.alias
-            print("       part:  %s  %s" % (ch_name, self.nick))
+            print("     <-part:  %s  %s" % (ch_name, self.nick))
             self.world.part_chan(self.active_chan)
             # this is in charge of activating the new channel,
             # rapid part/join will crash us without this
@@ -588,6 +588,15 @@ class User(object):
                         ),
                     )
                 self.world.send_chan_msg(u"--", inf, u"-----------------")
+            else:
+                for n, uch in enumerate(self.chans):
+                    nch = uch.nchan
+                    if not nch.name:
+                        continue
+
+                    t = u"%d users in /%d #%s:  " % (len(nch.uchans), n, nch.name)
+                    t += u", ".join(sorted([x.user.nick for x in nch.uchans]))
+                    self.world.send_chan_msg(u"--", inf, t)
 
         elif cmd == u"a":
             activity = {}  # type: dict[int, Chat.UChannel]

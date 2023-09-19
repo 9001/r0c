@@ -1,5 +1,5 @@
-VERSION = (1, 5, 0)
-BUILD_DT = (2023, 9, 18)
+VERSION = (1, 5, 1)
+BUILD_DT = (2023, 9, 19)
 
 S_VERSION = u".".join(map(str, VERSION))
 S_BUILD_DT = u"{0:04d}-{1:02d}-{2:02d}".format(*BUILD_DT)
