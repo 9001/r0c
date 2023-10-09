@@ -370,11 +370,11 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                 for srv in self.servers:
                     for c in srv.clients:
                         if c.slowmo_tx or (c.wizard_stage is not None and not c.is_bot):
-                            slow[c.socket] = c
+                            slow[c.sck] = c
                         else:
-                            fast[c.socket] = c
+                            fast[c.sck] = c
 
-                        sc[c.socket] = c
+                        sc[c.sck] = c
 
                 timeout = 0.2 if slow else 1 if fast else 69
 

@@ -102,8 +102,8 @@ class VT100_Server(object):
             )
         )
 
-    def gen_remote(self, socket, addr, usr):
-        if socket:
+    def gen_remote(self, sck, addr, usr):
+        if sck:
             raise RuntimeError("inherit me")
 
     def handle_error(self):
@@ -120,9 +120,9 @@ class VT100_Server(object):
             # yes 127.0.0.1 | nmap -v -iL - -Pn -sT -p 2323,1531 -T 5
 
             try:
-                socket, addr = self.srv_sck.accept()
+                sck, addr = self.srv_sck.accept()
                 adr = [addr[0], addr[1]]
-                if len(socket.getpeername()[0]) < 3:
+                if len(sck.getpeername()[0]) < 3:
                     raise Exception
             except:
                 print("[!] handshake error (probably a port scanner)")
@@ -161,7 +161,7 @@ class VT100_Server(object):
                             ctx.minimum_version = getattr(ssl.TLSVersion, minver)
 
                     ctx.load_cert_chain(EP.app + "cert.pem")
-                    socket = ctx.wrap_socket(socket, server_side=True)
+                    sck = ctx.wrap_socket(sck, server_side=True)
                 except Exception as ex:
                     print("[*] TLS client: " + str(ex))
                     print(
@@ -170,7 +170,7 @@ class VT100_Server(object):
                     return
 
             usr = User.User(self.world, adr)
-            remote = self.gen_remote(socket, adr, usr)
+            remote = self.gen_remote(sck, adr, usr)
             self.world.add_user(usr)
             self.clients.append(remote)
             self.world.cserial += 1
@@ -192,8 +192,8 @@ class VT100_Server(object):
         with self.world.mutex:
             # Util.whoops("client part")
             try:
-                remote.socket.shutdown(socket.SHUT_RDWR)
-                remote.socket.close()
+                remote.sck.shutdown(socket.SHUT_RDWR)
+                remote.sck.close()
             except:
                 pass
 
@@ -282,11 +282,11 @@ class VT100_Server(object):
 
 
 class VT100_Client(object):
-    def __init__(self, host, socket, address, world, usr):
+    def __init__(self, host, sck, address, world, usr):
         # type: (VT100_Server, socket.socket, tuple[str, int], World.World, User.User) -> VT100_Client
         self.ar = world.ar
         self.host = host
-        self.socket = socket
+        self.sck = sck
         self.adr = address
         self.world = world
         self.user = usr
@@ -766,13 +766,13 @@ class VT100_Client(object):
                 len(msg),
             )
             self.backlog = msg[end_pos:]
-            sent = self.socket.send(msg[:end_pos])
+            sent = self.sck.send(msg[:end_pos])
             self.backlog = msg[sent:]
             self.slowmo_skips = self.slowmo_tx
             # hexdump(msg[:sent])
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
         else:
-            sent = self.socket.send(msg)
+            sent = self.sck.send(msg)
             self.backlog = msg[sent:]
             # print('@@@ sent = {0}    backlog = {1}'.format(sent, len(self.backlog)))
 
@@ -2000,7 +2000,7 @@ class VT100_Client(object):
             if self.ar.dev and self.adr[0] == "127.0.0.1":
                 self.world.core.shutdown()
             else:
-                self.socket.send(b"ok bye\r\n")
+                self.sck.send(b"ok bye\r\n")
                 self.host.part(self)
             return
 

@@ -15,13 +15,13 @@ class NetcatServer(Ivt100.VT100_Server):
         ucp = "{0}cfg.{1}netcat".format(EP.log, "tls-" if tls else "")
         self.user_config_path = ucp
 
-    def gen_remote(self, socket, addr, user):
-        return NetcatClient(self, socket, addr, self.world, user)
+    def gen_remote(self, sck, addr, user):
+        return NetcatClient(self, sck, addr, self.world, user)
 
 
 class NetcatClient(Ivt100.VT100_Client):
-    def __init__(self, host, socket, address, world, user):
-        Ivt100.VT100_Client.__init__(self, host, socket, address, world, user)
+    def __init__(self, host, sck, address, world, user):
+        Ivt100.VT100_Client.__init__(self, host, sck, address, world, user)
 
         self.looks_like_telnet = {
             b"\xff\xfe": 1,
@@ -40,7 +40,7 @@ class NetcatClient(Ivt100.VT100_Client):
                 return
 
             try:
-                data = self.socket.recv(8192)
+                data = self.sck.recv(8192)
                 if not data:
                     raise Exception()
             except:

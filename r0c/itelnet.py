@@ -133,13 +133,13 @@ class TelnetServer(Ivt100.VT100_Server):
         ucp = "{0}cfg.{1}telnet".format(EP.log, "tls-" if tls else "")
         self.user_config_path = ucp
 
-    def gen_remote(self, socket, addr, user):
-        return TelnetClient(self, socket, addr, self.world, user)
+    def gen_remote(self, sck, addr, user):
+        return TelnetClient(self, sck, addr, self.world, user)
 
 
 class TelnetClient(Ivt100.VT100_Client):
-    def __init__(self, host, socket, address, world, user):
-        Ivt100.VT100_Client.__init__(self, host, socket, address, world, user)
+    def __init__(self, host, sck, address, world, user):
+        Ivt100.VT100_Client.__init__(self, host, sck, address, world, user)
 
         # if self.ar.linemode:
         #     self.y_input, self.y_status = self.y_status, self.y_input
@@ -154,7 +154,7 @@ class TelnetClient(Ivt100.VT100_Client):
                 return
 
             try:
-                data = self.socket.recv(8192)
+                data = self.sck.recv(8192)
                 if not data:
                     raise Exception()
             except:
