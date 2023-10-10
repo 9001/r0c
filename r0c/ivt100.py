@@ -481,7 +481,7 @@ class VT100_Client(object):
         with self.world.mutex:
             self.default_config()
             self.user.client = self
-            self.user.admin = self.adr[0] == "127.0.0.1"  # TODO
+            self.user.admin = self.adr[0] == "127.0.0.1" and not self.ar.ara
 
             try:
                 (

@@ -46,6 +46,7 @@ def optgen(ap, pwd):
     ac.add_argument("-tpt", metavar="PORT", type=int, default=0, help="TLS telnet port, e.g. 2424 (disable with 0)")
     ac.add_argument("-tpn", metavar="PORT", type=int, default=0, help="TLS netcat port, e.g. 1515 (disable with 0)")
     ac.add_argument("-pw", metavar="PWD", type=u, default=pwd, help="admin password")
+    ac.add_argument("--ara", action="store_true", help="admin-access requires auth (even for localhost)")
     ac.add_argument("--nsalt", metavar="TXT", type=u, default="lammo/", help="salt for generated nicknames based on IP")
 
     ac = ap.add_argument_group("logging")
