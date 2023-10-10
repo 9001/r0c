@@ -4,6 +4,7 @@ from .__init__ import EP, PY2, WINDOWS, COLORS, INTERP, unicode
 
 import traceback
 import threading
+import socket
 import struct
 import time
 import sys
@@ -633,6 +634,18 @@ def py26_threading_event_wait(event):
         return event._Event__flag
 
     event.wait = nice_meme
+
+
+def close_sck(sck):
+    # could go fancy and grab the siocoutq stuff from copyparty but ehh
+    try:
+        sck.shutdown(socket.SHUT_WR)
+        time.sleep(0.1)
+        sck.shutdown(socket.SHUT_RDWR)
+    except:
+        pass
+    finally:
+        sck.close()
 
 
 """

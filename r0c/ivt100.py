@@ -191,11 +191,7 @@ class VT100_Server(object):
 
         with self.world.mutex:
             # Util.whoops("client part")
-            try:
-                remote.sck.shutdown(socket.SHUT_RDWR)
-                remote.sck.close()
-            except:
-                pass
+            Util.Daemon(Util.close_sck, "close_%s" % (remote.user.nick), (remote.sck,))
 
             if announce:
                 print(
