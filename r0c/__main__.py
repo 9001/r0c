@@ -280,9 +280,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         self.push_thr.start()
 
         print("  *  Running")
-        self.select_thr = threading.Thread(target=self.select_worker, name="selector")
-        self.select_thr.daemon = True
-        self.select_thr.start()
+        self.select_thr = Util.Daemon(self.select_worker, "selector")
 
         return True
 

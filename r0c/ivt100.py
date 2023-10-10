@@ -452,9 +452,7 @@ class VT100_Client(object):
         self.add_esc(u"\x18", "next-chan")  # ^X
         self.add_esc(u"\x05", "alt-tab")  # ^E
 
-        thr = threading.Thread(target=self.handshake_timeout, name="hs_to")
-        thr.daemon = True
-        thr.start()
+        Util.Daemon(self.handshake_timeout, "hs_to")
 
         if IRONPY:
             self.__eq__ = self.ipy__eq__
@@ -809,9 +807,7 @@ class VT100_Client(object):
                         else:
                             print("*** its fine")
 
-                    thr = threading.Thread(target=delayed_drop, name="dropcli")
-                    thr.daemon = True
-                    thr.start()
+                    Util.Daemon(delayed_drop, "dropcli")
 
                 return
 
@@ -2300,10 +2296,9 @@ class VT100_Client(object):
                         if chan:
                             print(" delay join:  [{0}]".format(chan))
                             usr.world.join_pub_chan(usr, chan)
+                            usr.client.refresh(False)
 
-                    threading.Thread(
-                        target=delayed_join, name="d_join", args=(self.user, join_ch)
-                    ).start()
+                    Util.Daemon(delayed_join, "d_join", (self.user, join_ch))
 
         if self.wizard_stage == "echo":
             if self.linemode:

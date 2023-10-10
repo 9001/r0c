@@ -175,17 +175,9 @@ class Client(object):
         self.sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sck.connect(("127.0.0.1", self.port))
 
-        thr = threading.Thread(target=self.actor)
-        thr.daemon = True  # for emergency purposes
-        thr.start()
-
-        thr = threading.Thread(target=self.rx_loop)
-        thr.daemon = True
-        thr.start()
-
-        thr = threading.Thread(target=self.tx_loop)
-        thr.daemon = True
-        thr.start()
+        util.Daemon(self.actor)
+        util.Daemon(self.rx_loop)
+        util.Daemon(self.tx_loop)
 
     def send_status(self, txt):
         if False:
@@ -707,9 +699,7 @@ class Core(object):
             mproc.start()
             self.procs.append((mproc, cmd_q, stat_q))
 
-            t = threading.Thread(target=self.get_status, args=(stat_q,))
-            t.daemon = True
-            t.start()
+            util.Daemon(self.get_status, a=(stat_q,))
 
     def get_status(self, stat_q):
         while True:

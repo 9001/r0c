@@ -35,6 +35,13 @@ BRI_256 = list(
 )
 
 
+class Daemon(threading.Thread):
+    def __init__(self, target, name=None, a=None):
+        threading.Thread.__init__(self, target=target, args=a or (), name=name)
+        self.daemon = True
+        self.start()
+
+
 def print(*args, **kwargs):
     args = list(args)
     try:
@@ -592,9 +599,7 @@ def monitor_threads():
             with open("r0c.stack", "wb") as f:
                 f.write(txt.encode("utf-8"))
 
-    thr = threading.Thread(target=stack_collector, name="stk_col")
-    thr.daemon = True
-    thr.start()
+    Daemon(stack_collector, "stk_col")
 
 
 def host_os():
