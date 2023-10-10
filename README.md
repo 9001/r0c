@@ -82,6 +82,12 @@ if you enable TLS with `-tpt 2424` (telnet) and/or `-tpn 1515` (netcat) you can 
 
 the powershell client and bash client comes bundled with the server; see [protips](#protips)
 
+## connecting from a web browser
+
+![screenshot of chrome connecting to r0c through ttyd](docs/r0cc.png)
+
+oh you betcha! see the [webtty readme](webtty/)
+
 
 # installation
 
@@ -105,7 +111,7 @@ skip this section if:
 if you're using firewalld, and just want to open up the high ports (not 23 and 531) then this is probably enough:
 
 ```bash
-firewall-cmd --permanent --add-port={23,531,2323,1531,2424,1515}/tcp
+firewall-cmd --permanent --add-port={23,531,2323,1531,2424,1515,8023}/tcp
 firewall-cmd --reload
 ```
 
@@ -120,6 +126,7 @@ iptables -A INPUT -p tcp --dport 2323 -m state --state NEW -j ACCEPT
 iptables -A INPUT -p tcp --dport 1531 -m state --state NEW -j ACCEPT
 iptables -A INPUT -p tcp --dport 2424 -m state --state NEW -j ACCEPT  # tls telnet
 iptables -A INPUT -p tcp --dport 1515 -m state --state NEW -j ACCEPT  # tls netcat
+iptables -A INPUT -p tcp --dport 8023 -m state --state NEW -j ACCEPT  # http/ttyd
 iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 23 -j REDIRECT --to-port 2323
 iptables -t nat -A PREROUTING -i eth0 -p tcp --dport 531 -j REDIRECT --to-port 1531
 ```
