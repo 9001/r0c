@@ -191,7 +191,7 @@ class VT100_Server(object):
 
         with self.world.mutex:
             # Util.whoops("client part")
-            Util.Daemon(Util.close_sck, "close_%s" % (remote.user.nick), (remote.sck,))
+            Util.Daemon(Util.close_sck, "sclose", (remote.sck,))
 
             if announce:
                 print(

@@ -1,4 +1,4 @@
-VERSION = (1, 5, 2)
+VERSION = (1, 5, 3)
 BUILD_DT = (2023, 10, 10)
 
 S_VERSION = u".".join(map(str, VERSION))
