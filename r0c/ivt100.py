@@ -16,6 +16,7 @@ from datetime import datetime
 import operator
 
 print = Util.print
+UTC = Util.UTC
 
 # dont try-import ssl; avoids crash on systems with broken openssl libs
 ssl = None
@@ -1011,7 +1012,7 @@ class VT100_Client(object):
 
     def update_status_bar(self, full_redraw):
         preface = u"\033[%dH\033[0;37;44;48;5;235m" % (self.h - self.y_status,)
-        hhmmss = datetime.utcnow().strftime("%H%M%S")
+        hhmmss = datetime.now(UTC).strftime("%H%M%S")
         uchan = self.user.active_chan
         nchan = uchan.nchan
 

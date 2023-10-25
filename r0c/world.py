@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from . import user as User
 
 print = Util.print
+UTC = Util.UTC
 
 
 class World(object):
@@ -264,7 +265,7 @@ class World(object):
                         time.time(),
                         u"--",
                         u"\033[36mchannel created at \033[1m{0}".format(
-                            datetime.utcnow().strftime("%Y-%m-%d, %H:%M:%SZ")
+                            datetime.now(UTC).strftime("%Y-%m-%d, %H:%M:%SZ")
                         ),
                     )
                 )
@@ -515,7 +516,7 @@ class World(object):
             if not os.path.isdir(log_dir):
                 raise
 
-        ts = datetime.utcnow().strftime("%Y-%m%d-%H%M%S")
+        ts = datetime.now(UTC).strftime("%Y-%m%d-%H%M%S")
         log_fn = u"{0}/{1}".format(log_dir, ts)
 
         while os.path.isfile(log_fn):

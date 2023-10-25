@@ -36,6 +36,28 @@ BRI_256 = list(
 )
 
 
+try:
+    from datetime import datetime, timezone
+
+    UTC = timezone.utc
+except:
+    from datetime import datetime, timedelta, tzinfo
+
+    TD_ZERO = timedelta(0)
+
+    class _UTC(tzinfo):
+        def utcoffset(self, dt):
+            return TD_ZERO
+
+        def tzname(self, dt):
+            return "UTC"
+
+        def dst(self, dt):
+            return TD_ZERO
+
+    UTC = _UTC()
+
+
 class Daemon(threading.Thread):
     def __init__(self, target, name=None, a=None):
         threading.Thread.__init__(self, target=target, args=a or (), name=name)
@@ -52,7 +74,7 @@ def print(*args, **kwargs):
         pass
 
     with print_mutex:
-        zd = datetime.utcnow()
+        zd = datetime.now(UTC)
         t = "%06d " % (
             (zd.hour * 100 + zd.minute) * 100 + zd.second,
             # zd.microsecond // 1000

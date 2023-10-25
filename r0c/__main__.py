@@ -17,6 +17,7 @@ import threading
 from datetime import datetime
 
 print = Util.print
+UTC = Util.UTC
 
 
 """r0c.py: retr0chat Telnet/Netcat Server"""
@@ -109,7 +110,7 @@ def run_fap(argv, pwd):
         setattr(ap, "pt", int(argv[1]))
         setattr(ap, "pn", int(argv[2]))
         setattr(ap, "pw", unicode(argv[3]))
-    except:
+    except IndexError:
         pass
 
     return ap
@@ -460,7 +461,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                 if self.stopping:
                     break
 
-                zd = datetime.utcfromtimestamp(ts)
+                zd = datetime.fromtimestamp(ts, UTC)
                 date = u"%04d-%02d-%02d" % (zd.year, zd.month, zd.day)
 
                 if date != last_date:

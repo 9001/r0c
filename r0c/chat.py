@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from . import user as User
 
 print = Util.print
+UTC = Util.UTC
 
 
 class NChannel(object):
@@ -229,7 +230,7 @@ class Message(object):
     def __init__(self, to, ts, user, txt):
         # type: (NChannel, int, str, str) -> Message
         self.ts = ts  # int timestamp; 1M msgs = 38MiB
-        self.dt = datetime.utcfromtimestamp(ts)  # 1M msgs = 53MiB
+        self.dt = datetime.fromtimestamp(ts, UTC)  # 1M msgs = 53MiB
         self.user = user  # str username
         self.txt = txt  # str text
 

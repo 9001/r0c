@@ -307,7 +307,10 @@ def unpack():
     # the only possible input is a single tar.bz2
     # which gets hardcoded into this script at build stage
     # skip 0
-    tf.extractall(mine)
+    try:
+        tf.extractall(mine, filter="tar")
+    except TypeError:
+        tf.extractall(mine)
     tf.close()
     os.remove(tar)
 
