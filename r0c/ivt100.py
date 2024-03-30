@@ -485,6 +485,9 @@ class VT100_Client(object):
             self.user.admin = self.adr[0] == "127.0.0.1" and not self.ar.ara
 
             try:
+                if self.adr[0] in self.ar.proxy:
+                    raise Exception()
+
                 (
                     ts,
                     nick,
@@ -2884,6 +2887,16 @@ class VT100_Client(object):
                         self.user.exec_cmd("a")
                     elif act == "tab":
                         self.tabcomplete()
+                    elif act == "del":
+                        self.linepos += 1
+                        if self.linepos > len(self.linebuf):
+                            self.linepos = len(self.linebuf)
+                        if self.linepos > 0:
+                            self.linebuf = (
+                                self.linebuf[: self.linepos - 1]
+                                + self.linebuf[self.linepos :]
+                            )
+                            self.linepos -= 1
                     else:
                         print("unimplemented action: {0}".format(act))
 
