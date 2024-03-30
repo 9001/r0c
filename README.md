@@ -26,6 +26,10 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 
 * the german federal office for information security [does not approve](https://ocv.me/stuff/r0c-bsi.png)
 
+## compatibility
+
+* [1980: TVI 920C](https://a.ocv.me/pub/g/nerd-stuff/r0c-tvi-920c.jpg)
+
 ## features
 
 irc-like:
