@@ -809,9 +809,9 @@ class User(object):
                     inf,
                     u"""[invalid arguments]
   usage:     /ss  lines_scrolled_per_pgup_pgdn
-  example:   /sh  0     (entire screen)
-  example:   /sh  10    (10 lines)
-  example:   /sh  50%   (half the screen)
+  example:   /ss  0     (entire screen)
+  example:   /ss  10    (10 lines)
+  example:   /ss  50%   (half the screen)
 """,
                 )
             return
