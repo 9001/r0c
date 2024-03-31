@@ -10,6 +10,7 @@ import operator
 if TYPE_CHECKING:
     from . import ivt100 as Ivt100
     from . import user as User
+    from .irc import IRC_Chan
 
 print = Util.print
 UTC = Util.UTC
@@ -25,6 +26,8 @@ class NChannel(object):
         self.topic_bak = None
         self.user_act_ts = {}  # type: dict[str, int]  # str(nick) -> ts(last activity)
         self.usernames = u""  # sorted by activity
+        self.immortal = False  # has bridges
+        self.ircb = []  # type: list[IRC_Chan]
 
         self.log_fh = None  # active log file
         self.log_ctr = 0  # number of messages in file

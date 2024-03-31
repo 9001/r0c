@@ -1070,7 +1070,8 @@ class VT100_Client(object):
             online = u""
 
         line = Util.trunc(
-            u"%s%s   %s: \033[1;37m%s%s%s%s%s%s\033[K" % (
+            u"%s%s   %s: \033[1;37m%s%s%s%s%s%s\033[K"
+            % (
                 preface,
                 hhmmss,
                 nbuf,
@@ -2850,11 +2851,17 @@ class VT100_Client(object):
                                     # remove escape character
                                     self.linebuf = self.linebuf[1:]
 
+                                nch = self.user.active_chan.nchan
                                 self.world.send_chan_msg(
                                     self.user.nick,
-                                    self.user.active_chan.nchan,
+                                    nch,
                                     Util.convert_color_codes(self.linebuf),
                                 )
+                                for ircb in nch.ircb:
+                                    ircb.net.say(
+                                        "PRIVMSG #%s :<%s> %s"
+                                        % (ircb.irc_cname, self.user.nick, self.linebuf)
+                                    )
 
                             self.msg_hist_n = None
                             self.linebuf = u""

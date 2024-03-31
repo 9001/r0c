@@ -7,6 +7,7 @@ from . import util as Util
 from . import inetcat as Inetcat
 from . import itelnet as Itelnet
 from . import world as World
+from .irc import IRC_Net
 
 import os
 import sys
@@ -61,6 +62,10 @@ def optgen(ap, pwd):
     ac.add_argument("--tls-min", metavar="S", type=u, default="", help="oldest ver to allow; SSLv3 TLSv1 TLSv1_1 TLSv1_2 TLSv1_3")
     ac.add_argument("--old-tls", action="store_true", help="support old clients (centos6/powershell), bad ciphers")
 
+    ac = ap.add_argument_group("irc-bridge")
+    ac.add_argument("--ircn", metavar="TXT", type=u, action="append", help='connect to an irc server; TXT is: "netname,hostname,[+]port,nick[,username[,password]]" (if password contains "," then use ", " as separator)')
+    ac.add_argument("--ircb", metavar="N,C,L", type=u, action="append", help="bridge irc-netname N, irc-channel #C with r0c-channel #L")
+
     ac = ap.add_argument_group("ux")
     ac.add_argument("--no-all", action="store_true", help="default-disable @all / @everyone")
 
@@ -71,6 +76,7 @@ def optgen(ap, pwd):
 
     ac = ap.add_argument_group("debug")
     ac.add_argument("--dbg", action="store_true", help="show negotiations etc")
+    ac.add_argument("--dbg-irc", action="store_true", help="show irc traffic")
     ac.add_argument("--hex-rx", action="store_true", help="print incoming traffic from clients")
     ac.add_argument("--hex-tx", action="store_true", help="print outgoing traffic to clients")
     ac.add_argument("--hex-lim", metavar="N", type=int, default=128, help="filter packets larger than N bytes from being hexdumped")
@@ -198,7 +204,12 @@ class Core(object):
             rap = run_ap
 
         ar = self.ar = rap(argv, pwd)  # type: argparse.Namespace
+        ar.ircn = ar.ircn or []
+        ar.ircb = ar.ircb or []
         ar.proxy = ar.proxy.split(",")
+        if "127.0.0.1" in ar.proxy or "::1" in ar.proxy:
+            t = "\033[33mWARNING: you have localhost in --proxy, you probably want --ara too\033[0m"
+            print(t)
 
         Util.HEX_WIDTH = ar.hex_w
         Itelnet.init(ar)
@@ -284,10 +295,54 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         # self.push_thr.daemon = True
         self.push_thr.start()
 
+        for irc_cfg in ar.ircn:
+            self.add_irc_net(irc_cfg)
+
+        for irc_cfg in ar.ircb:
+            self.add_irc_ch(irc_cfg)
+
+        for ircn in self.world.ircn.values():
+            ircn.connect()
+
         print("  *  Running")
         self.select_thr = Util.Daemon(self.select_worker, "selector")
 
         return True
+
+    def add_irc_net(self, scfg):
+        acfg = scfg.split(", " if ", " in scfg else ",")
+        try:
+            netname, hostname, sport, nick = acfg[:4]
+        except:
+            raise Exception("invalid argument to --ircn: [%s]" % (scfg,))
+
+        username = ""
+        password = ""
+        try:
+            username = acfg[4]
+            password = acfg[5]
+        except:
+            pass
+
+        port = int(sport.lstrip("+"))
+        tls = sport.startswith("+")
+
+        print("  *  Adding irc-net %s (%s:%s)" % (netname, hostname, sport))
+        self.world.ircn[netname] = IRC_Net(
+            self.world, netname, hostname, port, tls, nick, username, password
+        )
+
+    def add_irc_ch(self, scfg):
+        try:
+            netname, irc_cname, r0c_cname = scfg.split(",")
+        except:
+            raise Exception("invalid argument to --ircb: [%s]" % (scfg,))
+
+        t = "  *  Adding irc-bridge <%s:#%s> -> #%s"
+        print(t % (netname, irc_cname, r0c_cname))
+
+        ircn = self.world.ircn[netname]
+        ircn.addchan(irc_cname, r0c_cname)
 
     def run(self):
         print("  *  r0c is up  ^^,")

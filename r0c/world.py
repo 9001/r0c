@@ -18,6 +18,8 @@ else:
 if TYPE_CHECKING:
     from . import __main__ as Main
     from . import user as User
+    from .chat import NChannel
+    from .irc import IRC_Chan, IRC_Net
 
 print = Util.print
 UTC = Util.UTC
@@ -40,6 +42,10 @@ class World(object):
         self.dirty_flag = threading.Event()  # raise after setting dirty_ch
         self.last_dirty = 0  # scheduler hint
         Util.py26_threading_event_wait(self.dirty_flag)
+
+        # irc bridges
+        self.ircn = {}  # type: dict[str, IRC_Net]  # netname:ircnet
+        self.ircb = {}  # type: dict[NChannel, IRC_Chan]
 
         # config
         self.messages_per_log_file = self.ar.rot_msg
@@ -240,6 +246,7 @@ class World(object):
             return uchan
 
     def get_pub_chan(self, name):
+        # type: (str) -> NChannel
         for ch in self.pub_ch:
             if ch.name == name:
                 return ch
@@ -287,9 +294,12 @@ class World(object):
 
                 self.pub_ch.append(nchan)
 
-            ret = self.join_chan_obj(user, nchan)
-            user.new_active_chan = ret
-            return ret
+            if user:
+                ret = self.join_chan_obj(user, nchan)
+                user.new_active_chan = ret
+                return ret
+            else:
+                nchan.immortal = True
 
     def join_priv_chan(self, user, alias):
         with self.mutex:
@@ -388,7 +398,7 @@ class World(object):
                     u"\033[1;33m{0}\033[22m has left{1}".format(user.nick, suf),
                 )
 
-            if not nchan.uchans:
+            if not nchan.uchans and not nchan.immortal:
                 print(" close chan:  [{0}]".format(nchan.get_name()))
 
                 if nchan.log_fh:
