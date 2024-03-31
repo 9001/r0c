@@ -1,0 +1,3 @@
+[submodule "scripts/corrupy"]
+	path = scripts/corrupy
+	url = git@github.com:CensoredUsername/corrupy.git
