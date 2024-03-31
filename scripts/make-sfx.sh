@@ -151,11 +151,14 @@ unc="$HOME/dev/copyparty/scripts/uncomment.py"
 		xargs -0 $pybin $unc 1
 
 echo
+echo minimizing files
+$pybin ../scripts/squish.py $(find site-packages/r0c -type f)
+
+echo
 echo creating tar
 args=(--owner=1000 --group=1000)
 [ "$OSTYPE" = msys ] &&
 	args=()
-
 (for d in clients site-packages; do
 	find $d -type f;
 done) |
