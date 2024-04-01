@@ -4,7 +4,13 @@ import sys
 
 PY2 = sys.version_info < (3,)
 
-from corrupy import minimize
+try:
+    from corrupy import minimize
+
+except Exception as ex:
+    print("cannot import corrupy, will not squish;", ex)
+    sys.exit(0)
+
 
 def main():
     if len(sys.argv) < 2:
@@ -28,6 +34,8 @@ def main():
             obfuscate_builtins=False,
             obfuscate_imports=False,
         )
+
+        output = "# coding: utf-8\n" + output
 
         if PY2:
             with open(filename, "wb") as f:
