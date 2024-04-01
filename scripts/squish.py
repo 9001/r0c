@@ -8,7 +8,8 @@ from corrupy import minimize
 
 def main():
     if len(sys.argv) < 2:
-        raise ValueError("No command line arguments given. Expected one or more filenames")
+        t = "No command line arguments given. Expected one or more filenames"
+        raise ValueError(t)
 
     for filename in sys.argv[1:]:
         print("minimizing {}".format(filename))
@@ -22,8 +23,10 @@ def main():
 
         output = minimize.minimize(
             data,
-            remove_docs=True, obfuscate_globals=False,
-            obfuscate_builtins=False, obfuscate_imports=False
+            remove_docs=True,
+            obfuscate_globals=False,
+            obfuscate_builtins=False,
+            obfuscate_imports=False,
         )
 
         if PY2:
@@ -33,5 +36,6 @@ def main():
             with open(filename, "w", encoding="utf-8") as f:
                 f.write(output)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
