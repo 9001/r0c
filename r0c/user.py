@@ -172,6 +172,14 @@ class User(object):
         )
         text += HELP_INTRO
 
+        if self.ar.motd:
+            try:
+                with open(self.ar.motd, "rb") as f:
+                    text += f.read().replace(b"\r", b"").decode("utf-8", "replace")[:-1]
+            except Exception as ex:
+                t = "WARNING: could not read motd-file [%s]: %s"
+                print(t % (self.ar.motd, ex))
+
         # x = u"`1;30m░▒▓█▀▀▀▀`37m█▀`46m▓`0;1;30m▀▀▀▀█▓▒░`0;36m┌ "
         # text += x.replace(u"`", u"\033[") * 66
 

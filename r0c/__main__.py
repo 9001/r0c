@@ -68,6 +68,7 @@ def optgen(ap, pwd):
 
     ac = ap.add_argument_group("ux")
     ac.add_argument("--no-all", action="store_true", help="default-disable @all / @everyone")
+    ac.add_argument("--motd", metavar="PATH", type=u, default="", help="file to include at the end of the welcome-text (can be edited at runtime)")
 
     ac = ap.add_argument_group("perf")
     ac.add_argument("--hist-rd", metavar="N", type=int, default=65535, help="max num msgs to load from disk when joining a channel")
