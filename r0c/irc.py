@@ -125,6 +125,7 @@ class IRC_Net(object):
             import ssl
 
             ctx = ssl.create_default_context()
+            ctx.check_hostname = False
             ctx.verify_mode = ssl.CERT_NONE
             sck = ctx.wrap_socket(sck)
 
