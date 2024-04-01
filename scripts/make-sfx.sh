@@ -151,8 +151,12 @@ unc="$HOME/dev/copyparty/scripts/uncomment.py"
 		xargs -0 $pybin $unc 1
 
 echo
-echo minimizing files
-$pybin ../scripts/squish.py $(find site-packages/r0c -type f)
+if [ -e ../scripts/corrupy/__init__.py ]; then
+	echo minimizing files
+	$pybin ../scripts/squish.py $(find site-packages/r0c -type f)
+else
+	echo the corrupy submodule is not present, cannot squish
+fi
 
 echo
 echo creating tar
