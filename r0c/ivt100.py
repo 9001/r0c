@@ -2096,7 +2096,7 @@ class VT100_Client(object):
                 u"""\
 \033[32m    this sentence is{0} green \033[0m
 """.format(
-                    u"" if self.vt100 else " NOT"
+                    u"" if self.vt100 else u" NOT"
                 )
                 .replace(u"\n", u"\r\n")
                 .encode("utf-8")
