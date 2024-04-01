@@ -17,6 +17,7 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 * tries to be irssi
 * zero dependencies on python 2.6, 2.7, 3.x
 * supports telnet, netcat, /dev/tcp, TLS clients
+* is not an irc server, but can bridge to/from irc servers
 * [modem-aware](https://ocv.me/r0c-2400.webm); comfortable at 1200 bps
 * fallbacks for inhumane conditions
   * linemode
@@ -46,6 +47,7 @@ technical:
   * history of sent messages (arrow-up/down)
 * bandwidth-conservative (push/pop lines instead of full redraws; scroll-regions)
 * fast enough; 600 clients @ 750 msgs/sec, or 1'000 cli @ 350 msg/s
+* bridge several irc channels from several networks into one r0c channel
 
 ## windows clients
 
@@ -150,6 +152,7 @@ try the following commands and hotkeys after connecting:
 * `/cy` enables colored nicknames
 * `/b3` (max cowbell) beeps on every message
 * `/v` or `ctrl-n` hides names and makes wordwrap more obvious; good for viewing a wall of text that somebody pasted
+* `CTRL-L` or `/r` if rendering breaks
 
 ## other surprises
 

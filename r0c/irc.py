@@ -1,12 +1,11 @@
 # coding: utf-8
 from __future__ import print_function
 from .__init__ import TYPE_CHECKING
-from . import chat as Chat
 from . import util as Util
-from . import user as User
 
 import time
 import socket
+import threading
 
 print = Util.print
 whoops = Util.whoops
@@ -32,14 +31,52 @@ class IRC_Net(object):
         self.backlog = b""
         self.nick_suf = 0
         self.generation = 0
+        self.cnick = ""
         self.chans = {}  # type: dict[str, IRC_Chan]
+        self.msg_q = []
+        self.hist = []
+        self.mutex = threading.Lock()
 
-    def say(self, msg):
+    def tx(self, msg):
+        if self.ar.dbg_irc:
+            for ln in msg.split("\r\n"):
+                print("\033[90mirc <%s [%s]\033[0m" % (self.host, ln))
         try:
             self.sck.sendall((msg + "\r\n").encode("utf-8", "replace"))
         except:
             t = "XXX lost connection to irc during write: %s"
             print(t % (msg,))
+
+    def say(self, msg):
+        with self.mutex:
+            if self._enqueue_msg(msg):
+                return
+        self.tx(msg)
+
+    def _say(self, msg):
+        if not self._enqueue_msg(msg):
+            self.tx(msg)
+
+    def _enqueue_msg(self, msg):
+        if self._is_rate_limited():
+            self.msg_q.append(msg)
+            return True
+        self._tick_ratelimit()
+
+    def _is_rate_limited(self):
+        if len(self.hist) < self.ar.i_rate_b:
+            return False
+
+        now = time.time()
+        return (
+            now - self.hist[0] < self.ar.i_rate_s * self.ar.i_rate_b
+            and now - self.hist[-1] < self.ar.i_rate_s
+        )
+
+    def _tick_ratelimit(self):
+        self.hist.append(time.time())
+        while len(self.hist) > self.ar.i_rate_b:
+            self.hist.pop(0)
 
     def addchan(self, irc_cname, r0c_cname):
         # type: (str, str) -> None
@@ -59,12 +96,18 @@ class IRC_Net(object):
         Util.Daemon(self._connect, "irc_c_%s" % (self.host,))
 
     def _connect(self):
+        n = 0
         while True:
             try:
                 self._connect_once()
+                if n:
+                    t = "finally connected to irc<%s> after %d failed attempts (nice)"
+                    print(t % (self.host, n))
                 return
             except Exception as ex:
-                print("XXX connecting irc<%s> failed: %s" % (self.host, ex))
+                n += 1
+                t = "XXX connecting irc<%s> failed (attempt %d): %s"
+                print(t % (self.host, n, ex))
                 time.sleep(5)
 
     def _connect_once(self):
@@ -73,7 +116,9 @@ class IRC_Net(object):
             print(t % (self.host,))
             return
 
-        self.generation += 1
+        with self.mutex:
+            self.generation += 1
+
         sck = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sck.connect((self.host, int(self.port)))
         if self.tls:
@@ -85,23 +130,31 @@ class IRC_Net(object):
 
         self.sck = sck
         self.nick_suf = 0
+        self.cnick = self.nick
         Util.Daemon(self._main, "ircm_%s" % (self.host,))
         Util.Daemon(self._recv, "ircr_%s" % (self.host,))
 
     def _main(self):
         generation = self.generation
         t = "NICK {0}\r\nUSER {0} {0} {1} :{0}"
-        self.say(t.format(self.nick, self.host))
+        self.tx(t.format(self.nick, self.host))
         while True:
             time.sleep(1)
-            if generation != self.generation:
-                break
+            with self.mutex:
+                if generation != self.generation:
+                    break
 
-            for ch in self.chans.values():
-                if ch.joined:
-                    continue
+                while self.msg_q and not self._is_rate_limited():
+                    self._tick_ratelimit()
+                    self.tx(self.msg_q.pop(0))
 
-                self.say("JOIN #%s" % (ch.irc_cname,))
+                for ch in self.chans.values():
+                    if ch.joined:
+                        continue
+
+                    t = "JOIN #%s" % (ch.irc_cname,)
+                    if t not in self.msg_q:
+                        self._say(t)
 
     def _recv(self):
         sck = self.sck
@@ -110,7 +163,9 @@ class IRC_Net(object):
             bmsg = sck.recv(4096)
             if not bmsg:
                 print("XXX lost connection to irc")
-                self.generation += 1
+                with self.mutex:
+                    self.generation += 1
+
                 time.sleep(2)
                 Util.Daemon(self._connect, "irc_re_%s" % (self.host,))
                 return
@@ -132,14 +187,43 @@ class IRC_Net(object):
 
     def handle_msg(self, msg):
         if self.ar.dbg_irc:
-            print("\033[90mirc<%s> [%s]\033[0m" % (self.host, msg))
+            print("\033[90mirc %s> [%s]\033[0m" % (self.host, msg))
 
         mw = msg.split(" ", 3)
+
+        if mw[0] == "PING":
+            self.tx("PO" + msg[2:])
+            return
+
+        if len(mw) < 3:
+            return
+
+        if mw[1] in ("JOIN", "PART"):
+            nick = mw[0].split("!")[0].split(":")[-1]
+            ch_name = mw[2][1:]
+            if ch_name not in self.chans or nick == self.cnick:
+                return
+
+            print("irc<%s #%s> %s [%s]" % (self.host, ch_name, mw[1], nick))
+            try:
+                nch = self.world.get_pub_chan(self.chans[ch_name].r0c_cname)
+                t = u"irc: \033[1;32m%s\033[22m has %sed" % (nick, mw[1].lower())
+                if len(mw) > 3:
+                    t += " (%s)" % (mw[3][1:])
+
+                self.world.send_chan_msg(u"--", nch, t, False)
+            except:
+                whoops()
+
         if len(mw) < 4:
             return
 
         if mw[1] == "PRIVMSG":
             nick = mw[0].split("!")[0].split(":")[-1]
+            if mw[3] == ":\x01VERSION\x01":  # ctcp required by rizon
+                self.say("NOTICE %s :\x01VERSION %s\x01" % (nick, self.ar.ctcp_ver))
+                return
+
             ch_name = mw[2][1:]
             if ch_name not in self.chans:
                 t = "XXX msg from chan [%s] not in %s ???"
@@ -178,13 +262,13 @@ class IRC_Net(object):
                 self.destroy()
                 return
 
-            t = "NICK {0}{1}\r\nUSER {0} {0} {2} :{0}"
-            self.say(t.format(self.nick, self.nick_suf, self.host))
+            self.cnick = "%s%s" % (self.nick, self.nick_suf)
+            self.tx("NICK {0}\r\nUSER {0} {0} {1} :{0}".format(self.cnick, self.host))
             return
 
         if sc == "464":
             if self.pwd:
-                self.say("PASS %s:%s" % (self.uname, self.pwd))
+                self.tx("PASS %s:%s" % (self.uname, self.pwd))
             else:
                 print("XXX irc server requires a password to connect")
                 self.destroy()

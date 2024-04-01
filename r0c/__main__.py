@@ -65,6 +65,8 @@ def optgen(ap, pwd):
     ac = ap.add_argument_group("irc-bridge")
     ac.add_argument("--ircn", metavar="TXT", type=u, action="append", help='connect to an irc server; TXT is: "netname,hostname,[+]port,nick[,username[,password]]" (if password contains "," then use ", " as separator)')
     ac.add_argument("--ircb", metavar="N,C,L", type=u, action="append", help="bridge irc-netname N, irc-channel #C with r0c-channel #L")
+    ac.add_argument("--i-rate", metavar="B,R", type=u, default="4,2", help="rate limit; burst of B messages, then R seconds between each")
+    ac.add_argument("--ctcp-ver", metavar="S", type=u, default="r0c v%s" % (S_VERSION), help="reply to CTCP VERSION")
 
     ac = ap.add_argument_group("ux")
     ac.add_argument("--no-all", action="store_true", help="default-disable @all / @everyone")
@@ -207,6 +209,7 @@ class Core(object):
         ar = self.ar = rap(argv, pwd)  # type: argparse.Namespace
         ar.ircn = ar.ircn or []
         ar.ircb = ar.ircb or []
+        ar.i_rate_b, ar.i_rate_s = [float(x) for x in ar.i_rate.split(",")]
         ar.proxy = ar.proxy.split(",")
         if "127.0.0.1" in ar.proxy or "::1" in ar.proxy:
             t = "\033[33mWARNING: you have localhost in --proxy, you probably want --ara too\033[0m"
@@ -411,6 +414,8 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         for iface in self.servers:
             srvs[iface.srv_sck] = iface
 
+        t_fast = 0.5 if self.ar.ircn else 1
+
         sn = -1
         sc = {}
         slow = {}  # sck:cli
@@ -435,7 +440,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
 
                         sc[c.sck] = c
 
-                timeout = 0.2 if slow else 1 if fast else 69
+                timeout = 0.2 if slow else t_fast if fast else 69
 
             want_tx = [s for s, c in fast.items() if c.writable()]
             want_rx = [s for s, c in sc.items() if c.readable()]
