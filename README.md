@@ -29,7 +29,8 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 
 ## compatibility
 
-* [1980: TVI 920C](https://a.ocv.me/pub/g/nerd-stuff/r0c-tvi-920c.jpg)
+* 1980: [TVI 920C](https://a.ocv.me/pub/g/nerd-stuff/r0c-tvi-920c.jpg)
+* 1987: [IBM 3151](https://a.ocv.me/pub/g/nerd-stuff/r0c-ibm-3151.jpg) (also [video](https://a.ocv.me/pub/g/nerd-stuff/r0c-ibm-3151.webm)), using gnu-screen to translate VT100 sequences
 
 ## features
 

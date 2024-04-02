@@ -9,6 +9,7 @@ import struct
 import time
 import sys
 import os
+import re
 import platform
 import itertools
 from datetime import datetime
@@ -454,14 +455,17 @@ def convert_color_codes(txt, preview=False):
             txt = u"%sK%s" % (txt[:ofs], txt[resume_txt:])
 
     scan_from = 0
+    is_bold = False
     while txt:
         ofs = txt.find(u"\x02", scan_from)
         if ofs < 0:
             break
 
         scan_from = ofs + 1
-        txt = u"%s\033[1m%s%s" % (
+        is_bold = not is_bold
+        txt = u"%s\033[%dm%s%s" % (
             txt[:ofs],
+            1 if is_bold else 22,
             u"B" if preview else u"",
             txt[scan_from:],
         )
@@ -478,6 +482,108 @@ def convert_color_codes(txt, preview=False):
             u"O" if preview else u"",
             txt[scan_from:],
         )
+
+    return txt
+
+
+FG_TO_IRC = {}
+FG_FROM_IRC = {}
+for n, ch in enumerate(u"f0429153ba6ecd87"):
+    FG_FROM_IRC[n] = u"\x0b%s" % (ch,)
+    FG_TO_IRC[ch] = u"\x03%02d" % (n,)
+
+BG_TO_IRC = {}
+BG_FROM_IRC = {}
+for n, ch in enumerate(u"7042115332664507"):
+    BG_FROM_IRC[n] = u",%s" % (ch,)
+    BG_TO_IRC[ch] = u",%02d" % (n,)
+
+IRC_COLOR_RE = re.compile("^([0-9]{1,2})(,[0-9]{1,2})?")
+
+
+def color_to_irc(txt):
+    # mostly copy-pasted from `convert_color_codes`
+    foregrounds = FG_TO_IRC
+    backgrounds = BG_TO_IRC
+    scan_from = 0
+    while txt:
+        ofs = txt.find(u"\x0b", scan_from)
+        if ofs < 0:
+            break
+
+        scan_from = ofs + 1
+
+        fg = None
+        if len(txt) > ofs + 1:
+            fg = txt[ofs + 1]
+
+        bg = None
+        if len(txt) > ofs + 3 and txt[ofs + 2] == u",":
+            bg = txt[ofs + 3]
+
+        if fg in foregrounds:
+            fg = foregrounds[fg]
+        else:
+            fg = None
+            bg = None  # can't set bg without valid fg
+
+        if bg in backgrounds:
+            bg = backgrounds[bg]
+        else:
+            bg = None
+
+        resume_txt = ofs + 1
+        if fg:
+            resume_txt += 1
+            scan_from = len(fg) + 1
+        if bg:
+            resume_txt += 2
+            scan_from += len(bg)
+
+        if fg and bg:
+            txt = u"%s%s%s%s" % (txt[:ofs], fg, bg, txt[resume_txt:])
+        elif fg:
+            txt = u"%s%s%s" % (txt[:ofs], fg, txt[resume_txt:])
+        else:
+            txt = u"%s\x03%s" % (txt[:ofs], txt[resume_txt:])
+
+    # irc bold  == r0c, \x02
+    # irc reset == r0c, \x0f
+    return txt
+
+
+def color_from_irc(txt):
+    fgs = FG_FROM_IRC
+    bgs = BG_FROM_IRC
+    ptn = IRC_COLOR_RE
+    scan_from = 0
+    while txt:
+        ofs = txt.find(u"\x03", scan_from)
+        if ofs < 0:
+            break
+
+        fg = bg = ""
+        scan_from = ofs + 1
+        m = ptn.search(txt[scan_from : scan_from + 5])
+        if m:
+            i = int(m.group(1))
+            if i < 16:
+                fg = fgs[i]
+                if m.group(2):
+                    i = int(m.group(2)[1:])
+                    if i < 16:
+                        bg = bgs[i]
+
+                scan_from += len(m.group(0 if bg else 1))
+
+        if bg:
+            txt = u"%s%s%s%s" % (txt[:ofs], fg, bg, txt[scan_from:])
+        elif fg:
+            txt = u"%s%s%s" % (txt[:ofs], fg, txt[scan_from:])
+        else:
+            txt = u"%s\x0f%s" % (txt[:ofs], txt[scan_from:])
+            # no easy/cheap way to encode "keep boldness and reset color";
+            # `convert_color_codes` would then eat any following a..f
 
     return txt
 

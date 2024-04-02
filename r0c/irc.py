@@ -232,7 +232,8 @@ class IRC_Net(object):
                 return
 
             txt = mw[3][1:]
-            print("irc<%s #%s> [%s] %s" % (self.host, ch_name, nick, txt))
+            txt = Util.convert_color_codes(Util.color_from_irc(txt))
+            print("irc<%s #%s> [%s] %s\033[0m" % (self.host, ch_name, nick, txt))
             try:
                 nch = self.world.get_pub_chan(self.chans[ch_name].r0c_cname)
                 self.world.send_chan_msg(nick, nch, txt, False)

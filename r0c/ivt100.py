@@ -2858,9 +2858,10 @@ class VT100_Client(object):
                                     Util.convert_color_codes(self.linebuf),
                                 )
                                 for ircb in nch.ircb:
+                                    t = Util.color_to_irc(self.linebuf)
                                     ircb.net.say(
                                         "PRIVMSG #%s :<%s> %s"
-                                        % (ircb.irc_cname, self.user.nick, self.linebuf)
+                                        % (ircb.irc_cname, self.user.nick, t)
                                     )
 
                             self.msg_hist_n = None
