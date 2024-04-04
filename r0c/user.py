@@ -331,10 +331,7 @@ class User(object):
                 now = time.time()
                 for nchan in [x.nchan for x in self.chans]:
                     nchan.user_act_ts[new_nick] = now
-                    try:
-                        del nchan.user_act_ts[self.nick]
-                    except:
-                        pass
+                    nchan.user_act_ts.pop(self.nick, None)
                     nchan.update_usernames()
 
                 # update title in DM windows

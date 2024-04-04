@@ -170,6 +170,8 @@ class World(object):
             nchan.latest = msg.ts
 
             if not from_nick.startswith(u"-") and not from_nick == u"***":
+                if len(nchan.user_act_ts) > 9000:
+                    nchan.user_act_ts = {}
                 nchan.user_act_ts[from_nick] = now
                 nchan.update_usernames()
 
@@ -237,6 +239,8 @@ class World(object):
             uchan = Chat.UChannel(user, nchan, alias)
             user.chans.append(uchan)
             nchan.uchans.append(uchan)
+            if len(nchan.user_act_ts) > 9000:
+                nchan.user_act_ts = {}
             nchan.user_act_ts[user.nick] = time.time()
             nchan.update_usernames()
             self.send_chan_msg(
@@ -416,7 +420,7 @@ class World(object):
             nchan.uchans.remove(uchan)
 
             try:
-                del nchan.user_act_ts[user.nick]
+                nchan.user_act_ts.pop(user.nick, None)
                 nchan.update_usernames()
             except:
                 pass

@@ -317,6 +317,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         acfg = scfg.split(", " if ", " in scfg else ",")
         try:
             netname, hostname, sport, nick = acfg[:4]
+            netname = netname.lower()
         except:
             raise Exception("invalid argument to --ircn: [%s]" % (scfg,))
 
@@ -338,9 +339,13 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
 
     def add_irc_ch(self, scfg):
         try:
-            netname, irc_cname, r0c_cname = scfg.split(",")
+            netname, irc_cname, r0c_cname = scfg.lower().split(",")
         except:
             raise Exception("invalid argument to --ircb: [%s]" % (scfg,))
+
+        if netname not in self.world.ircn:
+            t = "ircnet '%s' (mentioned in --ircb %s) not defined by --ircn"
+            raise Exception(t % (netname, scfg))
 
         t = "  *  Adding irc-bridge <%s:#%s> #%s"
         print(t % (netname, irc_cname, r0c_cname))

@@ -201,7 +201,7 @@ class IRC_Net(object):
 
         if mw[1] in ("JOIN", "PART"):
             nick = mw[0].split("!")[0].split(":")[-1]
-            ch_name = mw[2][1:]
+            ch_name = mw[2][1:].lower()
             if ch_name not in self.chans or nick == self.cnick:
                 return
 
@@ -225,7 +225,7 @@ class IRC_Net(object):
                 self.say("NOTICE %s :\x01VERSION %s\x01" % (nick, self.ar.ctcp_ver))
                 return
 
-            ch_name = mw[2][1:]
+            ch_name = mw[2][1:].lower()
             if ch_name not in self.chans:
                 t = "XXX msg from chan [%s] not in %s ???"
                 print(t % (ch_name, list(self.chans)))
@@ -249,7 +249,7 @@ class IRC_Net(object):
         sc = mw[1]
 
         if sc in ("331", "366") and mw[3].startswith("#"):
-            ch_name = mw[3][1:]
+            ch_name = mw[3][1:].lower()
             if ch_name in self.chans:
                 self.chans[ch_name].joined = True
             else:
