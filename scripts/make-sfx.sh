@@ -52,6 +52,7 @@ pybin=$(command -v python3 || command -v python) || {
 
 while [ ! -z "$1" ]; do
 	[ "$1" = clean  ] && clean=1  && shift && continue
+	[ "$1" = nosq   ] && nosq=1   && shift && continue
 	break
 done
 
@@ -151,12 +152,14 @@ unc="$HOME/dev/copyparty/scripts/uncomment.py"
 		xargs -0 $pybin $unc 1
 
 echo
-if [ -e ../scripts/corrupy/__init__.py ]; then
+[ -e ../scripts/corrupy/__init__.py ] || {
+	echo the corrupy submodule is not present, cannot squish
+	nosq=1
+}
+[ $nosq ] || {
 	echo minimizing files
 	$pybin ../scripts/squish.py $(find site-packages/r0c -type f)
-else
-	echo the corrupy submodule is not present, cannot squish
-fi
+}
 
 echo
 echo creating tar
