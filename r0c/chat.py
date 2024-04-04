@@ -2,6 +2,7 @@
 from __future__ import print_function
 from .__init__ import TYPE_CHECKING
 from . import util as Util
+from .util import t2ymd_hms
 
 from datetime import datetime
 import calendar
@@ -244,13 +245,13 @@ class Message(object):
             self.sno = 0
 
     def __unicode__(self):
-        hhmmss = self.dt.strftime("%Y-%m%d-%H%M%S")
+        hhmmss = t2ymd_hms(self.dt, "%04d-%02d%02d-%02d%02d%02d")
         return u"Message {0:x} time({1},{2}) from({3}) body({4})".format(
             id(self), self.ts, hhmmss, self.user, self.txt
         )
 
     def __str__(self):
-        hhmmss = self.dt.strftime("%Y-%m%d-%H%M%S")
+        hhmmss = t2ymd_hms(self.dt, "%04d-%02d%02d-%02d%02d%02d")
         return "Message {0:x} time({1},{2}) from({3}) body({4})".format(
             id(self), self.ts, hhmmss, self.user, self.txt
         )

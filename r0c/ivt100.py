@@ -4,6 +4,7 @@ from .__init__ import EP, PY2, COLORS, IRONPY, TYPE_CHECKING, WINDOWS, unicode
 from . import util as Util
 from . import chat as Chat
 from . import user as User
+from .util import t2hms
 
 import os
 import re
@@ -96,14 +97,6 @@ class VT100_Server(object):
 
     def ipy__ne__(self, other):
         return id(self) != id(other)
-
-    def con(self, msg, adr, add=0):
-        ht = time.strftime("%d/%m/%Y, %H:%M:%S")
-        print(
-            " {0} {1}  {2}  {3} :{4}".format(
-                msg, ht, len(self.clients) + add, adr[0], adr[1]
-            )
-        )
 
     def gen_remote(self, sck, addr, usr):
         if sck:
@@ -1023,7 +1016,7 @@ class VT100_Client(object):
 
     def update_status_bar(self, full_redraw):
         preface = u"\033[%dH\033[0;37;44;48;5;235m" % (self.h - self.y_status,)
-        hhmmss = datetime.now(UTC).strftime("%H%M%S")
+        hhmmss = t2hms(datetime.now(UTC), "%02d%02d%02d")
         uchan = self.user.active_chan
         nchan = uchan.nchan
 

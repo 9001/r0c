@@ -94,6 +94,26 @@ def num(c):
         return None
 
 
+def t2ymd(dt, fmt):
+    return fmt % (dt.year, dt.month, dt.day)
+
+
+def t2ymd_hm(dt, fmt):
+    return fmt % (dt.year, dt.month, dt.day, dt.hour, dt.minute)
+
+
+def t2ymd_hms(dt, fmt):
+    return fmt % (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second)
+
+
+def t2hms(dt, fmt):
+    return fmt % (dt.hour, dt.minute, dt.second)
+
+
+def t2hm(dt, fmt):
+    return fmt % (dt.hour, dt.minute)
+
+
 def b2hex(data):
     if PY2:
         return " ".join(map(lambda b: format(ord(b), "02x"), data))

@@ -3,6 +3,7 @@ from __future__ import print_function
 from .__init__ import EP, PY2, INTERP, TYPE_CHECKING
 from . import util as Util
 from . import chat as Chat
+from .util import t2ymd_hm, t2ymd_hms
 
 import os
 import re
@@ -269,6 +270,7 @@ class World(object):
             name = name.strip().lower()
             nchan = self.get_pub_chan(name)
             if nchan is None:
+                st = t2ymd_hms(datetime.now(UTC), "%04d-%02d-%02d, %02d:%02d:%02dZ")
                 nchan = Chat.NChannel(
                     name, u"#{0} - no topic has been set".format(name)
                 )
@@ -277,9 +279,7 @@ class World(object):
                         nchan,
                         time.time(),
                         u"--",
-                        u"\033[36mchannel created at \033[1m{0}".format(
-                            datetime.now(UTC).strftime("%Y-%m-%d, %H:%M:%SZ")
-                        ),
+                        u"\033[36mchannel created at \033[1m%s" % (st,),
                     )
                 )
                 if nchan.name != u"scrolltest":
@@ -321,7 +321,7 @@ class World(object):
                 inf = self.get_priv_chan(user, u"r0c-status").nchan
                 tf = "%d %ss ago (%s) you were mentioned in \033[1m#%s:\033[0m <%s> %s"
                 for msg in reversed(hls):
-                    dt = msg.dt.strftime("%Y-%m-%d %H:%M")
+                    dt = t2ymd_hm(msg.dt, "%04d-%02d-%02d %02d:%02d")
                     td = int(time.time() - msg.ts)
                     if td >= 172800:
                         tu = "day"
@@ -565,7 +565,7 @@ class World(object):
             if not os.path.isdir(log_dir):
                 raise
 
-        ts = datetime.now(UTC).strftime("%Y-%m%d-%H%M%S")
+        ts = t2ymd_hms(datetime.now(UTC), "%04d-%02d%02d-%02d%02d%02d")
         log_fn = u"{0}/{1}".format(log_dir, ts)
 
         while os.path.isfile(log_fn):
