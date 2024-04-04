@@ -186,21 +186,24 @@ class World(object):
 
             # self.refresh_chan(nchan)
             for uchan in nchan.uchans:
-                if nchan.name is None or uchan.user.nick_re.search(text):
-                    # if len(nchan.uchans) == 1:
-                    # 	break
-                    if PY2 and INTERP != "IronPython":
-                        if isinstance(uchan.user.nick, str):
-                            Util.whoops("uchan.user.nick is bytestring")
-                        if isinstance(from_nick, str):
-                            Util.whoops("from_nick is bytestring")
+                if nchan.name and not uchan.user.nick_re.search(text):
+                    continue
 
-                    if uchan.alias == u"r0c-status":
-                        if ping_self:
-                            uchan.last_ping = msg.sno
-                    else:
-                        if ping_self or uchan.user.nick != from_nick:
-                            uchan.last_ping = msg.sno
+                if PY2 and INTERP != "IronPython":
+                    if isinstance(uchan.user.nick, str):
+                        Util.whoops("uchan.user.nick is bytestring")
+                    if isinstance(from_nick, str):
+                        Util.whoops("from_nick is bytestring")
+
+                if uchan.alias != u"r0c-status" and uchan.user.nick != from_nick:
+                    uchan.last_ping = msg.sno
+                    if uchan.user.client.hilog and nchan.name:
+                        inf = self.get_priv_chan(uchan.user, u"r0c-status").nchan
+                        t = "you were mentioned in \033[1m#%s:\033[0m <%s> %s"
+                        t = t % (nchan.name, msg.user, msg.txt)
+                        self.send_chan_msg(u"-nfo-", inf, t, False)
+                elif ping_self:
+                    uchan.last_ping = msg.sno
 
             if nchan not in self.dirty_ch:
                 self.dirty_ch[nchan] = 1
@@ -297,12 +300,45 @@ class World(object):
 
                 self.pub_ch.append(nchan)
 
-            if user:
-                ret = self.join_chan_obj(user, nchan)
-                user.new_active_chan = ret
-                return ret
-            else:
+            if not user:
                 nchan.immortal = True
+                return None
+
+            ret = self.join_chan_obj(user, nchan)
+            user.new_active_chan = ret
+            if user.client.hilog:
+                hls = []
+                nmsg = 0
+                ptn = user.nick_re
+                for msg in reversed(nchan.msgs):
+                    if len(hls) >= 50 or nmsg > 9000:
+                        break
+
+                    nmsg += 1
+                    if ptn.search(msg.txt):
+                        hls.append(msg)
+
+                inf = self.get_priv_chan(user, u"r0c-status").nchan
+                tf = "%d %ss ago (%s) you were mentioned in \033[1m#%s:\033[0m <%s> %s"
+                for msg in reversed(hls):
+                    dt = msg.dt.strftime("%Y-%m-%d %H:%M")
+                    td = int(time.time() - msg.ts)
+                    if td >= 172800:
+                        tu = "day"
+                        td //= 86400
+                    elif td >= 7200:
+                        tu = "hour"
+                        td //= 3600
+                    elif td >= 300:
+                        tu = "minute"
+                        td //= 60
+                    else:
+                        tu = "second"
+
+                    t = tf % (td, tu, dt, nchan.name, msg.user, msg.txt)
+                    self.send_chan_msg(u"-nfo-", inf, t, False)
+
+            return ret
 
     def join_priv_chan(self, user, alias):
         with self.mutex:

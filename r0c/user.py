@@ -855,6 +855,18 @@ class User(object):
             self.build_nick_re()
             self.client.save_config()
 
+        elif cmd == u"hsy":
+            t = u"Hilights/mentions-log in status channel enabled. Disable with /hsn"
+            self.client.hilog = True
+            self.world.send_chan_msg(u"--", inf, t, False)
+            self.client.save_config()
+
+        elif cmd == u"hsn":
+            t = u"Hilights/mentions-log in status channel disabled. Enable with /hsy"
+            self.client.hilog = False
+            self.world.send_chan_msg(u"--", inf, t, False)
+            self.client.save_config()
+
         elif cmd == u"cy":
             self.client.cnicks = True
             self.client.need_full_redraw = True

@@ -305,6 +305,7 @@ class VT100_Client(object):
         self.view = False
         self.bell = 1
         self.atall = True
+        self.hilog = True
         self.crlf = u"\n"
         self.bps = 0
         self.codec = "utf-8"
@@ -475,6 +476,7 @@ class VT100_Client(object):
         self.align = True  # fixed left margin
         self.bell = 1  # doot on hilights in other channels
         self.atall = not self.ar.no_all  # hilight on @all / @everyone
+        self.hilog = True  # hilights/mentions log in status chan
         self.crlf = u"\n"  # return key
         self.bps = 0  # will autodetect
         self.set_codec("utf-8")
@@ -501,6 +503,7 @@ class VT100_Client(object):
                     codec,
                     bell,
                     atall,
+                    hilog,
                     cnicks,
                     align,
                 ) = self.host.user_config[self.adr[0]].split(u" ")
@@ -517,7 +520,8 @@ class VT100_Client(object):
 
                 # user config
                 self.bell = int(bell)
-                self.atall = int(atall)
+                self.atall = 1 == int(atall)
+                self.hilog = 1 == int(hilog)
                 self.cnicks = 1 == int(cnicks)
                 self.align = 1 == int(align)
 
@@ -556,6 +560,7 @@ class VT100_Client(object):
                     # user config
                     unicode(self.bell),
                     u"1" if self.atall else u"0",
+                    u"1" if self.hilog else u"0",
                     u"1" if self.cnicks else u"0",
                     u"1" if self.align else u"0",
                 ]
