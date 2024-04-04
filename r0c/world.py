@@ -18,7 +18,7 @@ else:
 if TYPE_CHECKING:
     from . import __main__ as Main
     from . import user as User
-    from .chat import NChannel
+    from .chat import NChannel, UChannel
     from .irc import IRC_Chan, IRC_Net
 
 print = Util.print
@@ -125,6 +125,7 @@ class World(object):
             user.client.refresh(False)
 
     def send_chan_msg(self, from_nick, nchan, text, ping_self=True):
+        # type: (str, NChannel, str, bool) -> None
         max_hist_mem = self.ar.hist_mem
         msg_trunc_size = self.ar.hist_tsz
         with self.mutex:
@@ -253,12 +254,14 @@ class World(object):
         return None
 
     def get_priv_chan(self, user, alias):
+        # type: (User.User, str) -> UChannel
         for ch in user.chans:
             if ch.alias == alias:
                 return ch
         return None
 
     def join_pub_chan(self, user, name):
+        # type: (User.User, str) -> Optional[UChannel]
         with self.mutex:
             name = name.strip().lower()
             nchan = self.get_pub_chan(name)

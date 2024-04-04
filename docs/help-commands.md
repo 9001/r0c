@@ -38,6 +38,8 @@
 **`/b1`** and **`/b0`** turns on/off audible alerts when someone mentions your name;  
 **`/b2`** makes it also trigger in active channels, and **`/b3`** beeps on any activity at all
 
+**`/ey`** and **`/en`** turns on/off notifications on @all / @everyone in messages
+
 **`/cy`** and **`/cn`** turns on/off colored nicknames
 
 **`/my`** and **`/mn`** turns on/off wordwrap margins

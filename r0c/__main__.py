@@ -342,7 +342,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         except:
             raise Exception("invalid argument to --ircb: [%s]" % (scfg,))
 
-        t = "  *  Adding irc-bridge <%s:#%s> -> #%s"
+        t = "  *  Adding irc-bridge <%s:#%s> #%s"
         print(t % (netname, irc_cname, r0c_cname))
 
         ircn = self.world.ircn[netname]

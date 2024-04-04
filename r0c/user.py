@@ -19,6 +19,7 @@ import gc
 
 if TYPE_CHECKING:
     from . import world as World
+    from .ivt100 import VT100_Client
 
 print = Util.print
 
@@ -69,7 +70,7 @@ class User(object):
         self.ar = world.ar
         self.world = world
         self.admin = False  # set true after challenge success
-        self.client = None  # the client which this object belongs to
+        self.client = None  # type: VT100_Client  # the connected client
         self.chans = []  # type: list[Chat.UChannel]
         self.active_chan = None  # type: Chat.UChannel
         self.new_active_chan = None  # set for channel change
@@ -848,7 +849,7 @@ class User(object):
             self.client.save_config()
 
         elif cmd == u"en":
-            t = u"Hilight on @all / @everyone disabled. Enable with /en"
+            t = u"Hilight on @all / @everyone disabled. Enable with /ey"
             self.client.atall = False
             self.world.send_chan_msg(u"--", inf, t, False)
             self.build_nick_re()

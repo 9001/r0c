@@ -30,6 +30,8 @@ else:
 
 if TYPE_CHECKING:
     from . import world as World
+    from . import user as User
+    from .chat import Message, NChannel, UChannel
 
 
 class VT100_Server(object):
@@ -979,7 +981,8 @@ class VT100_Client(object):
                 u"-nfo-",
                 inf_n,
                 u"""[about notifications]{0}
-  to jump through unread channels,
+  to jump through unread channels
+  (or return to previous channel),
   press CTRL-E or use the command /a
 
   to disable audible alerts,
