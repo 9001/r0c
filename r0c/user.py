@@ -463,11 +463,20 @@ class User(object):
             self.world.send_chan_msg(self.nick, uchan.nchan, arg2)
             self.client.refresh(False, True)
 
-        elif cmd == u"up" or cmd == u"u":
-            self.client.scroll_cmd += -(self.client.h - 4)
+        elif cmd == u"up" or cmd == u"u" or cmd == u"down" or cmd == u"d":
+            cli = self.client
+            steps = cli.h - 4
+            if cli.scroll_i is not None:
+                steps = cli.scroll_i
+            elif cli.scroll_f is not None:
+                steps = int(steps * cli.scroll_f)
+            else:
+                print("no scroll size?!")
 
-        elif cmd == u"down" or cmd == u"d":
-            self.client.scroll_cmd += +(self.client.h - 4)
+            if cmd == u"up" or cmd == u"u":
+                steps *= -1
+
+            cli.scroll_cmd += steps
 
         elif cmd == u"latest" or cmd == u"l":
             self.active_chan.lock_to_bottom = True

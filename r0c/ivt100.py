@@ -2869,21 +2869,10 @@ class VT100_Client(object):
                             self.linebuf = u""
                             self.linepos = 0
 
-                    elif act == "pgup" or act == "pgdn":
-
-                        steps = self.h - 4
-                        if self.scroll_i is not None:
-                            steps = self.scroll_i
-                        elif self.scroll_f is not None:
-                            steps = int(steps * self.scroll_f)
-                        else:
-                            print("no scroll size?!")
-
-                        if act == "pgup":
-                            steps *= -1
-
-                        self.scroll_cmd += steps
-
+                    elif act == "pgup":
+                        self.user.exec_cmd("u")
+                    elif act == "pgdn":
+                        self.user.exec_cmd("d")
                     elif act == "redraw":
                         self.user.exec_cmd("r")
                     elif act == "view":
