@@ -623,10 +623,10 @@ class VT100_Client(object):
         if self.ar.dbg:
             print("terminal sz:  {0}x{1}".format(self.w, self.h))
 
-        if self.w >= 512:
+        if self.w >= 512 or not self.w:  # always 0 on win3.11
             print("screen width {0} reduced to 80".format(self.w))
             self.w = 80
-        if self.h >= 512:
+        if self.h >= 512 or not self.h:  # never seen 0 but hey
             print("screen height {0} reduced to 24".format(self.h))
             self.h = 24
 
