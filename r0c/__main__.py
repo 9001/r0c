@@ -215,6 +215,15 @@ class Core(object):
             t = "\033[33mWARNING: you have localhost in --proxy, you probably want --ara too\033[0m"
             print(t)
 
+        taken = {}
+        for zs in "pt pn tpt tpn".split():
+            zi = getattr(ar, zs, 0)
+            if zi in taken:
+                t = "port %d was specified for both -%s and -%s"
+                raise Exception(t % (zi, taken[zi], zs))
+            if zi:
+                taken[zi] = zs
+
         Util.HEX_WIDTH = ar.hex_w
         Itelnet.init(ar)
 
