@@ -4,7 +4,6 @@ from __future__ import print_function
 
 import builtins
 import multiprocessing
-import threading
 import socket
 import struct
 import signal
@@ -178,6 +177,10 @@ class Client(object):
         util.Daemon(self.actor)
         util.Daemon(self.rx_loop)
         util.Daemon(self.tx_loop)
+
+    def close(self):
+        self.stopping = True
+        self.sck.close()
 
     def send_status(self, txt):
         if False:

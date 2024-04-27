@@ -17,7 +17,7 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 * tries to be irssi
 * zero dependencies on python 2.6, 2.7, 3.x
 * supports telnet, netcat, /dev/tcp, TLS clients
-* is not an irc server, but can bridge to/from irc servers
+* is not an irc server, but can [bridge to/from irc servers](#irc)
 * [modem-aware](https://ocv.me/r0c-2400.webm); comfortable at 1200 bps
 * fallbacks for inhumane conditions
   * linemode
@@ -31,6 +31,7 @@ retr0chat is the lightweight, no-dependencies, runs-anywhere solution for when l
 
 * 1980: [TVI 920C](https://a.ocv.me/pub/g/nerd-stuff/r0c-tvi-920c.jpg)
 * 1987: [IBM 3151](https://a.ocv.me/pub/g/nerd-stuff/r0c-ibm-3151.jpg) (also [video](https://a.ocv.me/pub/g/nerd-stuff/r0c-ibm-3151.webm)), using gnu-screen to translate VT100 sequences
+* 1993: [windows 3.11](https://a.ocv.me/pub/g/nerd-stuff/r0c-for-workgroups.png)
 
 ## features
 
@@ -48,7 +49,7 @@ technical:
   * history of sent messages (arrow-up/down)
 * bandwidth-conservative (push/pop lines instead of full redraws; scroll-regions)
 * fast enough; 600 clients @ 750 msgs/sec, or 1'000 cli @ 350 msg/s
-* bridge several irc channels from several networks into one r0c channel
+* [bridge](#irc) several irc channels from several networks into one r0c channel
 
 ## windows clients
 
@@ -107,6 +108,22 @@ you can run it as a service so it autostarts on boot:
 * on most linux distros: [systemd service](docs/systemd/r0c.service) (automatically does port-forwarding)
 * on alpine / gentoo: [openrc service](docs/openrc/r0c)
 * on windows: [nssm](https://nssm.cc/) probably
+
+## irc
+
+if you want to connect your r0c instance to an irc network and bridge channels between them, you can do that:
+
+![screenshot of a r0c channel being bridged to an irc channel](docs/r0c-irc.png)
+
+```bash
+python3 r0c.py --ircn a,127.0.0.1,6667,r0c --ircb a,chat,g
+```
+
+run that command to start r0c with irc bridging enabled; r0c will then connect to an irc server (which we nicknamed `a`) on `127.0.0.1:6667` with the irc-nick `r0c` and bridge the irc-channel `#chat` with the r0c-channel `#g`
+
+if you then start an irc server locally, for example [miniircd](https://github.com/jrosdahl/miniircd/blob/master/miniircd) by running `python3 miniircd --verbose` then you're all set, people can now join r0c by connecting via irc
+
+to bridge additional channels on the same network, add more `--ircb` args, for example `--ircb a,tech,tech` like in the screenshot, and optionally add more networks with `--ircn`
 
 ## firewall rules
 

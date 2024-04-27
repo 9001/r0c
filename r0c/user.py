@@ -149,7 +149,7 @@ class User(object):
             # the messy version
             text = u"""
 `1;30m______    `37m_`30m    ______
-`1;30m\\\\\\\\\\\\\\  `37m/ \\  `30m///////   `0mret`1mr0c`22mhat r0c_ver `36m-----
+`1;30m\\\\\\\\\\\\\\  `37m/ \\  `30m///////   `0mret`1mr0c`22mhat r0c_ver `36m---
  `1;30m\\\\ `36m/`37m^^  | |  `36m/^`0;36m^`1;30m //    `0mgithub.com/9001/r0c
   `1;30m\\ `0;36m|    `1m\\_/  `0;36m\\__ `1;30m/     `0;36m------b. r0c_build `0m
 """
