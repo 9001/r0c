@@ -327,6 +327,7 @@ class VT100_Client(object):
             self.uee_offset = -uee.start
 
         # outgoing data
+        self.info_q = []
         self.outbox = []
         self.replies = []
         self.last_tx = None
@@ -373,6 +374,7 @@ class VT100_Client(object):
         self.show_hilight_tutorial = True
         self.need_full_redraw = False
         self.too_small = False
+        self.bad_naws = False
         self.screen = []
         self.w = 80
         self.h = 24
@@ -618,23 +620,32 @@ class VT100_Client(object):
         return len(nonl)
 
     def set_term_size(self, w, h):
+        wh = (w, h)
+        nick = self.user.nick
+
+        if self.ar.dbg:
+            print("terminal sz:  %dx%d  @%s" % (w, h, nick))
+
+        if w >= 512 or not w:  # always 0 on win3.11
+            w = 80
+        if h >= 512 or not h:  # never seen 0 but hey
+            h = 24
+
         self.w = w
         self.h = h
-        if self.ar.dbg:
-            print("terminal sz:  {0}x{1}".format(self.w, self.h))
-
-        if self.w >= 512 or not self.w:  # always 0 on win3.11
-            print("screen width {0} reduced to 80".format(self.w))
-            self.w = 80
-        if self.h >= 512 or not self.h:  # never seen 0 but hey
-            print("screen height {0} reduced to 24".format(self.h))
-            self.h = 24
-
-        self.user.nick_len = len(self.user.nick)
-        if self.user.nick_len > self.w * 0.25:
-            self.user.nick_len = int(self.w * 0.25)
-
         self.handshake_sz = True
+        self.user.nick_len = min(len(nick), int(w * 0.25))
+
+        if wh != (w, h) and not self.bad_naws:
+            self.bad_naws = True
+            t = u"%dx%d; will assume %dx%d" % (wh[0], wh[1], w, h)
+            print(u"   bad naws:  %s  @%s" % (t, self.user.nick))
+
+            t = u"your client reported windowsize " + t
+            if self.user.chans:
+                self.world.send_chan_msg(u"-nfo-", self.user.chans[0].nchan, t, False)
+            else:
+                self.info_q.append(t)
 
     def handshake_timeout(self):
         if self.ar.dbg:
@@ -2608,6 +2619,10 @@ class VT100_Client(object):
             self.user.create_channels()
             if not self.slowmo_tx:
                 self.world.cserial += 1
+
+            while self.info_q:
+                t = self.info_q.pop(0)
+                self.world.send_chan_msg(u"-nfo-", self.user.chans[0].nchan, t, False)
 
     def check_correct_iface(self, next_stage):
         self.wizard_stage = next_stage
