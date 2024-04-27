@@ -443,6 +443,8 @@ class VT100_Client(object):
         self.add_esc(u"\x0c", "redraw")  # ^L (readline-compat)
         self.add_esc(u"\x12", "redraw")  # ^R
         self.add_esc(u"\x0e", "view")  # ^N
+        self.add_esc(u"\x15", "pgup")  # ^U
+        self.add_esc(u"\x04", "pgdn")  # ^D
         self.add_esc(u"\x01", "prev-chan")  # ^A
         self.add_esc(u"\x18", "next-chan")  # ^X
         self.add_esc(u"\x05", "alt-tab")  # ^E

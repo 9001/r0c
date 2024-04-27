@@ -59,8 +59,8 @@ Keybinds:
   \033[36mHome\033[0m / \033[36mEnd\033[0m      input field jump
   \033[36mPgUp\033[0m / \033[36mPgDown\033[0m   chatlog scrolling... \033[1mtry it :-)\033[0m
 
-if you are using a mac, PgUp is fn-Shift-PgUp
-if your terminal is tiny, try \033[36m/mn\033[0m and \033[36m/cy\033[0m
+* if your terminal is tiny, try commands \033[36m/mn\033[0m and \033[36m/cy\033[0m
+* Cannot scroll? try these:  \033[36mCTRL-U\033[0m  \033[36mCTRL-D\033[0m  \033[36m/u\033[0m  \033[36m/d\033[0m
 """
 
 
