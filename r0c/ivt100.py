@@ -2849,6 +2849,14 @@ class VT100_Client(object):
                         self.last_beep = time.time() - 0.9
                         if self.echo_on:
                             self.need_full_redraw = True
+                        if not self.user.active_chan:
+                            t = "XXX sendmsg without %s <%s> %r" % (
+                                "active chan??" if self.handshake_sz else "termsz",
+                                self.user.nick,
+                                self.linebuf,
+                            )
+                            print(t)
+                            self.linebuf = u""
                         if self.linebuf:
                             # add this to the message/command ("input") history
                             if not self.msg_hist or self.msg_hist[-1] != self.linebuf:
