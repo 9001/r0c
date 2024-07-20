@@ -11,7 +11,6 @@ import re
 import time
 import zlib
 import socket
-import threading
 import binascii
 from datetime import datetime
 import operator
@@ -705,32 +704,7 @@ class VT100_Client(object):
         self.outbox.append(message)
 
     def writable(self):
-        # if not self.replies.empty() or self.backlog:
-        # 	print('REPLY!!')
-        # else:
-        # 	print('@' if self.backlog or not self.replies.empty() or not self.outbox.empty() else '.', end='')
-        # 	sys.stdout.flush()
-
-        # if self.slowmo_tx:
-        # 	#print('x')
-        # 	now = time.time()
-        # 	if self.last_tx is not None and now - self.last_tx < 0.01:
-        # 		return False
-        # 	#print('ooo')
-
-        # looks like we might end up here after all,
-        # TODO: safeguard against similar issues (thanks asyncore)
-        try:
-            return not self.dead and (self.backlog or self.replies or self.outbox)
-        except:
-            # terrible print-once guard
-            try:
-                self.crash_case_1 += 1
-            except:
-                self.crash_case_1 = 1
-                Util.whoops()
-            if not self.dead:
-                self.host.part(self)
+        return (self.backlog or self.replies or self.outbox) and not self.dead
 
     def handle_close(self):
         if not self.dead:
@@ -742,15 +716,18 @@ class VT100_Client(object):
             self.host.part(self)
 
     def handle_write(self):
-        if not self.writable():
-            return
+        slow = self.slowmo_tx or self.wizard_stage
+        frame_sz = 480 if slow else 3939
 
         msg = self.backlog
         self.backlog = b""
 
         for src in [self.replies, self.outbox]:
-            while len(msg) < 480 and src:
+            while src and len(msg) < frame_sz:
                 msg += src.pop(0)
+
+        if self.dead or not msg:
+            return
 
         if self.ar.hex_tx:
             if len(msg) < self.ar.hex_lim:
@@ -764,7 +741,7 @@ class VT100_Client(object):
             )
             Util.hexdump(msg, "<", self.wire_log)
 
-        if self.slowmo_tx:
+        if slow:
             end_pos = next(
                 (
                     i
@@ -773,7 +750,6 @@ class VT100_Client(object):
                 ),
                 len(msg),
             )
-            self.backlog = msg[end_pos:]
             sent = self.sck.send(msg[:end_pos])
             self.backlog = msg[sent:]
             self.slowmo_skips = self.slowmo_tx

@@ -299,7 +299,11 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
             else:
                 print("  *  {0} server disabled".format(srv))
 
-        if hasattr(select, "poll") and getattr(ar, "poll", True) and not getattr(ar, "no_poll", False):
+        if (
+            hasattr(select, "poll")
+            and getattr(ar, "poll", True)
+            and not getattr(ar, "no_poll", False)
+        ):
             poll = True
             ncli = rlimit(ar.nc)
         else:

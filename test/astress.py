@@ -230,6 +230,8 @@ class Core(object):
         self.stopping = True
 
     def signal_handler(self, signal, frame):
+        if self.stopping:
+            sys.exit(0)
         self.shutdown()
 
 
