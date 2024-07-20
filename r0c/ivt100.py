@@ -704,9 +704,6 @@ class VT100_Client(object):
     def say(self, message):
         self.outbox.append(message)
 
-    def readable(self):
-        return not self.dead
-
     def writable(self):
         # if not self.replies.empty() or self.backlog:
         # 	print('REPLY!!')

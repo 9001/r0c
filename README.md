@@ -48,7 +48,7 @@ technical:
 * message input with readline-like editing (arrow-left/right, home/end, backspace)
   * history of sent messages (arrow-up/down)
 * bandwidth-conservative (push/pop lines instead of full redraws; scroll-regions)
-* fast enough; 600 clients @ 750 msgs/sec, or 1'000 cli @ 350 msg/s
+* fast enough; 600 clients @ 750 msgs/sec, or 1500 cli @ 75 msg/s
 * [bridge](#irc) several irc channels from several networks into one r0c channel
 
 ## windows clients

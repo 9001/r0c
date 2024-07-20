@@ -20,6 +20,7 @@ if PY2:
 else:
     unicode = str
 
+MACOS = platform.system() == "Darwin"
 WINDOWS = False
 if platform.system() == "Windows":
     WINDOWS = [int(x) for x in platform.version().split(".")]

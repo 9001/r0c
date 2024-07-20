@@ -2,7 +2,7 @@
 # coding: utf-8
 from __future__ import print_function
 from .__version__ import S_VERSION
-from .__init__ import EP, WINDOWS, COLORS, unicode
+from .__init__ import COLORS, EP, MACOS, WINDOWS, unicode
 from . import util as Util
 from . import inetcat as Inetcat
 from . import itelnet as Itelnet
@@ -68,6 +68,13 @@ def optgen(ap, pwd):
     ac.add_argument("--i-rate", metavar="B,R", type=u, default="4,2", help="rate limit; burst of B messages, then R seconds between each")
     ac.add_argument("--ctcp-ver", metavar="S", type=u, default="r0c v%s" % (S_VERSION), help="reply to CTCP VERSION")
 
+    ac = ap.add_argument_group("limits")
+    ac.add_argument("-nc", metavar="NUM", type=int, default=0, help="allow NUM simultaneous client connections (will keep OS-default if 0)")
+    if MACOS:
+        ac.add_argument("--poll", action="store_true", help="allow more than 1000 simultaneous client connections (WARNING: buggy on many macos versions)")
+    if hasattr(select, "poll") and not MACOS:
+        ac.add_argument("--no-poll", action="store_true", help="use the older 'select' API; reduces the max num simultaneous connections to 1000")
+
     ac = ap.add_argument_group("ux")
     ac.add_argument("--no-all", action="store_true", help="default-disable @all / @everyone")
     ac.add_argument("--motd", metavar="PATH", type=u, default="", help="file to include at the end of the welcome-text (can be edited at runtime)")
@@ -107,6 +114,7 @@ class Fargparse(object):
 def run_fap(argv, pwd):
     ap = Fargparse()
     optgen(ap, pwd)
+    setattr(ap, "no_poll", True)
 
     if u"-h" in unicode(([""] + argv)[-1]):
         print()
@@ -171,6 +179,37 @@ try:
 
 except:
     run_ap = run_fap
+
+
+def rlimit(bump):
+    try:
+        import resource
+
+        soft, hard = [
+            int(x) if x > 0 else 1024 * 1024
+            for x in list(resource.getrlimit(resource.RLIMIT_NOFILE))
+        ]
+    except:
+        soft = hard = None
+
+    if not soft or not hard:
+        return "Unknown (check ulimit)"
+
+    if not bump:
+        return "%d (os-default)" % (soft,)
+
+    suf = ""
+    if bump > hard:
+        bump = hard
+        suf = " due to ulimit"
+
+    try:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (bump, hard))
+        soft = bump
+    except:
+        return "%d (bump failed)" % (soft,)
+
+    return "%d%s" % (bump, suf)
 
 
 class Core(object):
@@ -260,6 +299,14 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
             else:
                 print("  *  {0} server disabled".format(srv))
 
+        if hasattr(select, "poll") and getattr(ar, "poll", True) and not getattr(ar, "no_poll", False):
+            poll = True
+            ncli = rlimit(ar.nc)
+        else:
+            poll = False
+            ncli = "500 (os-limit)" if WINDOWS else "1000"
+        print("  *  Max num clients: %s" % (ncli,))
+
         if ar.pw == "hunter2":
             print("\033[1;31m")
             print("  using default password '{0}'".format(ar.pw))
@@ -318,7 +365,7 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
             ircn.connect()
 
         print("  *  Running")
-        self.select_thr = Util.Daemon(self.select_worker, "selector")
+        self.select_thr = Util.Daemon(self.select_worker, "selector", (poll,))
 
         return True
 
@@ -423,10 +470,11 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         print("  *  r0c is down")
         return True
 
-    def select_worker(self):
+    def select_worker(self, poll):
         srvs = {}
         for iface in self.servers:
-            srvs[iface.srv_sck] = iface
+            s = iface.srv_sck
+            srvs[s.fileno() if poll else s] = iface
 
         t_fast = 0.5 if self.ar.ircn else 1
 
@@ -437,6 +485,9 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
         nfast = 0
         dirty_ref = 0
         next_slow = 0
+        want_rx = []
+        want_tx = []
+        poller = None
         timeout = None
         while not self.shutdown_flag.is_set():
             nsn = self.world.cserial
@@ -452,13 +503,15 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
                         else:
                             fast[c.sck] = c
 
-                        sc[c.sck] = c
+                        sc[c.sck.fileno() if poll else c.sck] = c
 
                 timeout = 0.2 if slow else t_fast if fast else 69
+                want_rx = list(sc) + list(srvs)
+                if poll:
+                    poller = select.poll()
+                    _ = [poller.register(fd) for fd in want_rx]
 
             want_tx = [s for s, c in fast.items() if c.writable()]
-            want_rx = [s for s, c in sc.items() if c.readable()]
-            want_rx += list(srvs.keys())
 
             now = time.time()
             if slow and now >= next_slow:
@@ -481,8 +534,21 @@ printf '%s\\n' GK . . . . r0c.int . | openssl req -newkey rsa:2048 -sha256 -keyo
             ct = 0.09 if nfast < 2 else timeout
 
             try:
-                # print("sel", len(want_rx), len(want_tx), ct)
-                rxs, txs, _ = select.select(want_rx, want_tx, [], ct)
+                if poll:
+                    want_tx = [x.fileno() for x in want_tx]
+                    lut = set(want_tx)
+                    for fd in want_rx:
+                        if fd in lut:
+                            poller.modify(fd, select.POLLIN | select.POLLOUT)
+                        else:
+                            poller.modify(fd, select.POLLIN)
+
+                    ready = poller.poll(ct * 1000)
+                    rxs = [x[0] for x in ready if x[1] & select.POLLIN]
+                    txs = [x[0] for x in ready if x[1] & select.POLLOUT]
+                else:
+                    rxs, txs, _ = select.select(want_rx, want_tx, [], ct)
+
                 if self.stopping:
                     break
 
