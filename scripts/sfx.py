@@ -4,6 +4,19 @@ from __future__ import print_function, unicode_literals
 
 import os, sys, time, bz2, shutil, threading, tarfile, hashlib, platform, tempfile, traceback
 
+
+# skip 1
+#
+# py2sfx (sfx.py) - bundle python-modules into an executable sfx.py
+# (c)2020, ed <oss@ocv.me>, MIT-licensed, originally from copyparty:
+# https://github.com/9001/copyparty/blob/hovudstraum/scripts/sfx.py
+#
+# to create an sfx, use this:
+# https://github.com/9001/r0c/blob/master/scripts/make-sfx.sh
+#
+# skip 0
+
+
 """
 to edit this file, use HxD or "vim -b"
   (there is compressed stuff at the end)
